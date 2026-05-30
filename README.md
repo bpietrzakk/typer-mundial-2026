@@ -56,6 +56,7 @@ Liczy się najwyższy trafiony próg — punkty się nie sumują.
 | Hosting frontend | Vercel (darmowy) |
 | Hosting backend | Railway (~$5/mies.) |
 | Hosting bazy | Supabase (darmowy, 500 MB) |
+| Migracje bazy | Raw SQL pliki (`db/migrations/NNN_nazwa.sql`) |
 | Mobile | PWA (Progressive Web App) |
 
 ---
@@ -176,7 +177,7 @@ docker compose up -d
 # zainstaluj zależności
 uv sync
 
-# uruchom migracje
+# uruchom migracje (ręcznie w kolejności — każda nowa zmiana schematu to nowy plik)
 psql -h localhost -U mundial -d mundial -f db/migrations/001_init.sql
 psql -h localhost -U mundial -d mundial -f db/migrations/002_seed_mundial_2026.sql
 
