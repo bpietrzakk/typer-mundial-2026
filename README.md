@@ -80,50 +80,12 @@ private_league_members   — przynależność do prywatnej ligi
 
 ## Struktura projektu
 
-Projekt składa się z dwóch osobnych repozytoriów:
+Jeden monorepo z dwoma podfolderami:
 
 ```
-mundial-backend/           ← FastAPI, deploy na Railway
-├── domain/
-│   ├── scoring.py         ← czysta funkcja punktująca
-│   ├── match_results.py   ← przeliczanie punktów po meczu
-│   └── predictions.py     ← walidacja deadline
-├── db/
-│   ├── connection.py      ← connection pool (psycopg2)
-│   ├── queries.py         ← SQL-e jako stałe stringi
-│   └── migrations/        ← numerowane pliki .sql
-├── routers/
-│   ├── auth.py            ← /auth/register, /auth/login, /auth/forgot-password
-│   ├── matches.py         ← GET /matches, GET /matches/{id}
-│   ├── predictions.py     ← POST /predictions
-│   ├── bonus.py           ← POST /bonus/champion, /bonus/group-advances
-│   ├── ranking.py         ← GET /ranking, GET /ranking/{league_id}
-│   ├── leagues.py         ← POST /leagues, POST /leagues/join
-│   └── admin.py           ← POST /matches/{id}/result
-├── services/
-│   ├── football_api.py    ← pobieranie wyników z football-data.org
-│   └── email.py           ← wysyłanie maili przez Resend
-├── schemas/
-│   └── models.py          ← Pydantic modele request/response
-├── .env.example
-└── main.py
-
-mundial-frontend/          ← React + Vite, deploy na Vercel
-├── public/
-│   ├── manifest.json      ← PWA
-│   └── icon-512.png
-├── src/
-│   ├── api/               ← funkcje fetch do backendu
-│   ├── components/        ← przyciski, tabele, formularze
-│   ├── pages/
-│   │   ├── Login.jsx
-│   │   ├── Register.jsx
-│   │   ├── Matches.jsx
-│   │   ├── Ranking.jsx
-│   │   └── League.jsx
-│   └── context/
-│       └── AuthContext.jsx ← JWT token, zalogowany user
-└── vite.config.js
+mundial_typer_2026/              ← jeden git repo
+├── mundial-backend/             ← FastAPI, deploy na Railway
+└── mundial-frontend/            ← React + Vite, deploy na Vercel
 ```
 
 ---
@@ -245,14 +207,14 @@ FRONTEND_URL=http://localhost:5173
 ### Backend (Railway)
 
 1. Załóż konto na [railway.app](https://railway.app)
-2. Połącz z repozytorium GitHub `mundial-backend`
+2. Połącz z repozytorium GitHub, ustaw katalog roboczy na `mundial-backend`
 3. Ustaw zmienne środowiskowe w panelu Railway
 4. Railway automatycznie deployuje przy każdym push na `main`
 
 ### Frontend (Vercel)
 
 1. Załóż konto na [vercel.com](https://vercel.com)
-2. Połącz z repozytorium GitHub `mundial-frontend`
+2. Połącz z repozytorium GitHub, ustaw katalog roboczy na `mundial-frontend`
 3. Ustaw zmienną `VITE_API_URL=https://twoj-backend.railway.app`
 4. Vercel automatycznie deployuje przy każdym push na `main`
 
@@ -266,6 +228,34 @@ FRONTEND_URL=http://localhost:5173
 | football-data.org | Free | $0 |
 | Resend | Free (3000 maili/mies.) | $0 |
 | **Razem** | | **~$5/mies.** |
+
+---
+
+## Podział pracy
+
+| Bartek (backend) | Kolega (frontend) |
+|------------------|-------------------|
+| FastAPI — auth, endpointy, migracje | React — strony, komponenty, routing |
+| Integracja football-data.org | Tailwind — responsywny design, PWA |
+| Logika punktacji + bonusy | Formularze typowania, walidacja |
+| Deploy Railway + Supabase | Deploy Vercel |
+
+Wspólnie: schemat bazy danych + kontrakt API (co endpoint zwraca).
+
+---
+
+## Dlaczego nie kicktipp.pl?
+
+| Funkcja | kicktipp.pl | Ta apka |
+|---------|-------------|---------|
+| Prywatne ligi | ✅ | ✅ |
+| Kod zaproszenia | ✅ | ✅ |
+| Auto wyniki | ✅ | ✅ |
+| Typ mistrza + awanse | ✅ | ✅ |
+| Mobilna apka | ✅ natywna | PWA (wystarczy) |
+| Reklamy | ✅ (plan darmowy) | ❌ |
+| Własny branding | ❌ | ✅ |
+| Cena | $0 (z reklamami) | ~$5/mies. |
 
 ---
 
@@ -472,14 +462,14 @@ FRONTEND_URL=http://localhost:5173
 ### Backend (Railway)
 
 1. Sign up at [railway.app](https://railway.app)
-2. Connect to GitHub repo `mundial-backend`
+2. Connect to GitHub repo, set root directory to `mundial-backend`
 3. Set environment variables in Railway dashboard
 4. Railway auto-deploys on every push to `main`
 
 ### Frontend (Vercel)
 
 1. Sign up at [vercel.com](https://vercel.com)
-2. Connect to GitHub repo `mundial-frontend`
+2. Connect to GitHub repo, set root directory to `mundial-frontend`
 3. Set `VITE_API_URL=https://your-backend.railway.app`
 4. Vercel auto-deploys on every push to `main`
 
