@@ -9,9 +9,9 @@ load_dotenv()
 # read connection params from env — defaults match .env.example
 _host     = os.getenv("POSTGRES_HOST", "localhost")
 _port     = os.getenv("POSTGRES_PORT", "5432")
-_user     = os.getenv("POSTGRES_USER", "typer")
-_password = os.getenv("POSTGRES_PASSWORD", "typer")
-_dbname   = os.getenv("POSTGRES_DB", "typer")
+_user     = os.getenv("POSTGRES_USER", "mundial")
+_password = os.getenv("POSTGRES_PASSWORD", "mundial")
+_dbname   = os.getenv("POSTGRES_DB", "mundial")
 
 # create connection pool at startup
 # minconn=1 keeps one connection ready at all times
