@@ -3,35 +3,37 @@ import os
 from dotenv import load_dotenv
 from psycopg2 import pool
 
-# load env variables so we have db credentials
+# load env once at import so connection params are ready when the pool is built
 load_dotenv()
 
-# read connection params from env — defaults match .env.example
-_host     = os.getenv("POSTGRES_HOST", "localhost")
-_port     = os.getenv("POSTGRES_PORT", "5432")
-_user     = os.getenv("POSTGRES_USER", "mundial")
-_password = os.getenv("POSTGRES_PASSWORD", "mundial")
-_dbname   = os.getenv("POSTGRES_DB", "mundial")
+# lazy: the pool is only built when something actually asks for a connection
+# this means `import db.connection` does NOT hit Postgres — handy for tests
+# that override db.queries via monkeypatch and never need the real DB
+_pool: pool.SimpleConnectionPool | None = None
 
-# create connection pool at startup
-# minconn=1 keeps one connection ready at all times
-# maxconn=5 allows up to 5 simultaneous db connections
-_pool = pool.SimpleConnectionPool(
-    minconn=1,
-    maxconn=5,
-    host=_host,
-    port=_port,
-    user=_user,
-    password=_password,
-    dbname=_dbname,
-)
+
+def _build_pool() -> pool.SimpleConnectionPool:
+    return pool.SimpleConnectionPool(
+        minconn=1,
+        maxconn=5,
+        host=os.getenv("POSTGRES_HOST", "localhost"),
+        port=os.getenv("POSTGRES_PORT", "5432"),
+        user=os.getenv("POSTGRES_USER", "mundial"),
+        password=os.getenv("POSTGRES_PASSWORD", "mundial"),
+        dbname=os.getenv("POSTGRES_DB", "mundial"),
+    )
 
 
 def get_conn():
-    # borrow a free connection from the pool
+    # borrow a free connection; build the pool the first time we're called
+    global _pool
+    if _pool is None:
+        _pool = _build_pool()
     return _pool.getconn()
 
 
 def release_conn(conn) -> None:
-    # return the connection back to the pool so others can use it
-    _pool.putconn(conn)
+    # return the connection to the pool so others can reuse it
+    # safe to call even if the pool was never built (no-op then)
+    if _pool is not None:
+        _pool.putconn(conn)

@@ -1,10 +1,11 @@
 import os
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from psycopg2.errors import UniqueViolation
 
 from db.queries import create_user, get_user_by_email
 from domain.auth import create_access_token, hash_password, verify_password
+from routers.deps import get_current_user
 from schemas.models import LoginRequest, RegisterRequest, UserResponse
 
 
@@ -88,3 +89,24 @@ def logout(response: Response) -> None:
         secure=_COOKIE_SECURE,
         samesite="lax",
     )
+
+
+@router.get("/me", response_model=UserResponse)
+def me(current_user: dict = Depends(get_current_user)) -> dict:
+    # canonical "who am I" endpoint — frontend hits this on app boot
+    # to find out if the user is still logged in (cookie still valid)
+    return current_user
+
+
+@router.post("/refresh", response_model=UserResponse)
+def refresh(
+    response: Response,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    # if get_current_user passed, the old token is still valid
+    # we just sign a fresh one so the user's session does not expire
+    # frontend calls this periodically before the cookie's max-age runs out
+    secret, days = _read_jwt_config()
+    token = create_access_token(current_user["id"], current_user["nick"], secret, days)
+    _set_auth_cookie(response, token, days)
+    return current_user
