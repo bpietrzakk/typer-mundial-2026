@@ -36,7 +36,7 @@ Projekt dwuosobowy (bartek + kolega). Backend w FastAPI, frontend w React.
 - **Menedżer paczek:** `uv` (zależności w `pyproject.toml`, lock w `uv.lock`)
 - **Baza:** PostgreSQL 16 (lokalnie w Dockerze, produkcja na Supabase)
 - **Dostęp do DB:** `psycopg2-binary` + jawne SQL (bez ORM)
-- **Auth:** JWT (`python-jose`) + bcrypt (`passlib[bcrypt]`)
+- **Auth:** JWT (`python-jose`) + Argon2id (`pwdlib[argon2]`)
 - **Email:** Resend (`resend` SDK)
 - **Dane meczów:** football-data.org API (`httpx` do zapytań)
 - **Walidacja:** Pydantic (wbudowany w FastAPI)
@@ -104,7 +104,7 @@ Punkty są przechowywane w tabeli `scoring_rules` (osobny wiersz per faza). Funk
 - Refresh: endpoint `/auth/refresh` zwraca nowy token jeśli stary jest ważny. Frontend wywołuje automatycznie.
 - Reset hasła: `/auth/forgot-password` wysyła email z linkiem. Link zawiera jednorazowy token ważny 1 godzinę.
 - Rate limiting: max 5 prób logowania na minutę per IP. Blokada na 15 minut.
-- Hasła: bcrypt z solą, koszt factor 12. Nigdy nie przechowujemy plain text.
+- Hasła: Argon2id przez `pwdlib` (preset `PasswordHash.recommended()`). Nigdy nie przechowujemy plain text. (FastAPI tutorial recommendation — następca przestarzałego `passlib`.)
 
 ---
 
