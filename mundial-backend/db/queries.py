@@ -25,6 +25,17 @@ SQL_GET_USER_BY_ID = """
     WHERE id = %s
 """
 
+SQL_LIST_MATCHES = """
+    SELECT
+        m.id, m.stage, m.kickoff_at, m.status, m.home_goals, m.away_goals,
+        h.id AS home_id, h.name AS home_name, h.short_name AS home_short,
+        a.id AS away_id, a.name AS away_name, a.short_name AS away_short
+    FROM matches m
+    JOIN teams h ON h.id = m.home_team_id
+    JOIN teams a ON a.id = m.away_team_id
+    ORDER BY m.kickoff_at ASC, m.id ASC
+"""
+
 
 # --- user queries ---
 
@@ -67,5 +78,34 @@ def get_user_by_id(user_id: int) -> dict | None:
                 cur.execute(SQL_GET_USER_BY_ID, (user_id,))
                 row = cur.fetchone()
                 return dict(row) if row else None
+    finally:
+        release_conn(conn)
+
+
+# --- match queries ---
+
+def _row_to_match(r: dict) -> dict:
+    # flatten the joined row into a nested {home_team: {...}, away_team: {...}} shape
+    # so it serialises straight to MatchResponse
+    return {
+        "id": r["id"],
+        "stage": r["stage"],
+        "kickoff_at": r["kickoff_at"],
+        "status": r["status"],
+        "home_goals": r["home_goals"],
+        "away_goals": r["away_goals"],
+        "home_team": {"id": r["home_id"], "name": r["home_name"], "short_name": r["home_short"]},
+        "away_team": {"id": r["away_id"], "name": r["away_name"], "short_name": r["away_short"]},
+    }
+
+
+def list_matches() -> list[dict]:
+    # full list ordered by kickoff — frontend groups by stage client-side
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_LIST_MATCHES)
+                return [_row_to_match(dict(r)) for r in cur.fetchall()]
     finally:
         release_conn(conn)

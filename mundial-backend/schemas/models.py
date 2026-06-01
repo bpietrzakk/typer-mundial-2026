@@ -26,3 +26,22 @@ class UserResponse(BaseModel):
     email: EmailStr
     email_verified: bool
     created_at: datetime
+
+
+# --- matches ---
+
+class TeamSummary(BaseModel):
+    id: int
+    name: str
+    short_name: str | None
+
+
+class MatchResponse(BaseModel):
+    id: int
+    stage: str
+    kickoff_at: datetime
+    status: str
+    home_team: TeamSummary
+    away_team: TeamSummary
+    home_goals: int | None
+    away_goals: int | None
