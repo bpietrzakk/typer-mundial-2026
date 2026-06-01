@@ -31,13 +31,14 @@ SQL_GET_USER_BY_ID = """
 def create_user(nick: str, email: str, password_hash: str) -> dict:
     # may raise psycopg2.errors.UniqueViolation if nick or email is taken
     # router catches that and returns HTTP 409
+    # 'with conn:' commits on success or rolls back on exception so the
+    # connection goes back to the pool clean
     conn = get_conn()
     try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(SQL_INSERT_USER, (nick, email, password_hash))
-            row = cur.fetchone()
-            conn.commit()
-            return dict(row)
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_INSERT_USER, (nick, email, password_hash))
+                return dict(cur.fetchone())
     finally:
         release_conn(conn)
 
@@ -47,10 +48,11 @@ def get_user_by_email(email: str) -> dict | None:
     # so the router can call verify_password()
     conn = get_conn()
     try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(SQL_GET_USER_BY_EMAIL, (email,))
-            row = cur.fetchone()
-            return dict(row) if row else None
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_GET_USER_BY_EMAIL, (email,))
+                row = cur.fetchone()
+                return dict(row) if row else None
     finally:
         release_conn(conn)
 
@@ -60,9 +62,10 @@ def get_user_by_id(user_id: int) -> dict | None:
     # never returns password_hash — callers don't need it past login
     conn = get_conn()
     try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(SQL_GET_USER_BY_ID, (user_id,))
-            row = cur.fetchone()
-            return dict(row) if row else None
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_GET_USER_BY_ID, (user_id,))
+                row = cur.fetchone()
+                return dict(row) if row else None
     finally:
         release_conn(conn)

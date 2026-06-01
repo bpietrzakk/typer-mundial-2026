@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from routers import auth as auth_router
+
 
 app = FastAPI(
     title="Mundial Typer",
@@ -25,5 +27,5 @@ def health():
     return {"status": "ok"}
 
 
-# routers will be registered here as we build them out
-# (auth, matches, predictions, ranking, leagues, bonus, admin)
+app.include_router(auth_router.router)
+# more routers will land here: matches, predictions, ranking, leagues, bonus, admin
