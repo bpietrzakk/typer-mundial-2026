@@ -450,6 +450,17 @@ Koszt: ~$5/mies. (Railway) + $0 (Vercel + Supabase)
 - Komentarze w kodzie po angielsku, proste, styl junior/mid.
 - `/clear` między zupełnie różnymi zadaniami.
 
+### Pętla pracy Claude'a (obowiązkowa)
+
+Przy każdym zadaniu Claude trzyma się tej pętli:
+
+1. **Plan** — zanim cokolwiek zmieni, pokazuje co planuje zrobić i czeka na OK (chyba że zadanie jest trywialne).
+2. **Implementacja** — małymi krokami, jedno zadanie naraz.
+3. **Test** — odpala testy / sprawdza endpoint w `/docs` / weryfikuje że SQL przechodzi na bazie. Nie kończy bez tego.
+4. **Sanity check** — patrzy czy nic innego się nie zepsuło, czy zmiana jest zgodna z CLAUDE.md (model danych, ŻELAZNE ZASADY, konwencje).
+5. **Propozycja commita** — kiedy uzna że to dobry moment (skończony logiczny kawałek), pokazuje *propozycję* wiadomości commita z krótkim opisem. **Nie wykonuje** `git commit` sam — czeka na potwierdzenie.
+6. **Branch check** — przed proponowaniem commita sprawdza `git branch --show-current`. Jeśli aktualny branch to `main` (lub `master`) — **zatrzymuje się** i prosi o przełączenie na feature branch. Nigdy nie commituje bezpośrednio na main.
+
 ---
 
 ## Co NIE wchodzi w MVP
