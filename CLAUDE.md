@@ -458,7 +458,7 @@ Przy każdym zadaniu Claude trzyma się tej pętli:
 2. **Implementacja** — małymi krokami, jedno zadanie naraz.
 3. **Test** — odpala testy / sprawdza endpoint w `/docs` / weryfikuje że SQL przechodzi na bazie. Nie kończy bez tego.
 4. **Sanity check** — patrzy czy nic innego się nie zepsuło, czy zmiana jest zgodna z CLAUDE.md (model danych, ŻELAZNE ZASADY, konwencje).
-5. **Propozycja commita** — kiedy uzna że to dobry moment (skończony logiczny kawałek), pokazuje *propozycję* wiadomości commita z krótkim opisem. **Nie wykonuje** `git commit` sam — czeka na potwierdzenie.
+5. **Raport zmian + propozycja commita** — pokazuje statystyki (`git diff --stat`: ile linijek dodanych/usuniętych per plik) + jedno krótkie zdanie per plik co tam zrobił + jednozdaniową propozycję wiadomości commita. **Nie wykonuje** `git commit` — robi to user sam.
 6. **Branch check** — przed proponowaniem commita sprawdza `git branch --show-current`. Jeśli aktualny branch to `main` (lub `master`) — **zatrzymuje się** i prosi o przełączenie na feature branch. Nigdy nie commituje bezpośrednio na main.
 
 ---
