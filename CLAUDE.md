@@ -3,7 +3,7 @@
 Aplikacja do typowania wyników meczów Mundialu 2026 dla znajomych.
 Prywatne ligi z kodem zaproszenia, automatyczne wyniki z API, ranking, bonusy za mistrza i awanse z grup.
 
-Projekt dwuosobowy (bartek + kolega). Backend w FastAPI, frontend w React.
+Projekt dwuosobowy (bartek + Daniel). Backend w FastAPI, frontend w React.
 
 ---
 
@@ -458,8 +458,28 @@ Przy każdym zadaniu Claude trzyma się tej pętli:
 2. **Implementacja** — małymi krokami, jedno zadanie naraz.
 3. **Test** — odpala testy / sprawdza endpoint w `/docs` / weryfikuje że SQL przechodzi na bazie. Nie kończy bez tego.
 4. **Sanity check** — patrzy czy nic innego się nie zepsuło, czy zmiana jest zgodna z CLAUDE.md (model danych, ŻELAZNE ZASADY, konwencje).
-5. **Raport zmian + propozycja commita** — pokazuje statystyki (`git diff --stat`: ile linijek dodanych/usuniętych per plik) + jedno krótkie zdanie per plik co tam zrobił + jednozdaniową propozycję wiadomości commita. **Nie wykonuje** `git commit` — robi to user sam.
-6. **Branch check** — przed proponowaniem commita sprawdza `git branch --show-current`. Jeśli aktualny branch to `main` (lub `master`) — **zatrzymuje się** i prosi o przełączenie na feature branch. Nigdy nie commituje bezpośrednio na main.
+5. **Raport zmian + propozycja commita** — pokazuje statystyki (`git diff --stat`: ile linijek dodanych/usuniętych per plik) + jedno krótkie zdanie per plik co tam zrobił + jednozdaniową propozycję wiadomości commita. **Wszystkie operacje git wykonują bartek lub Daniel** — patrz niżej.
+
+### Git operacje — Claude NIGDY samodzielnie
+
+Claude **nie wykonuje żadnych operacji git**, kropka. Konkretnie zakazane:
+
+- `git commit` (nawet `--amend`)
+- `git checkout` (przełączanie brancha)
+- `git checkout -b` / `git branch` (tworzenie nowego brancha)
+- `git merge`, `git rebase`
+- `git push`, `git pull`, `git fetch`
+- `git stash`, `git reset`, `git restore`
+- jakikolwiek `gh` modyfikujący (`gh pr create`, `gh pr merge`, itd.)
+
+**Wszystkie operacje git wykonują bartek lub Daniel ręcznie.** Claude może:
+
+- **Czytać** stan repo dla raportowania: `git status`, `git log`, `git diff`, `git branch --show-current`, `gh pr view`
+- **Proponować** — pokazać planowaną wiadomość commita, powiedzieć "trzeba przełączyć branch", ostrzec że jesteśmy na main
+
+Jeśli Claude widzi że trzeba zmienić branch / scommitować / wypchnąć — **mówi to wprost** i czeka aż user to zrobi. Nie próbuje sam. Jeśli user prosi o coś co wymaga gita (np. "stwórz branch i zacznij feature X"), Claude odpowiada "potrzebuję żebyś sam utworzył branch X, potem ruszam" — bez wykonywania.
+
+**Branch check** zostaje (`git branch --show-current` przed propozycją commita) — jeśli to main, Claude prosi o przełączenie i czeka.
 
 ---
 

@@ -233,7 +233,7 @@ FRONTEND_URL=http://localhost:5173
 
 ## Podział pracy
 
-| Bartek (backend) | Kolega (frontend) |
+| Bartek (backend) | Daniel (frontend) |
 |------------------|-------------------|
 | FastAPI — auth, endpointy, migracje | React — strony, komponenty, routing |
 | Integracja football-data.org | Tailwind — responsywny design, PWA |
