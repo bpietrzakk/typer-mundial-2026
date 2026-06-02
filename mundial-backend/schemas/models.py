@@ -64,3 +64,10 @@ class PredictionResponse(BaseModel):
     pred_away: int
     points_awarded: int | None  # null until the match is finished and scored
     created_at: datetime
+
+
+# --- admin: match result ---
+
+class MatchResultRequest(BaseModel):
+    home_goals: int = Field(ge=0, le=99)
+    away_goals: int = Field(ge=0, le=99)

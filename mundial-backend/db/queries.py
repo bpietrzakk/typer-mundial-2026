@@ -1,6 +1,18 @@
 from psycopg2.extras import RealDictCursor
 
 from db.connection import get_conn, release_conn
+from domain.scoring import calculate_points
+
+
+# --- exceptions ---
+# raised by query functions, caught by routers and mapped to HTTP codes
+
+class MatchNotFound(Exception):
+    pass
+
+
+class MatchAlreadyFinished(Exception):
+    pass
 
 
 # --- SQL constants ---
@@ -51,6 +63,50 @@ SQL_UPSERT_PREDICTION = """
             pred_away = EXCLUDED.pred_away
     RETURNING id, user_id, match_id, pred_home, pred_away,
               points_awarded, created_at
+"""
+
+# admin endpoint — runs all inside a single transaction in finalize_match()
+
+SQL_LOCK_MATCH_FOR_UPDATE = """
+    SELECT id, status, stage
+    FROM matches
+    WHERE id = %s
+    FOR UPDATE
+"""
+
+SQL_UPDATE_MATCH_RESULT = """
+    UPDATE matches
+    SET home_goals = %s, away_goals = %s, status = 'finished'
+    WHERE id = %s
+"""
+
+SQL_LIST_PREDICTIONS_FOR_MATCH = """
+    SELECT id, pred_home, pred_away
+    FROM predictions
+    WHERE match_id = %s
+"""
+
+SQL_GET_SCORING_RULE = """
+    SELECT exact_pts, diff_pts, tendency_pts
+    FROM scoring_rules
+    WHERE stage = %s
+"""
+
+SQL_UPDATE_PREDICTION_POINTS = """
+    UPDATE predictions
+    SET points_awarded = %s
+    WHERE id = %s
+"""
+
+SQL_GET_MATCH_FULL = """
+    SELECT
+        m.id, m.stage, m.kickoff_at, m.status, m.home_goals, m.away_goals,
+        h.id AS home_id, h.name AS home_name, h.short_name AS home_short,
+        a.id AS away_id, a.name AS away_name, a.short_name AS away_short
+    FROM matches m
+    JOIN teams h ON h.id = m.home_team_id
+    JOIN teams a ON a.id = m.away_team_id
+    WHERE m.id = %s
 """
 
 
@@ -157,5 +213,59 @@ def upsert_prediction(
                     (user_id, match_id, pred_home, pred_away),
                 )
                 return dict(cur.fetchone())
+    finally:
+        release_conn(conn)
+
+
+# --- admin / match result orchestration ---
+
+def finalize_match(match_id: int, home_goals: int, away_goals: int) -> dict:
+    # Single-transaction match finalization. Steps:
+    #   1. lock the match row (FOR UPDATE — blocks concurrent finalize calls)
+    #   2. raise MatchNotFound / MatchAlreadyFinished early if needed
+    #   3. update match: set goals + status='finished'
+    #   4. fetch all predictions for this match + the scoring_rule for its stage
+    #   5. compute points for every prediction (pure domain.scoring.calculate_points)
+    #   6. batch UPDATE predictions.points_awarded
+    #   7. return the joined match (MatchResponse shape) for the router
+    #
+    # Everything happens under one 'with conn:' block so either all writes
+    # commit or none do — no half-finalized matches.
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                # 1 & 2 — lock + guard
+                cur.execute(SQL_LOCK_MATCH_FOR_UPDATE, (match_id,))
+                row = cur.fetchone()
+                if row is None:
+                    raise MatchNotFound()
+                if row["status"] == "finished":
+                    # iron rule: a match is scored exactly once
+                    raise MatchAlreadyFinished()
+                stage = row["stage"]
+
+                # 3 — write the result
+                cur.execute(
+                    SQL_UPDATE_MATCH_RESULT, (home_goals, away_goals, match_id),
+                )
+
+                # 4 — load predictions and scoring rule
+                cur.execute(SQL_LIST_PREDICTIONS_FOR_MATCH, (match_id,))
+                predictions = cur.fetchall()
+                cur.execute(SQL_GET_SCORING_RULE, (stage,))
+                rules = dict(cur.fetchone())
+
+                # 5 & 6 — score each prediction and persist
+                for pred in predictions:
+                    pts = calculate_points(
+                        pred["pred_home"], pred["pred_away"],
+                        home_goals, away_goals, rules,
+                    )
+                    cur.execute(SQL_UPDATE_PREDICTION_POINTS, (pts, pred["id"]))
+
+                # 7 — return the joined match for the response
+                cur.execute(SQL_GET_MATCH_FULL, (match_id,))
+                return _row_to_match(dict(cur.fetchone()))
     finally:
         release_conn(conn)

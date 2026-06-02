@@ -1,13 +1,16 @@
 import os
 
-from fastapi import Cookie, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, status
 
 from db.queries import get_user_by_id
 from domain.auth import decode_access_token
 
 
-# must match the cookie name set by routers/auth.py
-_COOKIE_NAME = "access_token"
+def _admin_emails() -> set[str]:
+    # read at request time so .env changes do not need a restart in dev
+    # empty / missing env = no admins, every request to admin endpoint 403s
+    raw = os.getenv("ADMIN_EMAILS", "")
+    return {e.strip().lower() for e in raw.split(",") if e.strip()}
 
 
 def get_current_user(access_token: str | None = Cookie(default=None)) -> dict:
@@ -37,3 +40,14 @@ def get_current_user(access_token: str | None = Cookie(default=None)) -> dict:
         )
 
     return user
+
+
+def get_admin_user(current_user: dict = Depends(get_current_user)) -> dict:
+    # admin == email is on the ADMIN_EMAILS list in .env (case-insensitive)
+    # see docs/decisions.md #005 for why we don't use a users.is_admin column
+    if current_user["email"].lower() not in _admin_emails():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Brak uprawnień",
+        )
+    return current_user
