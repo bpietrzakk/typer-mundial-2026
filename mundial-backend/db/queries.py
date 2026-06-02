@@ -36,6 +36,23 @@ SQL_LIST_MATCHES = """
     ORDER BY m.kickoff_at ASC, m.id ASC
 """
 
+SQL_GET_MATCH_BY_ID = """
+    SELECT id, league_id, home_team_id, away_team_id,
+           kickoff_at, home_goals, away_goals, status, stage
+    FROM matches
+    WHERE id = %s
+"""
+
+SQL_UPSERT_PREDICTION = """
+    INSERT INTO predictions (user_id, match_id, pred_home, pred_away)
+    VALUES (%s, %s, %s, %s)
+    ON CONFLICT (user_id, match_id) DO UPDATE
+        SET pred_home = EXCLUDED.pred_home,
+            pred_away = EXCLUDED.pred_away
+    RETURNING id, user_id, match_id, pred_home, pred_away,
+              points_awarded, created_at
+"""
+
 
 # --- user queries ---
 
@@ -107,5 +124,38 @@ def list_matches() -> list[dict]:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(SQL_LIST_MATCHES)
                 return [_row_to_match(dict(r)) for r in cur.fetchall()]
+    finally:
+        release_conn(conn)
+
+
+def get_match_by_id(match_id: int) -> dict | None:
+    # raw match row (no team join) — router only needs kickoff_at + existence
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_GET_MATCH_BY_ID, (match_id,))
+                row = cur.fetchone()
+                return dict(row) if row else None
+    finally:
+        release_conn(conn)
+
+
+# --- prediction queries ---
+
+def upsert_prediction(
+    user_id: int, match_id: int, pred_home: int, pred_away: int
+) -> dict:
+    # ON CONFLICT (user_id, match_id) DO UPDATE — one prediction per user per match
+    # user can change their guess until kickoff; router enforces the time check
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    SQL_UPSERT_PREDICTION,
+                    (user_id, match_id, pred_home, pred_away),
+                )
+                return dict(cur.fetchone())
     finally:
         release_conn(conn)

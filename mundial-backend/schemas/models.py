@@ -45,3 +45,22 @@ class MatchResponse(BaseModel):
     away_team: TeamSummary
     home_goals: int | None
     away_goals: int | None
+
+
+# --- predictions ---
+
+class PredictionRequest(BaseModel):
+    # 99 is just a sanity upper bound — no real football match hits that
+    match_id: int
+    pred_home: int = Field(ge=0, le=99)
+    pred_away: int = Field(ge=0, le=99)
+
+
+class PredictionResponse(BaseModel):
+    id: int
+    user_id: int
+    match_id: int
+    pred_home: int
+    pred_away: int
+    points_awarded: int | None  # null until the match is finished and scored
+    created_at: datetime

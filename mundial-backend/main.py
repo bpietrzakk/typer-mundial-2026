@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routers import auth as auth_router
 from routers import matches as matches_router
+from routers import predictions as predictions_router
 
 
 app = FastAPI(
@@ -30,4 +31,5 @@ def health():
 
 app.include_router(auth_router.router)
 app.include_router(matches_router.router)
-# more routers will land here: predictions, ranking, leagues, bonus, admin
+app.include_router(predictions_router.router)
+# more routers will land here: ranking, leagues, bonus, admin
