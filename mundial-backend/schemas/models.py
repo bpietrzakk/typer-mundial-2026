@@ -71,3 +71,12 @@ class PredictionResponse(BaseModel):
 class MatchResultRequest(BaseModel):
     home_goals: int = Field(ge=0, le=99)
     away_goals: int = Field(ge=0, le=99)
+
+
+# --- ranking ---
+
+class RankingEntry(BaseModel):
+    rank: int
+    user_id: int
+    nick: str
+    total_points: int
