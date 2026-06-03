@@ -80,3 +80,31 @@ class RankingEntry(BaseModel):
     user_id: int
     nick: str
     total_points: int
+
+
+# --- private leagues ---
+
+class CreateLeagueRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=64)
+
+
+class JoinLeagueRequest(BaseModel):
+    # join codes are exactly 8 chars from a fixed alphabet (domain/leagues.py)
+    join_code: str = Field(min_length=8, max_length=8)
+
+
+class LeagueMember(BaseModel):
+    user_id: int
+    nick: str
+    is_admin: bool
+    joined_at: datetime
+
+
+class LeagueDetailResponse(BaseModel):
+    id: int
+    name: str
+    owner_user_id: int
+    owner_nick: str
+    join_code: str  # only members ever see this — router gates access
+    created_at: datetime
+    members: list[LeagueMember]

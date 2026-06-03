@@ -1,6 +1,8 @@
+from psycopg2.errors import UniqueViolation
 from psycopg2.extras import RealDictCursor
 
 from db.connection import get_conn, release_conn
+from domain.leagues import generate_join_code
 from domain.scoring import calculate_points
 
 
@@ -12,6 +14,14 @@ class MatchNotFound(Exception):
 
 
 class MatchAlreadyFinished(Exception):
+    pass
+
+
+class LeagueNotFound(Exception):
+    pass
+
+
+class AlreadyMember(Exception):
     pass
 
 
@@ -140,6 +150,87 @@ SQL_GLOBAL_RANKING = """
 """
 
 
+# private leagues
+# create_league does TWO inserts in one transaction: the league row + the
+# owner as the first (admin) member. anything else and we could end up with
+# orphaned leagues that nobody belongs to.
+
+SQL_INSERT_LEAGUE = """
+    INSERT INTO private_leagues (name, owner_user_id, join_code)
+    VALUES (%s, %s, %s)
+    RETURNING id, name, owner_user_id, join_code, created_at
+"""
+
+SQL_INSERT_LEAGUE_MEMBER = """
+    INSERT INTO private_league_members (private_league_id, user_id, is_admin)
+    VALUES (%s, %s, %s)
+"""
+
+SQL_GET_LEAGUE_BY_CODE = """
+    SELECT id, name, owner_user_id, join_code, created_at
+    FROM private_leagues
+    WHERE join_code = %s
+"""
+
+# joined with owner nick so the response can show "owner: bartek" without
+# a second round-trip
+SQL_GET_LEAGUE_WITH_OWNER = """
+    SELECT pl.id, pl.name, pl.owner_user_id, owner.nick AS owner_nick,
+           pl.join_code, pl.created_at
+    FROM private_leagues pl
+    JOIN users owner ON owner.id = pl.owner_user_id
+    WHERE pl.id = %s
+"""
+
+SQL_IS_LEAGUE_MEMBER = """
+    SELECT 1 FROM private_league_members
+    WHERE private_league_id = %s AND user_id = %s
+"""
+
+SQL_LIST_LEAGUE_MEMBERS = """
+    SELECT plm.user_id, u.nick, plm.is_admin, plm.joined_at
+    FROM private_league_members plm
+    JOIN users u ON u.id = plm.user_id
+    WHERE plm.private_league_id = %s
+    ORDER BY plm.joined_at ASC
+"""
+
+# private league ranking — same shape as global, but
+#   1) outer JOIN with private_league_members filters to members of this league
+#   2) bonus subqueries filter to bonuses created INSIDE this league
+#      (bonuses are per-league per schema — different friend groups can have
+#       different champion picks)
+SQL_LEAGUE_RANKING = """
+    SELECT
+        u.id,
+        u.nick,
+        COALESCE(pp.total, 0) + COALESCE(bp.total, 0) + COALESCE(gap.total, 0)
+            AS total_points
+    FROM users u
+    JOIN private_league_members plm
+        ON plm.user_id = u.id AND plm.private_league_id = %s
+    LEFT JOIN (
+        SELECT p.user_id, SUM(p.points_awarded) AS total
+        FROM predictions p
+        JOIN matches m ON m.id = p.match_id AND m.status = 'finished'
+        GROUP BY p.user_id
+    ) pp ON pp.user_id = u.id
+    LEFT JOIN (
+        SELECT user_id, SUM(points_awarded) AS total
+        FROM bonus_predictions
+        WHERE private_league_id = %s
+        GROUP BY user_id
+    ) bp ON bp.user_id = u.id
+    LEFT JOIN (
+        SELECT user_id, SUM(points_awarded) AS total
+        FROM group_advance_predictions
+        WHERE private_league_id = %s
+        GROUP BY user_id
+    ) gap ON gap.user_id = u.id
+    ORDER BY total_points DESC, u.nick ASC
+"""
+
+
 # --- user queries ---
 
 def create_user(nick: str, email: str, password_hash: str) -> dict:
@@ -249,6 +340,125 @@ def upsert_prediction(
 
 # --- admin / match result orchestration ---
 
+# --- private league queries ---
+
+# how many times we retry on a join_code collision before giving up.
+# probability of one collision is ~1 in 10^12 per generation; getting 5 in a
+# row is astronomically unlikely so this is really just a safety net.
+_JOIN_CODE_MAX_RETRIES = 5
+
+
+def create_league(name: str, owner_user_id: int) -> dict:
+    # 1) generate a fresh join_code, insert league
+    # 2) insert owner as member with is_admin=TRUE
+    # both inside one 'with conn:' block so a failure on step 2 rolls back
+    # step 1 — no orphan leagues with no members ever
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                last_err: Exception | None = None
+                for _ in range(_JOIN_CODE_MAX_RETRIES):
+                    try:
+                        code = generate_join_code()
+                        cur.execute(
+                            SQL_INSERT_LEAGUE, (name, owner_user_id, code),
+                        )
+                        league = dict(cur.fetchone())
+                        break
+                    except UniqueViolation as e:
+                        # only retry on join_code collision; other constraint
+                        # violations should bubble up
+                        last_err = e
+                        conn.rollback()
+                else:
+                    raise RuntimeError(
+                        "could not generate unique join_code after retries"
+                    ) from last_err
+
+                cur.execute(
+                    SQL_INSERT_LEAGUE_MEMBER,
+                    (league["id"], owner_user_id, True),
+                )
+                return league
+    finally:
+        release_conn(conn)
+
+
+def get_league_by_code(join_code: str) -> dict | None:
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_GET_LEAGUE_BY_CODE, (join_code,))
+                row = cur.fetchone()
+                return dict(row) if row else None
+    finally:
+        release_conn(conn)
+
+
+def get_league_with_owner(league_id: int) -> dict | None:
+    # returns league row + owner_nick in one query, None if league missing
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_GET_LEAGUE_WITH_OWNER, (league_id,))
+                row = cur.fetchone()
+                return dict(row) if row else None
+    finally:
+        release_conn(conn)
+
+
+def is_league_member(league_id: int, user_id: int) -> bool:
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(SQL_IS_LEAGUE_MEMBER, (league_id, user_id))
+                return cur.fetchone() is not None
+    finally:
+        release_conn(conn)
+
+
+def list_league_members(league_id: int) -> list[dict]:
+    # ordered by joined_at — owner is first since they're inserted at creation
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_LIST_LEAGUE_MEMBERS, (league_id,))
+                return [dict(r) for r in cur.fetchall()]
+    finally:
+        release_conn(conn)
+
+
+def join_league(join_code: str, user_id: int) -> dict:
+    # raises LeagueNotFound if code doesn't match any league
+    # raises AlreadyMember if user is already in this league
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_GET_LEAGUE_BY_CODE, (join_code,))
+                row = cur.fetchone()
+                if row is None:
+                    raise LeagueNotFound()
+                league = dict(row)
+                try:
+                    cur.execute(
+                        SQL_INSERT_LEAGUE_MEMBER,
+                        (league["id"], user_id, False),
+                    )
+                except UniqueViolation:
+                    # composite PK (private_league_id, user_id) collided —
+                    # user already in this league
+                    raise AlreadyMember()
+                return league
+    finally:
+        release_conn(conn)
+
+
 # --- ranking queries ---
 
 def get_global_ranking() -> list[dict]:
@@ -260,6 +470,30 @@ def get_global_ranking() -> list[dict]:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(SQL_GLOBAL_RANKING)
+                rows = cur.fetchall()
+                return [
+                    {
+                        "rank": i + 1,
+                        "user_id": r["id"],
+                        "nick": r["nick"],
+                        "total_points": int(r["total_points"]),
+                    }
+                    for i, r in enumerate(rows)
+                ]
+    finally:
+        release_conn(conn)
+
+
+def get_league_ranking(league_id: int) -> list[dict]:
+    # same shape as global ranking but only league members; bonuses scoped
+    # to this private league (different friend groups -> different bonus picks)
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    SQL_LEAGUE_RANKING, (league_id, league_id, league_id),
+                )
                 rows = cur.fetchall()
                 return [
                     {
