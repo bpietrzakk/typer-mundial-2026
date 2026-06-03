@@ -108,3 +108,39 @@ class LeagueDetailResponse(BaseModel):
     join_code: str  # only members ever see this — router gates access
     created_at: datetime
     members: list[LeagueMember]
+
+
+# --- bonuses ---
+
+class ChampionBonusRequest(BaseModel):
+    league_id: int
+    team_id: int
+
+
+class ChampionBonusResponse(BaseModel):
+    id: int
+    user_id: int
+    private_league_id: int
+    champion_team_id: int
+    points_awarded: int | None
+    created_at: datetime
+
+
+class GroupAdvancePick(BaseModel):
+    # group_name is 1-4 chars to cover 'A'..'Z' and any 'A1'-style notation
+    group_name: str = Field(min_length=1, max_length=4)
+    team_id: int
+
+
+class GroupAdvancesRequest(BaseModel):
+    league_id: int
+    # cap at 100 — Mundial 2026 has 12 groups × 2 advancing = 24 picks
+    # extra room for play-money variants ('top 3 from each group' etc.)
+    picks: list[GroupAdvancePick] = Field(min_length=1, max_length=100)
+
+
+class GroupAdvanceEntry(BaseModel):
+    id: int
+    group_name: str
+    team_id: int
+    points_awarded: int | None
