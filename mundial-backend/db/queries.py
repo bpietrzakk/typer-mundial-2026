@@ -2,6 +2,7 @@ from psycopg2.errors import UniqueViolation
 from psycopg2.extras import RealDictCursor
 
 from db.connection import get_conn, release_conn
+from domain.bonuses import ADVANCE_POINTS_PER_TEAM, CHAMPION_POINTS
 from domain.leagues import generate_join_code
 from domain.scoring import calculate_points
 
@@ -234,6 +235,27 @@ SQL_LIST_GROUP_ADVANCES = """
     FROM group_advance_predictions
     WHERE user_id = %s AND private_league_id = %s
     ORDER BY group_name, team_id
+"""
+
+# admin scoring of bonuses — single UPDATE with CASE so the operation is
+# atomic and idempotent (admin can re-run safely after a correction).
+# points value is passed as a parameter so domain.bonuses owns the constants.
+
+SQL_SCORE_CHAMPION_BONUSES = """
+    UPDATE bonus_predictions
+    SET points_awarded = CASE
+        WHEN champion_team_id = %s THEN %s
+        ELSE 0
+    END
+"""
+
+SQL_SCORE_GROUP_ADVANCES = """
+    UPDATE group_advance_predictions
+    SET points_awarded = CASE
+        WHEN team_id = ANY(%s) THEN %s
+        ELSE 0
+    END
+    WHERE group_name = %s
 """
 
 
@@ -562,6 +584,40 @@ def list_group_advances(user_id: int, league_id: int) -> list[dict]:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(SQL_LIST_GROUP_ADVANCES, (user_id, league_id))
                 return [dict(r) for r in cur.fetchall()]
+    finally:
+        release_conn(conn)
+
+
+# --- admin bonus scoring ---
+
+def score_all_champion_bonuses(real_champion_team_id: int) -> int:
+    # updates every bonus_predictions row across all private leagues.
+    # returns number of rows changed so admin sees the impact.
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    SQL_SCORE_CHAMPION_BONUSES,
+                    (real_champion_team_id, CHAMPION_POINTS),
+                )
+                return cur.rowcount
+    finally:
+        release_conn(conn)
+
+
+def score_all_group_advances(group_name: str, real_team_ids: list[int]) -> int:
+    # scopes the UPDATE to one group_name so other groups stay untouched.
+    # ANY(%s) accepts a python list as a postgres array — no string building.
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    SQL_SCORE_GROUP_ADVANCES,
+                    (real_team_ids, ADVANCE_POINTS_PER_TEAM, group_name),
+                )
+                return cur.rowcount
     finally:
         release_conn(conn)
 

@@ -144,3 +144,20 @@ class GroupAdvanceEntry(BaseModel):
     group_name: str
     team_id: int
     points_awarded: int | None
+
+
+# --- admin bonus scoring ---
+
+class ChampionResultRequest(BaseModel):
+    team_id: int  # the actual tournament winner
+
+
+class GroupResultRequest(BaseModel):
+    group_name: str = Field(min_length=1, max_length=4)
+    # who really advanced from this group; usually 2 teams but kept flexible
+    team_ids: list[int] = Field(min_length=1, max_length=10)
+
+
+class ScoringImpactResponse(BaseModel):
+    # how many rows the admin's action just touched
+    updated: int
