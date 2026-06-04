@@ -1,3 +1,6 @@
+import asyncio
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,6 +12,9 @@ from routers import leagues as leagues_router
 from routers import matches as matches_router
 from routers import predictions as predictions_router
 from routers import ranking as ranking_router
+
+
+logger = logging.getLogger(__name__)
 
 
 app = FastAPI(
@@ -42,3 +48,53 @@ app.include_router(admin_bonus_router.router)
 app.include_router(ranking_router.router)
 app.include_router(leagues_router.router)
 app.include_router(bonus_router.router)
+
+
+# --- background job: auto-score finished matches ---
+# polls football-data.org every 5 min and calls finalize_match() for any
+# match that moved to FINISHED since we last checked.
+# runs only when FOOTBALL_API_KEY is set — silent no-op otherwise (tests).
+
+_POLL_INTERVAL = 5 * 60   # seconds
+
+
+async def _poll_results() -> None:
+    # lazy import so the module-level import doesn't trigger during tests
+    # where FOOTBALL_API_KEY isn't set
+    import os
+    if not os.getenv("FOOTBALL_API_KEY"):
+        logger.info("FOOTBALL_API_KEY not set — skipping background job")
+        return
+
+    from db.queries import finalize_match, get_match_by_external_id, MatchAlreadyFinished, MatchNotFound
+    from services.football_api import fetch_finished_matches
+
+    while True:
+        await asyncio.sleep(_POLL_INTERVAL)
+        try:
+            finished = fetch_finished_matches()
+            for m in finished:
+                row = get_match_by_external_id(m["external_id"])
+                if row is None or row["status"] == "finished":
+                    continue  # not in our DB yet, or already finalized
+                if m["home_goals"] is None or m["away_goals"] is None:
+                    continue  # API returned finished but no score yet
+                try:
+                    finalize_match(row["id"], m["home_goals"], m["away_goals"])
+                    logger.info(
+                        "auto-finalized match external_id=%s %s:%s",
+                        m["external_id"], m["home_goals"], m["away_goals"],
+                    )
+                except MatchAlreadyFinished:
+                    pass  # race condition — already done, ignore
+                except MatchNotFound:
+                    pass  # shouldn't happen but safe to skip
+        except Exception as exc:
+            # log and continue — never crash the background task
+            # we'll retry in the next poll cycle (5 min)
+            logger.warning("result poll failed: %s", exc)
+
+
+@app.on_event("startup")
+async def startup() -> None:
+    asyncio.create_task(_poll_results())

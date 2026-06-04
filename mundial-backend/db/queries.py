@@ -30,6 +30,85 @@ class AlreadyMember(Exception):
 # every query is a module-level constant — easy to grep, easy to audit
 # all parameters use %s, never f-strings with user data (iron rule #6)
 
+# bootstrap: upsert teams and matches from football-data.org API
+# both use external_id as the natural key so re-running is idempotent
+
+SQL_UPSERT_TEAM = """
+    INSERT INTO teams (name, short_name, league_id, external_id)
+    VALUES (%s, %s, (SELECT id FROM leagues WHERE name = 'Mundial 2026'), %s)
+    ON CONFLICT (external_id) DO UPDATE
+        SET name = EXCLUDED.name,
+            short_name = EXCLUDED.short_name
+    RETURNING id, name, short_name, external_id
+"""
+
+SQL_UPSERT_MATCH = """
+    INSERT INTO matches (
+        league_id, home_team_id, away_team_id,
+        kickoff_at, stage, status, home_goals, away_goals, external_id
+    )
+    VALUES (
+        (SELECT id FROM leagues WHERE name = 'Mundial 2026'),
+        (SELECT id FROM teams WHERE external_id = %s),
+        (SELECT id FROM teams WHERE external_id = %s),
+        %s, %s, %s, %s, %s, %s
+    )
+    ON CONFLICT (external_id) DO UPDATE
+        SET status     = EXCLUDED.status,
+            home_goals = EXCLUDED.home_goals,
+            away_goals = EXCLUDED.away_goals
+    RETURNING id, external_id, status, home_goals, away_goals
+"""
+
+SQL_GET_MATCH_BY_EXTERNAL_ID = """
+    SELECT id, status FROM matches WHERE external_id = %s
+"""
+
+
+# --- bootstrap functions ---
+
+def upsert_team(name: str, short_name: str, external_id: str) -> dict:
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_UPSERT_TEAM, (name, short_name, external_id))
+                return dict(cur.fetchone())
+    finally:
+        release_conn(conn)
+
+
+def upsert_match(
+    home_ext_id: str, away_ext_id: str,
+    kickoff_at: str, stage: str, status: str,
+    home_goals, away_goals, external_id: str,
+) -> dict:
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_UPSERT_MATCH, (
+                    home_ext_id, away_ext_id,
+                    kickoff_at, stage, status,
+                    home_goals, away_goals, external_id,
+                ))
+                return dict(cur.fetchone())
+    finally:
+        release_conn(conn)
+
+
+def get_match_by_external_id(external_id: str) -> dict | None:
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_GET_MATCH_BY_EXTERNAL_ID, (external_id,))
+                row = cur.fetchone()
+                return dict(row) if row else None
+    finally:
+        release_conn(conn)
+
+
 SQL_INSERT_USER = """
     INSERT INTO users (nick, email, password_hash)
     VALUES (%s, %s, %s)

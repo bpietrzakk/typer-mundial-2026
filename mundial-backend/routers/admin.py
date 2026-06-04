@@ -1,12 +1,50 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from db.queries import MatchAlreadyFinished, MatchNotFound, finalize_match
+from db.queries import (
+    MatchAlreadyFinished,
+    MatchNotFound,
+    finalize_match,
+    get_match_by_external_id,
+    upsert_match,
+    upsert_team,
+)
 from routers.deps import get_admin_user
 from schemas.models import MatchResponse, MatchResultRequest
+from services.football_api import fetch_matches, fetch_teams
 
 
 # admin-only endpoints — gated by ADMIN_EMAILS list in .env (see decisions #005)
 router = APIRouter(prefix="/matches", tags=["admin"])
+
+
+@router.post("/bootstrap", status_code=status.HTTP_200_OK)
+def bootstrap_tournament(_admin: dict = Depends(get_admin_user)) -> dict:
+    # one-shot: pulls all 48 teams + 104 matches from football-data.org and
+    # upserts them into the DB. safe to re-run — ON CONFLICT DO UPDATE.
+    # run this once before the tournament starts.
+    teams = fetch_teams()
+    for t in teams:
+        upsert_team(t["name"], t["short_name"], t["external_id"])
+
+    matches = fetch_matches()
+    inserted = updated = 0
+    for m in matches:
+        existing = get_match_by_external_id(m["external_id"])
+        upsert_match(
+            m["home_team_external_id"], m["away_team_external_id"],
+            m["kickoff_at"], m["stage"], m["status"],
+            m["home_goals"], m["away_goals"], m["external_id"],
+        )
+        if existing:
+            updated += 1
+        else:
+            inserted += 1
+
+    return {
+        "teams": len(teams),
+        "matches_inserted": inserted,
+        "matches_updated": updated,
+    }
 
 
 @router.post("/{match_id}/result", response_model=MatchResponse)
