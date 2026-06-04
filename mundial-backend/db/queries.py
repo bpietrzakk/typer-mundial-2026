@@ -155,6 +155,24 @@ SQL_UPSERT_PREDICTION = """
               points_awarded, created_at
 """
 
+# GET /predictions/mine — enriched with match + team info so the
+# "my predictions" screen can show team names, stage and the real result
+# next to the user's guess without extra round-trips
+SQL_LIST_USER_PREDICTIONS = """
+    SELECT
+        p.id, p.match_id, p.pred_home, p.pred_away, p.points_awarded,
+        m.stage AS match_stage, m.kickoff_at, m.status,
+        m.home_goals, m.away_goals,
+        h.name AS home_team_name, h.short_name AS home_team_short,
+        a.name AS away_team_name, a.short_name AS away_team_short
+    FROM predictions p
+    JOIN matches m ON m.id = p.match_id
+    JOIN teams h ON h.id = m.home_team_id
+    JOIN teams a ON a.id = m.away_team_id
+    WHERE p.user_id = %s
+    ORDER BY m.kickoff_at ASC
+"""
+
 # admin endpoint — runs all inside a single transaction in finalize_match()
 
 SQL_LOCK_MATCH_FOR_UPDATE = """
@@ -461,6 +479,20 @@ def get_match_by_id(match_id: int) -> dict | None:
         release_conn(conn)
 
 
+def get_match_full(match_id: int) -> dict | None:
+    # match with both teams joined, in MatchResponse shape — for GET /matches/{id}
+    # reuses the same SQL + flattener as finalize_match's return
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_GET_MATCH_FULL, (match_id,))
+                row = cur.fetchone()
+                return _row_to_match(dict(row)) if row else None
+    finally:
+        release_conn(conn)
+
+
 # --- prediction queries ---
 
 def upsert_prediction(
@@ -477,6 +509,19 @@ def upsert_prediction(
                     (user_id, match_id, pred_home, pred_away),
                 )
                 return dict(cur.fetchone())
+    finally:
+        release_conn(conn)
+
+
+def list_user_predictions(user_id: int) -> list[dict]:
+    # all of one user's predictions, enriched with match + team data,
+    # ordered by kickoff — drives the "my predictions" screen
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_LIST_USER_PREDICTIONS, (user_id,))
+                return [dict(r) for r in cur.fetchall()]
     finally:
         release_conn(conn)
 

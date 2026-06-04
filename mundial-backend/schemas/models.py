@@ -66,6 +66,22 @@ class PredictionResponse(BaseModel):
     created_at: datetime
 
 
+class MyPredictionEntry(BaseModel):
+    # enriched prediction for the "my predictions" screen — guess + real result
+    id: int
+    match_id: int
+    pred_home: int
+    pred_away: int
+    points_awarded: int | None
+    match_stage: str
+    kickoff_at: datetime
+    status: str
+    home_goals: int | None
+    away_goals: int | None
+    home_team_name: str
+    away_team_name: str
+
+
 # --- admin: match result ---
 
 class MatchResultRequest(BaseModel):

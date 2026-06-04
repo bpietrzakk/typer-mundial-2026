@@ -148,3 +148,43 @@ def test_submit_absurd_score_returns_422(monkeypatch):
         cookies=_auth_cookie(),
     )
     assert resp.status_code == 422
+
+
+# --- GET /predictions/mine ---
+
+def test_my_predictions_returns_enriched_list(monkeypatch):
+    monkeypatch.setattr(
+        predictions_module, "list_user_predictions",
+        lambda uid: [
+            {
+                "id": 1, "match_id": 10, "pred_home": 2, "pred_away": 1,
+                "points_awarded": 5, "match_stage": "group",
+                "kickoff_at": "2026-06-11T18:00:00+00:00", "status": "finished",
+                "home_goals": 2, "away_goals": 1,
+                "home_team_name": "Argentina", "away_team_name": "France",
+                # extra field the SQL returns but the schema drops
+                "home_team_short": "ARG",
+            },
+        ],
+    )
+    resp = client.get("/predictions/mine", cookies=_auth_cookie())
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) == 1
+    assert body[0]["home_team_name"] == "Argentina"
+    assert body[0]["match_stage"] == "group"
+    assert body[0]["points_awarded"] == 5
+    # response_model strips fields not in MyPredictionEntry
+    assert "home_team_short" not in body[0]
+
+
+def test_my_predictions_empty_when_none(monkeypatch):
+    monkeypatch.setattr(predictions_module, "list_user_predictions", lambda uid: [])
+    resp = client.get("/predictions/mine", cookies=_auth_cookie())
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+def test_my_predictions_without_auth_returns_401():
+    resp = client.get("/predictions/mine")
+    assert resp.status_code == 401
