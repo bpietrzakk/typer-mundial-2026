@@ -5,7 +5,6 @@ from psycopg2.errors import ForeignKeyViolation
 
 from db.queries import (
     get_champion_bonus,
-    is_league_member,
     list_group_advances,
     replace_group_advances,
     upsert_champion_bonus,
@@ -33,15 +32,8 @@ def _check_deadline() -> None:
         )
 
 
-def _require_member(league_id: int, user_id: int) -> None:
-    # 404 (not 403) so non-members cannot probe for league existence
-    # (consistent with /leagues/{id} and /ranking/{league_id})
-    if not is_league_member(league_id, user_id):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Liga nie istnieje",
-        )
-
+# bonuses are global per user (decisions #009) — no league_id, no membership
+# check; the user's single set of picks counts in every league they're in.
 
 # --- champion ---
 
@@ -51,11 +43,8 @@ def set_champion(
     current_user: dict = Depends(get_current_user),
 ) -> dict:
     _check_deadline()
-    _require_member(body.league_id, current_user["id"])
     try:
-        return upsert_champion_bonus(
-            current_user["id"], body.league_id, body.team_id,
-        )
+        return upsert_champion_bonus(current_user["id"], body.team_id)
     except ForeignKeyViolation:
         # FK on champion_team_id failed — team_id doesn't exist
         raise HTTPException(
@@ -64,17 +53,15 @@ def set_champion(
         )
 
 
-@router.get("/champion/{league_id}", response_model=ChampionBonusResponse)
+@router.get("/champion", response_model=ChampionBonusResponse)
 def get_my_champion(
-    league_id: int,
     current_user: dict = Depends(get_current_user),
 ) -> dict:
-    _require_member(league_id, current_user["id"])
-    bonus = get_champion_bonus(current_user["id"], league_id)
+    bonus = get_champion_bonus(current_user["id"])
     if bonus is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Brak typu mistrza dla tej ligi",
+            detail="Brak typu mistrza",
         )
     return bonus
 
@@ -89,14 +76,11 @@ def set_group_advances(
     # replace strategy: client sends the full set, server wipes the old set
     # and writes the new one. atomic — partial writes never persist.
     _check_deadline()
-    _require_member(body.league_id, current_user["id"])
     picks_payload = [
         {"group_name": p.group_name, "team_id": p.team_id} for p in body.picks
     ]
     try:
-        return replace_group_advances(
-            current_user["id"], body.league_id, picks_payload,
-        )
+        return replace_group_advances(current_user["id"], picks_payload)
     except ForeignKeyViolation:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -104,10 +88,8 @@ def set_group_advances(
         )
 
 
-@router.get("/group-advances/{league_id}", response_model=list[GroupAdvanceEntry])
+@router.get("/group-advances", response_model=list[GroupAdvanceEntry])
 def get_my_group_advances(
-    league_id: int,
     current_user: dict = Depends(get_current_user),
 ) -> list[dict]:
-    _require_member(league_id, current_user["id"])
-    return list_group_advances(current_user["id"], league_id)
+    return list_group_advances(current_user["id"])

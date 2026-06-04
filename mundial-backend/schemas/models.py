@@ -129,14 +129,12 @@ class LeagueDetailResponse(BaseModel):
 # --- bonuses ---
 
 class ChampionBonusRequest(BaseModel):
-    league_id: int
     team_id: int
 
 
 class ChampionBonusResponse(BaseModel):
     id: int
     user_id: int
-    private_league_id: int
     champion_team_id: int
     points_awarded: int | None
     created_at: datetime
@@ -149,7 +147,6 @@ class GroupAdvancePick(BaseModel):
 
 
 class GroupAdvancesRequest(BaseModel):
-    league_id: int
     # cap at 100 — Mundial 2026 has 12 groups × 2 advancing = 24 picks
     # extra room for play-money variants ('top 3 from each group' etc.)
     picks: list[GroupAdvancePick] = Field(min_length=1, max_length=100)

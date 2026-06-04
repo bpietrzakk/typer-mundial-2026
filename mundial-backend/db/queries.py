@@ -294,43 +294,41 @@ SQL_LIST_LEAGUE_MEMBERS = """
 """
 
 # bonus typing endpoints (champion + group advances)
-# bonuses are per (user, private_league) — schema enforces UNIQUE there
+# bonuses are GLOBAL per user (decisions #009) — one set of picks counts in
+# every league the user belongs to, same as match predictions
 
 SQL_UPSERT_CHAMPION_BONUS = """
-    INSERT INTO bonus_predictions (user_id, private_league_id, champion_team_id)
-    VALUES (%s, %s, %s)
-    ON CONFLICT (user_id, private_league_id) DO UPDATE
+    INSERT INTO bonus_predictions (user_id, champion_team_id)
+    VALUES (%s, %s)
+    ON CONFLICT (user_id) DO UPDATE
         SET champion_team_id = EXCLUDED.champion_team_id
-    RETURNING id, user_id, private_league_id, champion_team_id,
-              points_awarded, created_at
+    RETURNING id, user_id, champion_team_id, points_awarded, created_at
 """
 
 SQL_GET_CHAMPION_BONUS = """
-    SELECT id, user_id, private_league_id, champion_team_id,
-           points_awarded, created_at
+    SELECT id, user_id, champion_team_id, points_awarded, created_at
     FROM bonus_predictions
-    WHERE user_id = %s AND private_league_id = %s
+    WHERE user_id = %s
 """
 
-# replace strategy: DELETE everything for this (user, league), then INSERT
-# the new list. UNIQUE (user, league, group, team) in schema would block
-# duplicates within a single submission too.
+# replace strategy: DELETE everything for this user, then INSERT the new list.
+# UNIQUE (user, group, team) blocks duplicates within a single submission too.
 SQL_DELETE_GROUP_ADVANCES = """
     DELETE FROM group_advance_predictions
-    WHERE user_id = %s AND private_league_id = %s
+    WHERE user_id = %s
 """
 
 SQL_INSERT_GROUP_ADVANCE = """
     INSERT INTO group_advance_predictions
-        (user_id, private_league_id, group_name, team_id)
-    VALUES (%s, %s, %s, %s)
+        (user_id, group_name, team_id)
+    VALUES (%s, %s, %s)
     RETURNING id, group_name, team_id, points_awarded
 """
 
 SQL_LIST_GROUP_ADVANCES = """
     SELECT id, group_name, team_id, points_awarded
     FROM group_advance_predictions
-    WHERE user_id = %s AND private_league_id = %s
+    WHERE user_id = %s
     ORDER BY group_name, team_id
 """
 
@@ -357,10 +355,9 @@ SQL_SCORE_GROUP_ADVANCES = """
 
 
 # private league ranking — same shape as global, but
-#   1) outer JOIN with private_league_members filters to members of this league
-#   2) bonus subqueries filter to bonuses created INSIDE this league
-#      (bonuses are per-league per schema — different friend groups can have
-#       different champion picks)
+# JOIN with private_league_members filters to members of this league.
+# bonuses are global per user (decisions #009) — same totals as the global
+# ranking, just restricted to this league's members. takes one param (league_id).
 SQL_LEAGUE_RANKING = """
     SELECT
         u.id,
@@ -379,13 +376,11 @@ SQL_LEAGUE_RANKING = """
     LEFT JOIN (
         SELECT user_id, SUM(points_awarded) AS total
         FROM bonus_predictions
-        WHERE private_league_id = %s
         GROUP BY user_id
     ) bp ON bp.user_id = u.id
     LEFT JOIN (
         SELECT user_id, SUM(points_awarded) AS total
         FROM group_advance_predictions
-        WHERE private_league_id = %s
         GROUP BY user_id
     ) gap ON gap.user_id = u.id
     ORDER BY total_points DESC, u.nick ASC
@@ -649,38 +644,33 @@ def join_league(join_code: str, user_id: int) -> dict:
 
 # --- bonus typing queries ---
 
-def upsert_champion_bonus(user_id: int, league_id: int, team_id: int) -> dict:
-    # ON CONFLICT (user_id, private_league_id) DO UPDATE — one champion per
-    # user per league. raises psycopg2.errors.ForeignKeyViolation if team or
-    # league doesn't exist; router catches and returns 400.
+def upsert_champion_bonus(user_id: int, team_id: int) -> dict:
+    # ON CONFLICT (user_id) DO UPDATE — one champion pick per user, global.
+    # raises psycopg2.errors.ForeignKeyViolation if team doesn't exist;
+    # router catches and returns 400.
     conn = get_conn()
     try:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(
-                    SQL_UPSERT_CHAMPION_BONUS,
-                    (user_id, league_id, team_id),
-                )
+                cur.execute(SQL_UPSERT_CHAMPION_BONUS, (user_id, team_id))
                 return dict(cur.fetchone())
     finally:
         release_conn(conn)
 
 
-def get_champion_bonus(user_id: int, league_id: int) -> dict | None:
+def get_champion_bonus(user_id: int) -> dict | None:
     conn = get_conn()
     try:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(SQL_GET_CHAMPION_BONUS, (user_id, league_id))
+                cur.execute(SQL_GET_CHAMPION_BONUS, (user_id,))
                 row = cur.fetchone()
                 return dict(row) if row else None
     finally:
         release_conn(conn)
 
 
-def replace_group_advances(
-    user_id: int, league_id: int, picks: list[dict],
-) -> list[dict]:
+def replace_group_advances(user_id: int, picks: list[dict]) -> list[dict]:
     # delete-then-insert all in one transaction so any failure rolls back
     # cleanly — never leaves the user with a partial set of picks.
     # picks: [{"group_name": "A", "team_id": 1}, ...]
@@ -688,12 +678,12 @@ def replace_group_advances(
     try:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(SQL_DELETE_GROUP_ADVANCES, (user_id, league_id))
+                cur.execute(SQL_DELETE_GROUP_ADVANCES, (user_id,))
                 inserted = []
                 for pick in picks:
                     cur.execute(
                         SQL_INSERT_GROUP_ADVANCE,
-                        (user_id, league_id, pick["group_name"], pick["team_id"]),
+                        (user_id, pick["group_name"], pick["team_id"]),
                     )
                     inserted.append(dict(cur.fetchone()))
                 return inserted
@@ -701,12 +691,12 @@ def replace_group_advances(
         release_conn(conn)
 
 
-def list_group_advances(user_id: int, league_id: int) -> list[dict]:
+def list_group_advances(user_id: int) -> list[dict]:
     conn = get_conn()
     try:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(SQL_LIST_GROUP_ADVANCES, (user_id, league_id))
+                cur.execute(SQL_LIST_GROUP_ADVANCES, (user_id,))
                 return [dict(r) for r in cur.fetchall()]
     finally:
         release_conn(conn)
@@ -772,15 +762,13 @@ def get_global_ranking() -> list[dict]:
 
 
 def get_league_ranking(league_id: int) -> list[dict]:
-    # same shape as global ranking but only league members; bonuses scoped
-    # to this private league (different friend groups -> different bonus picks)
+    # same shape as global ranking but restricted to league members.
+    # bonuses are global per user (decisions #009), so just one param.
     conn = get_conn()
     try:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(
-                    SQL_LEAGUE_RANKING, (league_id, league_id, league_id),
-                )
+                cur.execute(SQL_LEAGUE_RANKING, (league_id,))
                 rows = cur.fetchall()
                 return [
                     {

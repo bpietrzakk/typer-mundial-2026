@@ -217,3 +217,33 @@ dev z lokalnym hot-reload.
 - Backend entrypoint czeka na postgres (`pg_isready`) i migruje tylko gdy
   schema pusta (`to_regclass('public.users')`). Spójne z #006 — brak
   przyrostowych migracji na zainicjalizowanej bazie.
+
+---
+
+## 009 — Bonusy globalne per user, nie per liga (2026-06-04) — supersedes #005
+
+**Kontekst.** Pierwotnie `bonus_predictions` i `group_advance_predictions`
+były per `(user, private_league)` — typowałeś mistrza osobno w każdej lidze.
+Ale typy MECZÓW (`predictions`) są globalne: `UNIQUE (user_id, match_id)`,
+bez ligi — typujesz raz, liczy się we wszystkich ligach. Dwa różne modele
+w jednej apce. Dodatkowo globalny `GET /ranking` sumował `bonus_predictions`
+po `user_id`, więc bonus usera należącego do N lig liczył się N razy.
+
+**Decyzja.** Bonusy też globalne per user, spójnie z meczami. Migracja 005
+usuwa `private_league_id` z obu tabel. Nowe UNIQUE: `bonus_predictions
+(user_id)`, `group_advance_predictions (user_id, group_name, team_id)`.
+Endpointy bez `league_id`: `POST/GET /bonus/champion`,
+`POST/GET /bonus/group-advances` (wcześniej `/bonus/champion/{league_id}`).
+Liga to tylko filtr rankingu — `GET /ranking/{league_id}` pokazuje globalne
+typy członków danej ligi.
+
+**Dlaczego.** (1) Spójność — jeden model dla wszystkich typów. (2) UX —
+typujesz mistrza raz, nie raz na ligę; tak działają typery dla znajomych
+(kicktipp). (3) Naprawia double-counting bonusów w globalnym rankingu.
+(4) Frontend Daniela już to zakładał (`champion_team_id` bez `league_id`).
+
+**Alternatywa.** Front dosyła `league_id` (mniejsza zmiana) — odrzucone,
+utrwala niespójność z meczami i zły UX (typuj mistrza w każdej lidze osobno).
+
+**Konsekwencje.** Migracja zakłada czyste dane — user z bonusami w wielu
+ligach złamałby nowy `UNIQUE (user_id)`. W dev: `./scripts/migrate.sh --reset`.
