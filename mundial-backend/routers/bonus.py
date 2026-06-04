@@ -44,7 +44,7 @@ def set_champion(
 ) -> dict:
     _check_deadline()
     try:
-        return upsert_champion_bonus(current_user["id"], body.team_id)
+        return upsert_champion_bonus(current_user["id"], body.champion_team_id)
     except ForeignKeyViolation:
         # FK on champion_team_id failed — team_id doesn't exist
         raise HTTPException(

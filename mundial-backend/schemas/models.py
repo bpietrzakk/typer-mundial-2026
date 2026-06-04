@@ -129,7 +129,8 @@ class LeagueDetailResponse(BaseModel):
 # --- bonuses ---
 
 class ChampionBonusRequest(BaseModel):
-    team_id: int
+    # field name matches the DB column + the frontend payload
+    champion_team_id: int
 
 
 class ChampionBonusResponse(BaseModel):

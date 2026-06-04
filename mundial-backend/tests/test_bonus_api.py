@@ -58,16 +58,20 @@ def test_set_champion_returns_200(monkeypatch, open_window):
         }
     monkeypatch.setattr(bonus_module, "upsert_champion_bonus", fake_upsert)
 
-    resp = client.post("/bonus/champion", json={"team_id": 3}, cookies=_cookie())
+    resp = client.post(
+        "/bonus/champion", json={"champion_team_id": 3}, cookies=_cookie(),
+    )
     assert resp.status_code == 200
     assert resp.json()["champion_team_id"] == 3
-    # team_id from request, user_id from JWT (not body)
+    # champion_team_id from request, user_id from JWT (not body)
     assert captured == {"user_id": USER["id"], "team_id": 3}
 
 
 def test_set_champion_after_deadline_returns_409(monkeypatch, closed_window):
     monkeypatch.setattr(deps_module, "get_user_by_id", lambda uid: USER)
-    resp = client.post("/bonus/champion", json={"team_id": 1}, cookies=_cookie())
+    resp = client.post(
+        "/bonus/champion", json={"champion_team_id": 1}, cookies=_cookie(),
+    )
     assert resp.status_code == 409
     assert "Deadline" in resp.json()["detail"]
 
@@ -78,12 +82,14 @@ def test_set_champion_unknown_team_returns_400(monkeypatch, open_window):
     def boom(*a):
         raise ForeignKeyViolation()
     monkeypatch.setattr(bonus_module, "upsert_champion_bonus", boom)
-    resp = client.post("/bonus/champion", json={"team_id": 9999}, cookies=_cookie())
+    resp = client.post(
+        "/bonus/champion", json={"champion_team_id": 9999}, cookies=_cookie(),
+    )
     assert resp.status_code == 400
 
 
 def test_set_champion_without_auth_returns_401():
-    resp = client.post("/bonus/champion", json={"team_id": 1})
+    resp = client.post("/bonus/champion", json={"champion_team_id": 1})
     assert resp.status_code == 401
 
 
