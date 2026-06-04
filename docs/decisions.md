@@ -151,3 +151,32 @@ podwójną aplikacją. Flaga `--reset` daje czysty start w dev.
 
 **Kiedy zrewidować.** Przed pierwszym deploy-em na Supabase / przy >10
 migracjach. Wtedy doda się `schema_migrations` + lekki migrator.
+
+---
+
+## 007 — Login rate limiting in-memory, nie Redis (2026-06-04)
+
+**Kontekst.** CLAUDE.md wymaga rate limitingu na `/auth/login`: 5 prób/min
+per IP, blokada 15 min. Trzeba gdzieś trzymać stan licznika prób per IP.
+
+**Decyzja.** Stan **in-memory** — zwykły `dict[str, RateLimitState]` w
+`routers/auth.py`. Czysta logika (`is_locked`, `record_failure`) w
+`domain/rate_limit.py` dostaje `now` jako argument → testowalna bez zegara.
+Liczymy tylko **nieudane** próby; udane logowanie czyści licznik dla IP.
+IP czytane z `X-Forwarded-For` (za proxy Railway), fallback `client.host`.
+
+**Alternatywy.**
+- Redis — poprawne dla multi-instance, ale dodatkowa infra + zależność dla
+  feature który na single-instance działa trywialnie. Odrzucone na teraz.
+- Postgres (tabela z próbami) — przesada, dokłada zapis do DB na każdy login.
+- Biblioteka `slowapi` — działa, ale to kolejna zależność; nasza logika to
+  ~30 linii i jest w pełni pod kontrolą + przetestowana.
+
+**Konsekwencje.** Stan **nie przeżywa restartu** procesu (restart = reset
+liczników) i **nie jest współdzielony** między workerami/instancjami. Dla
+MVP na jednym kontenerze Railway to akceptowalne — restart i tak rozłącza
+sesje, a brute-force i tak musiałby zmieścić się w oknie między restartami.
+
+**Kiedy zrewidować.** Gdy uruchomimy >1 worker uvicorna (`--workers N`) lub
+>1 instancję na Railway — wtedy każdy proces ma własny licznik i limit się
+rozjeżdża. Przejście na Redis (np. `redis-py` + ten sam `domain/rate_limit`).

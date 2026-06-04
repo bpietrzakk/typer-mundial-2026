@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from domain.auth import create_access_token  # noqa: E402
 from main import app  # noqa: E402
+from routers import auth as auth_module  # noqa: E402
 from routers import deps as deps_module  # noqa: E402
 
 
@@ -22,6 +23,8 @@ def _clear_cookies():
     # TestClient persists cookies across calls by default — wipe them so each
     # test starts with a clean jar, otherwise tokens leak between tests
     client.cookies.clear()
+    # also wipe the login rate-limit store so attempts don't leak between tests
+    auth_module._LOGIN_RATE_LIMIT.clear()
 
 
 FAKE_USER = {
@@ -93,3 +96,46 @@ def test_refresh_issues_new_cookie(monkeypatch):
 def test_refresh_without_cookie_returns_401():
     resp = client.post("/auth/refresh")
     assert resp.status_code == 401
+
+
+# --- login rate limiting (5 failed attempts / min per IP -> 15 min lockout) ---
+
+def test_login_locks_after_five_failed_attempts(monkeypatch):
+    # unknown email -> get_user_by_email returns None -> failed attempt
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: None)
+
+    body = {"email": "nobody@example.com", "password": "wrong"}
+    # first 5 attempts are 401 (bad credentials)
+    for _ in range(5):
+        resp = client.post("/auth/login", json=body)
+        assert resp.status_code == 401
+
+    # 6th attempt is blocked by the lockout, regardless of credentials
+    resp = client.post("/auth/login", json=body)
+    assert resp.status_code == 429
+    assert "Zbyt wiele prób" in resp.json()["detail"]
+
+
+def test_successful_login_resets_attempt_counter(monkeypatch):
+    real_user = {**FAKE_USER, "password_hash": "argon2-hash-placeholder"}
+
+    # 4 failed attempts (one below the threshold)
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: None)
+    for _ in range(4):
+        assert client.post(
+            "/auth/login", json={"email": "x@example.com", "password": "no"},
+        ).status_code == 401
+
+    # now a successful login (valid user + password verifies)
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: real_user)
+    monkeypatch.setattr(auth_module, "verify_password", lambda p, h: True)
+    assert client.post(
+        "/auth/login", json={"email": "b@example.com", "password": "ok"},
+    ).status_code == 200
+
+    # counter was reset — 4 more failures should NOT lock (would need 5 fresh)
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: None)
+    for _ in range(4):
+        assert client.post(
+            "/auth/login", json={"email": "x@example.com", "password": "no"},
+        ).status_code == 401

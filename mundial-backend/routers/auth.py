@@ -1,10 +1,12 @@
 import os
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from psycopg2.errors import UniqueViolation
 
 from db.queries import create_user, get_user_by_email
 from domain.auth import create_access_token, hash_password, verify_password
+from domain.rate_limit import RateLimitState, is_locked, record_failure
 from routers.deps import get_current_user
 from schemas.models import LoginRequest, RegisterRequest, UserResponse
 
@@ -16,6 +18,22 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # secure=False in dev (HTTP); set COOKIE_SECURE=true in prod (HTTPS only)
 _COOKIE_NAME = "access_token"
 _COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+
+
+# in-memory login rate-limit store, keyed by client IP.
+# good enough for a single-instance deploy (see docs/decisions.md #007);
+# swap for Redis if we ever run multiple workers / instances.
+# tests reset this via _LOGIN_RATE_LIMIT.clear()
+_LOGIN_RATE_LIMIT: dict[str, RateLimitState] = {}
+
+
+def _client_ip(request: Request) -> str:
+    # behind a proxy (Railway) the real client IP is the first entry in
+    # X-Forwarded-For; fall back to the direct socket peer in local dev
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
 def _read_jwt_config() -> tuple[str, int]:
@@ -63,15 +81,29 @@ def register(body: RegisterRequest, response: Response) -> dict:
 
 
 @router.post("/login", response_model=UserResponse)
-def login(body: LoginRequest, response: Response) -> dict:
-    # rate limiting (5 attempts / min per IP, 15 min lockout) lands in step 3
+def login(body: LoginRequest, request: Request, response: Response) -> dict:
+    # rate limiting: 5 failed attempts / min per IP -> 15 min lockout
+    ip = _client_ip(request)
+    now = datetime.now(timezone.utc)
+    state = _LOGIN_RATE_LIMIT.get(ip, RateLimitState())
+    if is_locked(state, now):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Zbyt wiele prób logowania, spróbuj ponownie za chwilę",
+        )
+
     user = get_user_by_email(body.email)
     # same message for unknown email and wrong password — no user enumeration
     if user is None or not verify_password(body.password, user["password_hash"]):
+        # count the failure against this IP (may trigger the lockout)
+        _LOGIN_RATE_LIMIT[ip] = record_failure(state, now)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Niepoprawny email lub hasło",
         )
+
+    # successful login clears the counter for this IP
+    _LOGIN_RATE_LIMIT.pop(ip, None)
 
     secret, days = _read_jwt_config()
     token = create_access_token(user["id"], user["nick"], secret, days)
