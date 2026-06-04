@@ -1,0 +1,42 @@
+# full-stack compose: postgres + FastAPI backend + nginx-served React frontend
+# run from repo root:  docker compose up --build
+# open http://localhost:8080
+#
+# needs mundial-backend/.env (cp from .env.example, fill JWT_SECRET etc.)
+# for dev with hot-reload run backend/frontend locally instead and use
+# mundial-backend/docker-compose.yml for just the database.
+
+services:
+  db:
+    image: postgres:16
+    env_file: ./mundial-backend/.env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-mundial}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./mundial-backend
+    env_file: ./mundial-backend/.env
+    environment:
+      # override POSTGRES_HOST — inside the compose network the db is 'db',
+      # not 'localhost' as in the .env used for local dev
+      POSTGRES_HOST: db
+    ports:
+      - "8000:8000"   # exposed for direct Swagger access at :8000/docs
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./mundial-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

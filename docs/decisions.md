@@ -180,3 +180,40 @@ sesje, a brute-force i tak musiałby zmieścić się w oknie między restartami.
 **Kiedy zrewidować.** Gdy uruchomimy >1 worker uvicorna (`--workers N`) lub
 >1 instancję na Railway — wtedy każdy proces ma własny licznik i limit się
 rozjeżdża. Przejście na Redis (np. `redis-py` + ten sam `domain/rate_limit`).
+
+---
+
+## 008 — Docker: nginx serwuje front + reverse-proxy /api do backendu (2026-06-04)
+
+**Kontekst.** Chcieliśmy `docker compose up` odpalające całość (db + backend
++ frontend). Frontend (React Router) ma trasy `/matches`, `/ranking`,
+`/leagues`, `/predictions` — IDENTYCZNE z endpointami API. Gdyby nginx
+proxy-ował te ścieżki do backendu, strony Reacta zwracałyby JSON zamiast HTML.
+
+**Decyzja.** Frontend budowany na produkcję (`npm run build`) i serwowany
+przez nginx (`mundial-frontend/Dockerfile`, multi-stage node→nginx).
+API pod prefiksem **`/api`**: nginx `location /api/ { proxy_pass
+http://backend:8000/; }` — trailing slash zdejmuje `/api`, backend nie wie
+o prefiksie i nie wymaga zmian. Reszta ścieżek → SPA fallback
+(`try_files ... /index.html`). Wszystko na jednym originie `:8080` →
+cookie `SameSite=lax` działa bez CORS. `root` `docker-compose.yml` spina
+db+backend+web; `mundial-backend/docker-compose.yml` (samo db) zostaje na
+dev z lokalnym hot-reload.
+
+**Alternatywy.**
+- Proxy konkretnych ścieżek (`/auth`, `/matches`...) bez prefiksu —
+  odrzucone, bo `/matches` itd. kolidują z trasami Reacta.
+- Frontend i backend na osobnych originach + CORS — działa, ale komplikuje
+  cookie (SameSite, credentials) i odbiega od prod single-origin.
+- Vite dev server w kontenerze (hot-reload) — zostaje jako opcja dev przez
+  lokalne `npm run dev`, nie w prod compose.
+
+**Konsekwencje.**
+- Frontend woła `/api/*`. W kodzie zero zmian — `axios.js` czyta
+  `VITE_API_URL`, ustawiany na `/api` w build (ARG w Dockerfile). Lokalny
+  `npm run dev` ma `VITE_API_URL` puste → vite proxy łapie `/auth` itd.
+- Nginx przekazuje `X-Forwarded-For` — bez tego rate limiter (#007) widziałby
+  wszystkich jako IP nginx i blokował cały serwis po 5 nieudanych logowaniach.
+- Backend entrypoint czeka na postgres (`pg_isready`) i migruje tylko gdy
+  schema pusta (`to_regclass('public.users')`). Spójne z #006 — brak
+  przyrostowych migracji na zainicjalizowanej bazie.

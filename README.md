@@ -117,49 +117,82 @@ Pełna dokumentacja auto-generowana przez FastAPI: `http://localhost:8000/docs`
 
 ## Jak uruchomić lokalnie
 
-### Wymagania
+### Opcja A — wszystko w Dockerze (najszybciej)
 
-- Python 3.11+
-- Node.js 18+
-- Docker (PostgreSQL)
+Jedna komenda stawia bazę, backend i frontend. Wymaga tylko Dockera.
+
+```bash
+# 1. sklonuj repo i wejdź do katalogu
+git clone https://github.com/bpietrzakk/typer-mundial-2026.git
+cd typer-mundial-2026
+
+# 2. utwórz plik .env backendu (sekrety NIE są w repo)
+cp mundial-backend/.env.example mundial-backend/.env
+# otwórz mundial-backend/.env i uzupełnij minimum:
+#   JWT_SECRET=<losowy ciąg min. 32 znaki>
+#   FOOTBALL_API_KEY=<klucz z football-data.org>   (opcjonalne na start)
+#   ADMIN_EMAILS=twoj@email.com                     (kto może wpisywać wyniki)
+
+# 3. zbuduj i odpal całość (z roota repo)
+docker compose up --build
+```
+
+Po chwili:
+- **Aplikacja:** http://localhost:8080
+- **Swagger (API backendu):** http://localhost:8000/docs
+
+Backend sam czeka na bazę i odpala migracje przy pierwszym starcie.
+Zatrzymanie: `Ctrl+C`, potem `docker compose down` (dane bazy zostają;
+`docker compose down -v` czyści też bazę).
+
+> Wygenerowanie losowego `JWT_SECRET`:
+> `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`
+
+### Opcja B — dewelopka z hot-reload (backend i front lokalnie)
+
+Wygodniejsze przy kodowaniu — zmiany w kodzie odświeżają się na żywo.
+
+#### Wymagania
+
+- Python 3.14+
+- Node.js 20+
+- Docker (do samej bazy PostgreSQL)
 - [uv](https://github.com/astral-sh/uv) — menedżer paczek Python
 
-### Backend
+#### Backend
 
 ```bash
 cd mundial-backend
 
 # utwórz .env
 cp .env.example .env
-# uzupełnij: klucz football-data.org, klucz Resend, sekret JWT
+# uzupełnij: JWT_SECRET, FOOTBALL_API_KEY, ADMIN_EMAILS
 
-# uruchom bazę danych
+# uruchom samą bazę danych
 docker compose up -d
 
 # zainstaluj zależności
 uv sync
 
-# uruchom migracje (ręcznie w kolejności — każda nowa zmiana schematu to nowy plik)
-psql -h localhost -U mundial -d mundial -f db/migrations/001_init.sql
-psql -h localhost -U mundial -d mundial -f db/migrations/002_seed_mundial_2026.sql
+# migracje — jeden skrypt aplikuje wszystkie po kolei
+./scripts/migrate.sh
+# (./scripts/migrate.sh --reset  czyści bazę i nakłada od zera)
 
-# uruchom serwer
+# uruchom serwer z auto-restartem
 uv run uvicorn main:app --reload
 ```
 
-Backend dostępny pod: http://localhost:8000
-Swagger UI: http://localhost:8000/docs
+Backend: http://localhost:8000 · Swagger: http://localhost:8000/docs
 
-### Frontend
+#### Frontend
 
 ```bash
 cd mundial-frontend
-
 npm install
 npm run dev
 ```
 
-Frontend dostępny pod: http://localhost:5173
+Frontend: http://localhost:5173 (Vite proxy-uje API do backendu na :8000)
 
 ---
 
@@ -378,35 +411,57 @@ Full auto-generated docs at: `http://localhost:8000/docs`
 
 ## How to Run Locally
 
-### Requirements
+### Option A — everything in Docker (fastest)
 
-- Python 3.11+
-- Node.js 18+
-- Docker (PostgreSQL)
+One command brings up database, backend and frontend. Only Docker required.
+
+```bash
+git clone https://github.com/bpietrzakk/typer-mundial-2026.git
+cd typer-mundial-2026
+
+# create the backend .env (secrets are NOT in the repo)
+cp mundial-backend/.env.example mundial-backend/.env
+# edit mundial-backend/.env — at minimum set JWT_SECRET and ADMIN_EMAILS
+
+# build and run the whole stack from the repo root
+docker compose up --build
+```
+
+- **App:** http://localhost:8080
+- **Swagger (backend API):** http://localhost:8000/docs
+
+Backend waits for the DB and runs migrations on first start.
+Stop with `Ctrl+C` then `docker compose down` (`-v` also wipes the DB).
+
+### Option B — dev with hot-reload (backend & frontend run locally)
+
+#### Requirements
+
+- Python 3.14+
+- Node.js 20+
+- Docker (for the PostgreSQL database only)
 - [uv](https://github.com/astral-sh/uv) — Python package manager
 
-### Backend
+#### Backend
 
 ```bash
 cd mundial-backend
 
 cp .env.example .env
-# fill in: football-data.org key, Resend key, JWT secret
+# fill in: JWT_SECRET, FOOTBALL_API_KEY, ADMIN_EMAILS
 
-docker compose up -d
+docker compose up -d      # database only
 
 uv sync
 
-psql -h localhost -U mundial -d mundial -f db/migrations/001_init.sql
-psql -h localhost -U mundial -d mundial -f db/migrations/002_seed_mundial_2026.sql
+./scripts/migrate.sh      # applies all migrations in order
 
 uv run uvicorn main:app --reload
 ```
 
-Backend: http://localhost:8000
-Swagger UI: http://localhost:8000/docs
+Backend: http://localhost:8000 · Swagger: http://localhost:8000/docs
 
-### Frontend
+#### Frontend
 
 ```bash
 cd mundial-frontend

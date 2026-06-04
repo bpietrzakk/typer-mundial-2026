@@ -329,6 +329,21 @@ mundial-frontend/
 
 ## Jak odpalić lokalnie
 
+### Wszystko w Dockerze (najszybciej)
+
+```bash
+# z roota repo — wymaga mundial-backend/.env (cp z .env.example, uzupełnij JWT_SECRET)
+docker compose up --build
+# → http://localhost:8080  (frontend + API pod /api)
+# → http://localhost:8000/docs  (Swagger backendu)
+```
+
+Backend sam czeka na bazę, odpala migracje przy pierwszym starcie i wstaje.
+Nginx serwuje zbudowany frontend i proxy-uje `/api/*` do backendu (jeden
+origin → cookie auth bez CORS). Szczegóły w `docs/decisions.md` #008.
+Do dewelopki z hot-reload uruchamiaj backend/frontend lokalnie (niżej),
+a `mundial-backend/docker-compose.yml` da samą bazę.
+
 ### Backend
 
 ```bash
