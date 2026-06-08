@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { getMyPredictions } from '../api/predictions';
+import { getRanking } from '../api/ranking';
 
 const STAGE_LABELS = {
   group: 'Faza grupowa',
@@ -40,7 +42,9 @@ const CATEGORY_LABELS = {
 };
 
 export default function MyPredictions() {
+  const { user } = useAuth();
   const [predictions, setPredictions] = useState([]);
+  const [ranking, setRanking] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -52,11 +56,14 @@ export default function MyPredictions() {
     setLoading(true);
     setError('');
     try {
-      const data = await getMyPredictions();
+      const [data, rankData] = await Promise.all([
+        getMyPredictions(),
+        getRanking().catch(() => []),
+      ]);
       setPredictions(data);
+      setRanking(rankData);
     } catch (err) {
       if (err.response?.status === 404) {
-        // endpoint not implemented yet in backend
         setError('Ta funkcja nie jest jeszcze dostępna — wróć wkrótce!');
       } else {
         setError('Nie udało się załadować typów');
@@ -67,11 +74,19 @@ export default function MyPredictions() {
   };
 
   // total points from scored predictions
-  const totalPoints = predictions
-    .filter((p) => p.points_awarded != null)
-    .reduce((sum, p) => sum + p.points_awarded, 0);
+  const scored = predictions.filter((p) => p.points_awarded != null);
+  const totalPoints = scored.reduce((sum, p) => sum + p.points_awarded, 0);
+  const scoredCount = scored.length;
 
-  const scoredCount = predictions.filter((p) => p.points_awarded != null).length;
+  // stats breakdown
+  const cats = { exact: 0, diff: 0, tendency: 0, miss: 0 };
+  scored.forEach((p) => { cats[pointsCategory(p.points_awarded, p.match_stage)]++; });
+  const accuracy = scoredCount > 0 ? Math.round(((cats.exact + cats.diff + cats.tendency) / scoredCount) * 100) : 0;
+
+  // rank & gap to leader
+  const myRankEntry = ranking.find((r) => r.user_id === user?.id);
+  const leader = ranking[0];
+  const gapToLeader = leader && myRankEntry ? leader.total_points - myRankEntry.total_points : null;
 
   if (loading) {
     return (
@@ -104,21 +119,59 @@ export default function MyPredictions() {
     <div className="page-container">
       <h1 className="page-title">Moje Typy</h1>
 
-      {/* points summary card */}
-      <div className="glass-card p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-400 mb-1">Łączna liczba punktów</p>
-            <p className="text-4xl font-extrabold gradient-text">{totalPoints}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-400 mb-1">Rozliczone typy</p>
-            <p className="text-2xl font-bold text-gray-300">
-              {scoredCount} / {predictions.length}
-            </p>
-          </div>
+      {/* hero stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className="glass-card p-4 text-center col-span-2 sm:col-span-1">
+          <p className="text-xs text-gray-500 mb-1">Punkty</p>
+          <p className="text-3xl font-extrabold gradient-text tabular-nums">{totalPoints}</p>
+        </div>
+        <div className="glass-card p-4 text-center">
+          <p className="text-xs text-gray-500 mb-1">Skuteczność</p>
+          <p className="text-2xl font-bold text-gray-200 tabular-nums">{accuracy}%</p>
+        </div>
+        <div className="glass-card p-4 text-center">
+          <p className="text-xs text-gray-500 mb-1">Pozycja</p>
+          <p className="text-2xl font-bold text-mundial-gold tabular-nums">
+            {myRankEntry ? `#${myRankEntry.rank}` : '—'}
+          </p>
+        </div>
+        <div className="glass-card p-4 text-center">
+          <p className="text-xs text-gray-500 mb-1">Za liderem</p>
+          <p className={`text-2xl font-bold tabular-nums ${gapToLeader === 0 ? 'text-emerald-400' : 'text-gray-300'}`}>
+            {gapToLeader === null ? '—' : gapToLeader === 0 ? 'Lider!' : `-${gapToLeader}`}
+          </p>
         </div>
       </div>
+
+      {/* category breakdown + bar chart */}
+      {scoredCount > 0 && (
+        <div className="glass-card p-5 mb-6">
+          <p className="text-sm font-semibold text-gray-400 mb-4">Rozkład typów ({scoredCount} rozliczonych)</p>
+          <div className="space-y-2.5">
+            {[
+              { key: 'exact', label: 'Dokładny wynik', color: 'bg-emerald-400' },
+              { key: 'diff', label: 'Różnica bramek', color: 'bg-yellow-400' },
+              { key: 'tendency', label: 'Wynik meczu', color: 'bg-mundial-orange' },
+              { key: 'miss', label: 'Pudło', color: 'bg-red-500' },
+            ].map(({ key, label, color }) => {
+              const count = cats[key];
+              const pct = scoredCount > 0 ? (count / scoredCount) * 100 : 0;
+              return (
+                <div key={key} className="flex items-center gap-3">
+                  <span className="text-xs text-gray-500 w-32 shrink-0">{label}</span>
+                  <div className="flex-1 h-2 bg-surface-700 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${color} rounded-full transition-all duration-700`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-gray-400 tabular-nums w-6 text-right">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* predictions list */}
       {predictions.length === 0 ? (

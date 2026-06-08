@@ -36,6 +36,20 @@ class ResetPasswordRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
+class ChangeNickRequest(BaseModel):
+    nick: str = Field(min_length=2, max_length=32)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class DeleteAccountRequest(BaseModel):
+    # user must confirm with their current password
+    password: str
+
+
 # --- auth: response bodies ---
 
 class UserResponse(BaseModel):

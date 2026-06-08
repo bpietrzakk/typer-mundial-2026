@@ -62,11 +62,16 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback((updated) => {
+    setUser((prev) => ({ ...prev, ...updated }));
+  }, []);
+
   const value = {
     user,
     login,
     register,
     logout,
+    updateUser,
     isLoggedIn: !!user,
     loading,
   };

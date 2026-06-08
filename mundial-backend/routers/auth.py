@@ -6,11 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from psycopg2.errors import UniqueViolation
 
 from db.queries import (
+    change_password,
     create_email_verification_token,
     create_password_reset_token,
     create_user,
+    delete_user,
     get_user_by_email,
     reset_password_with_token,
+    update_nick,
     verify_email_token,
 )
 from domain.auth import (
@@ -31,6 +34,9 @@ from domain.rate_limit import (
 )
 from routers.deps import get_current_user, is_admin_email
 from schemas.models import (
+    ChangeNickRequest,
+    ChangePasswordRequest,
+    DeleteAccountRequest,
     ForgotPasswordRequest,
     LoginRequest,
     RegisterRequest,
@@ -326,3 +332,59 @@ def refresh(
     token = create_access_token(current_user["id"], current_user["nick"], secret, days)
     _set_auth_cookie(response, token, days)
     return current_user
+
+
+@router.patch("/profile", response_model=UserResponse)
+def change_nick(
+    body: ChangeNickRequest,
+    response: Response,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    try:
+        updated = update_nick(current_user["id"], body.nick)
+    except UniqueViolation:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ten nick jest już zajęty",
+        )
+    updated["is_admin"] = is_admin_email(updated["email"])
+    # re-issue cookie so the nick in the JWT matches the new one
+    secret, days = _read_jwt_config()
+    token = create_access_token(updated["id"], updated["nick"], secret, days)
+    _set_auth_cookie(response, token, days)
+    return updated
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password_endpoint(
+    body: ChangePasswordRequest,
+    current_user: dict = Depends(get_current_user),
+) -> None:
+    user_with_hash = get_user_by_email(current_user["email"])
+    if not verify_password(body.current_password, user_with_hash["password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Obecne hasło jest nieprawidłowe",
+        )
+    change_password(current_user["id"], hash_password(body.new_password))
+
+
+@router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
+def delete_account(
+    body: DeleteAccountRequest,
+    response: Response,
+    current_user: dict = Depends(get_current_user),
+) -> None:
+    user_with_hash = get_user_by_email(current_user["email"])
+    if not verify_password(body.password, user_with_hash["password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Hasło jest nieprawidłowe",
+        )
+    delete_user(current_user["id"])
+    response.delete_cookie(
+        key=_COOKIE_NAME,
+        httponly=True,
+        secure=_COOKIE_SECURE,
+        samesite="lax",
+    )

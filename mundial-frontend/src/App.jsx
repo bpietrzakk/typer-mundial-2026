@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, ProtectedRoute } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -13,6 +14,7 @@ import Ranking from './pages/Ranking';
 import League from './pages/League';
 import BonusPicks from './pages/BonusPicks';
 import Admin from './pages/Admin';
+import Settings from './pages/Settings';
 
 // layout wrapper — navbar + page content for authenticated routes
 function AppLayout({ children }) {
@@ -28,6 +30,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+      <ToastProvider>
         <Routes>
           {/* public routes — no navbar */}
           <Route path="/login" element={<Login />} />
@@ -96,8 +99,17 @@ export default function App() {
           />
 
           {/* catch-all — redirect to matches */}
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <AppLayout><Settings /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
           <Route path="*" element={<Navigate to="/matches" replace />} />
         </Routes>
+      </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   );
