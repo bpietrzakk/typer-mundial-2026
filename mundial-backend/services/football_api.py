@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 
 import httpx
 
+from services.translations import translate_team_name
+
 
 _BASE = "https://api.football-data.org/v4"
 _COMPETITION = "WC"
@@ -58,7 +60,7 @@ def fetch_teams() -> list[dict]:
     return [
         {
             "external_id": str(t["id"]),
-            "name": t["name"],
+            "name": translate_team_name(t["name"]),
             "short_name": t.get("tla") or t["shortName"][:3].upper(),
         }
         for t in data["teams"]
