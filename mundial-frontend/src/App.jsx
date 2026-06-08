@@ -15,6 +15,7 @@ import League from './pages/League';
 import BonusPicks from './pages/BonusPicks';
 import Admin from './pages/Admin';
 import Settings from './pages/Settings';
+import Dashboard from './pages/Dashboard';
 
 // layout wrapper — navbar + page content for authenticated routes
 function AppLayout({ children }) {
@@ -41,6 +42,14 @@ export default function App() {
           <Route path="/verify-pending" element={<VerifyPending />} />
 
           {/* protected routes — with navbar */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <AppLayout><Dashboard /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/matches"
             element={
@@ -107,7 +116,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="*" element={<Navigate to="/matches" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ToastProvider>
       </AuthProvider>

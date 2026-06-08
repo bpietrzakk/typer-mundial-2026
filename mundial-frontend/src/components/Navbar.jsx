@@ -3,6 +3,12 @@ import { useAuth } from '../context/AuthContext';
 
 const NAV_LINKS = [
   {
+    to: '/',
+    label: 'Dom',
+    exact: true,
+    d: 'M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25',
+  },
+  {
     to: '/matches',
     label: 'Mecze',
     d: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5',
@@ -49,6 +55,8 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   const desktopLinks = user?.is_admin ? [...NAV_LINKS, ADMIN_LINK] : NAV_LINKS;
+  // mobile bottom nav: Dom + 4 core links (Bonusy accessible from Dashboard)
+  const bottomNavLinks = NAV_LINKS.filter((l) => l.to !== '/bonus');
 
   const handleLogout = async () => {
     await logout();
@@ -62,7 +70,7 @@ export default function Navbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
 
-            <Link to="/matches" className="flex items-center gap-2 group">
+            <Link to="/" className="flex items-center gap-2 group">
               <span className="font-extrabold text-lg gradient-text group-hover:opacity-80 transition-opacity">
                 Mundial Typer
               </span>
@@ -71,8 +79,8 @@ export default function Navbar() {
             {/* desktop nav */}
             {isLoggedIn && (
               <div className="hidden md:flex items-center gap-1">
-                {desktopLinks.map(({ to, label }) => {
-                  const active = location.pathname.startsWith(to);
+                {desktopLinks.map(({ to, label, exact }) => {
+                  const active = exact ? location.pathname === to : location.pathname.startsWith(to);
                   return (
                     <Link
                       key={to}
@@ -145,8 +153,8 @@ export default function Navbar() {
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
           <div className="flex items-stretch">
-            {NAV_LINKS.map(({ to, label, d }) => {
-              const active = location.pathname.startsWith(to);
+            {bottomNavLinks.map(({ to, label, d, exact }) => {
+              const active = exact ? location.pathname === to : location.pathname.startsWith(to);
               return (
                 <Link
                   key={to}
