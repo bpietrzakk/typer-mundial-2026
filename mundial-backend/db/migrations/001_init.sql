@@ -1,11 +1,14 @@
 -- 001_init.sql
--- 2026-06-02 bpietrzakk
--- initial schema for mundial typer:
+-- 2026-06-08 bpietrzakk
+-- Full schema for mundial typer (consolidated baseline).
 --   users, leagues (real football leagues), teams, matches, scoring_rules,
 --   predictions, private leagues + members, bonus_predictions,
---   group_advance_predictions, password_reset_tokens
+--   group_advance_predictions, password_reset_tokens, email_verification_tokens
 -- all tables use BIGSERIAL ids, TIMESTAMPTZ timestamps,
 -- and CHECK constraints for enum-like fields (status, stage)
+--
+-- Real tournament data (teams, fixtures, groups) is loaded at runtime from
+-- football-data.org via the admin bootstrap endpoint — not seeded here.
 
 
 -- users: one row per registered player
@@ -29,12 +32,16 @@ CREATE TABLE leagues (
 );
 
 
--- teams: national teams or club teams, belong to one league
+-- teams: national teams, belong to one league
+-- external_id maps to the football-data.org team id (set by bootstrap)
+-- group_name is the World Cup group A..L (NULL for knockout-only teams)
 CREATE TABLE teams (
     id          BIGSERIAL PRIMARY KEY,
     name        TEXT   NOT NULL,
     short_name  TEXT,
-    league_id   BIGINT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE
+    league_id   BIGINT NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+    external_id TEXT   UNIQUE,
+    group_name  TEXT
 );
 
 CREATE INDEX idx_teams_league_id ON teams(league_id);
@@ -42,7 +49,9 @@ CREATE INDEX idx_teams_league_id ON teams(league_id);
 
 -- matches: one row per fixture
 -- home_goals / away_goals are NULL until the match is finished
--- external_id maps to football-data.org match id (NULL for hand-seeded rows)
+-- external_id maps to the football-data.org match id
+-- Mundial 2026 has 48 teams: group -> round_of_32 -> round_of_16 ->
+-- quarter -> semi -> (third_place) -> final
 CREATE TABLE matches (
     id            BIGSERIAL PRIMARY KEY,
     league_id     BIGINT      NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
@@ -54,7 +63,10 @@ CREATE TABLE matches (
     status        TEXT        NOT NULL DEFAULT 'scheduled'
                   CHECK (status IN ('scheduled', 'live', 'finished')),
     stage         TEXT        NOT NULL
-                  CHECK (stage IN ('group', 'round_of_16', 'quarter', 'semi', 'final')),
+                  CHECK (stage IN (
+                      'group', 'round_of_32', 'round_of_16',
+                      'quarter', 'semi', 'third_place', 'final'
+                  )),
     external_id   TEXT        UNIQUE,
     CHECK (home_team_id <> away_team_id)
 );
@@ -66,12 +78,14 @@ CREATE INDEX idx_matches_kickoff_at ON matches(kickoff_at);
 
 
 -- scoring_rules: points config per stage
--- one row per stage value used by matches.stage
--- seeded by migration 002 (group=5/3/2, round_of_16=7/4/3, ..., final=15/8/6)
+-- one row per stage value used by matches.stage (seeded by migration 002)
 CREATE TABLE scoring_rules (
     id            BIGSERIAL PRIMARY KEY,
     stage         TEXT NOT NULL UNIQUE
-                  CHECK (stage IN ('group', 'round_of_16', 'quarter', 'semi', 'final')),
+                  CHECK (stage IN (
+                      'group', 'round_of_32', 'round_of_16',
+                      'quarter', 'semi', 'third_place', 'final'
+                  )),
     exact_pts     INT  NOT NULL,
     diff_pts      INT  NOT NULL,
     tendency_pts  INT  NOT NULL
@@ -120,32 +134,29 @@ CREATE TABLE private_league_members (
 CREATE INDEX idx_private_league_members_user_id ON private_league_members(user_id);
 
 
--- bonus_predictions: champion pick per (user, private_league)
--- only one champion per user per league
+-- bonus_predictions: champion pick, GLOBAL per user (counts in every league)
 CREATE TABLE bonus_predictions (
     id                 BIGSERIAL PRIMARY KEY,
     user_id            BIGINT      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    private_league_id  BIGINT      NOT NULL REFERENCES private_leagues(id) ON DELETE CASCADE,
     champion_team_id   BIGINT      NOT NULL REFERENCES teams(id),
     points_awarded     INT,
     created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (user_id, private_league_id)
+    UNIQUE (user_id)
 );
 
 CREATE INDEX idx_bonus_predictions_user_id ON bonus_predictions(user_id);
 
 
--- group_advance_predictions: per-team guesses for who advances out of each group
--- one row per (user, league, group, team) — user picks multiple teams per group
+-- group_advance_predictions: per-team guesses for who advances out of each
+-- group. GLOBAL per user — one set of picks counts in every league.
 CREATE TABLE group_advance_predictions (
     id                 BIGSERIAL PRIMARY KEY,
     user_id            BIGINT      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    private_league_id  BIGINT      NOT NULL REFERENCES private_leagues(id) ON DELETE CASCADE,
     group_name         TEXT        NOT NULL,
     team_id            BIGINT      NOT NULL REFERENCES teams(id),
     points_awarded     INT,
     created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (user_id, private_league_id, group_name, team_id)
+    UNIQUE (user_id, group_name, team_id)
 );
 
 CREATE INDEX idx_group_advance_predictions_user_id ON group_advance_predictions(user_id);
@@ -164,3 +175,17 @@ CREATE TABLE password_reset_tokens (
 
 CREATE INDEX idx_password_reset_tokens_token_hash ON password_reset_tokens(token_hash);
 CREATE INDEX idx_password_reset_tokens_expires_at ON password_reset_tokens(expires_at);
+
+
+-- email_verification_tokens: same shape as password_reset_tokens.
+-- emailed after register; clicking the link flips users.email_verified to TRUE
+CREATE TABLE email_verification_tokens (
+    id          BIGSERIAL PRIMARY KEY,
+    user_id     BIGINT      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash  TEXT        NOT NULL,
+    expires_at  TIMESTAMPTZ NOT NULL,
+    used_at     TIMESTAMPTZ
+);
+
+CREATE INDEX idx_email_verification_tokens_token_hash ON email_verification_tokens(token_hash);
+CREATE INDEX idx_email_verification_tokens_expires_at ON email_verification_tokens(expires_at);

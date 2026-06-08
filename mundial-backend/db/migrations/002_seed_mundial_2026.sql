@@ -1,9 +1,8 @@
 -- 002_seed_mundial_2026.sql
--- 2026-06-02 bpietrzakk
--- minimal seed: one row for the Mundial 2026 league and the five
--- scoring_rules per stage (values copied verbatim from CLAUDE.md).
--- teams and matches will land in a later migration once we have a
--- source file (FIFA schedule export, manual CSV, or football-data.org)
+-- 2026-06-08 bpietrzakk
+-- Reference seed: the Mundial 2026 league row and scoring_rules per stage.
+-- Teams and matches are NOT seeded here — they come from the admin bootstrap
+-- (football-data.org). This file only holds config the app can't run without.
 
 
 -- the only real football league this app cares about for MVP
@@ -13,11 +12,13 @@ INSERT INTO leagues (name, country, season) VALUES
 
 
 -- points per stage: exact score / goal difference / correct tendency
--- numbers match the table in CLAUDE.md ("Reguly biznesowe — Punktacja")
--- one row per stage value used by matches.stage
+-- group..final match the table in CLAUDE.md; round_of_32 and third_place
+-- follow the same escalation (48-team format adds those two rounds)
 INSERT INTO scoring_rules (stage, exact_pts, diff_pts, tendency_pts) VALUES
     ('group',        5, 3, 2),
+    ('round_of_32',  6, 3, 2),
     ('round_of_16',  7, 4, 3),
     ('quarter',      9, 5, 4),
     ('semi',        11, 6, 5),
+    ('third_place', 11, 6, 5),
     ('final',       15, 8, 6);
