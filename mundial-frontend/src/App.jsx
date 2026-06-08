@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, ProtectedRoute } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import Navbar from './components/Navbar';
+import InstallPrompt from './components/InstallPrompt';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
@@ -17,6 +18,8 @@ import Admin from './pages/Admin';
 import Settings from './pages/Settings';
 import Dashboard from './pages/Dashboard';
 import Rules from './pages/Rules';
+import JoinByLink from './pages/JoinByLink';
+import NotFound from './pages/NotFound';
 
 // layout wrapper — navbar + page content for authenticated routes
 function AppLayout({ children }) {
@@ -24,6 +27,7 @@ function AppLayout({ children }) {
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1">{children}</main>
+      <InstallPrompt />
     </div>
   );
 }
@@ -125,7 +129,15 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route
+            path="/join/:code"
+            element={
+              <ProtectedRoute>
+                <AppLayout><JoinByLink /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </ToastProvider>
       </AuthProvider>

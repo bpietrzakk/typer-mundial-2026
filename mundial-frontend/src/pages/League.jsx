@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getMyLeagues, getLeague, createLeague, joinLeague, updateLeagueSettings, resetLeagueCode } from '../api/leagues';
+import { getMyLeagues, getLeague, createLeague, joinLeague, updateLeagueSettings, resetLeagueCode, deleteLeague, leaveLeague } from '../api/leagues';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { getLeagueRanking } from '../api/ranking';
@@ -177,8 +177,18 @@ function LeagueList() {
 
       {/* leagues list */}
       {!error && leagues.length === 0 && (
-        <div className="glass-card p-8 text-center text-gray-400">
-          Nie należysz jeszcze do żadnej ligi — utwórz własną lub dołącz kodem!
+        <div className="glass-card p-10 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-mundial-teal/10 flex items-center justify-center">
+            <svg className="w-8 h-8 text-mundial-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+            </svg>
+          </div>
+          <p className="text-gray-200 font-semibold mb-1">Nie masz jeszcze żadnej ligi</p>
+          <p className="text-gray-500 text-sm mb-5">Utwórz własną ligę i zaproś znajomych, albo dołącz do istniejącej kodem zaproszenia.</p>
+          <div className="flex justify-center gap-3">
+            <button onClick={() => setShowCreate(true)} className="btn-primary text-sm">Utwórz ligę</button>
+            <button onClick={() => setShowJoin(true)} className="btn-secondary text-sm">Dołącz kodem</button>
+          </div>
         </div>
       )}
 
@@ -208,6 +218,10 @@ function LeagueDetail({ leagueId }) {
 
   // invite code reset
   const [resetLoading, setResetLoading] = useState(false);
+
+  // delete / leave
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [leaveLoading, setLeaveLoading] = useState(false);
 
   useEffect(() => {
     loadLeagueData();
@@ -242,6 +256,17 @@ function LeagueDetail({ leagueId }) {
     }
   };
 
+  const shareLink = () => {
+    const url = `${window.location.origin}/join/${league?.join_code}`;
+    const text = `Dołącz do mojej ligi "${league?.name}" na Mundial Typer 2026!`;
+    if (navigator.share) {
+      navigator.share({ title: 'Mundial Typer 2026', text, url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(`${text} ${url}`);
+      addToast('Link skopiowany do schowka!');
+    }
+  };
+
   const handlePoolSave = async () => {
     const amount = poolInput === '' ? null : parseInt(poolInput, 10);
     if (amount !== null && (isNaN(amount) || amount < 0 || amount > 10000)) {
@@ -272,6 +297,32 @@ function LeagueDetail({ leagueId }) {
       addToast(err.response?.data?.detail || 'Nie udało się zresetować kodu', 'error');
     } finally {
       setResetLoading(false);
+    }
+  };
+
+  const handleDeleteLeague = async () => {
+    if (!window.confirm(`Usunąć ligę "${league?.name}"? Tej operacji nie można cofnąć.`)) return;
+    setDeleteLoading(true);
+    try {
+      await deleteLeague(leagueId);
+      addToast('Liga usunięta');
+      window.location.href = '/leagues';
+    } catch (err) {
+      addToast(err.response?.data?.detail || 'Nie udało się usunąć ligi', 'error');
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleLeaveLeague = async () => {
+    if (!window.confirm(`Opuścić ligę "${league?.name}"?`)) return;
+    setLeaveLoading(true);
+    try {
+      await leaveLeague(leagueId);
+      addToast('Opuściłeś ligę');
+      window.location.href = '/leagues';
+    } catch (err) {
+      addToast(err.response?.data?.detail || 'Nie udało się opuścić ligi', 'error');
+      setLeaveLoading(false);
     }
   };
 
@@ -326,6 +377,16 @@ function LeagueDetail({ leagueId }) {
                 className="px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-400 hover:text-mundial-teal text-sm transition-colors"
               >
                 {copied ? 'Skopiowano' : 'Kopiuj'}
+              </button>
+              <button
+                onClick={shareLink}
+                className="px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-400 hover:text-mundial-teal text-sm transition-colors flex items-center gap-1.5"
+                title="Udostępnij link zaproszenia"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+                </svg>
+                Udostępnij
               </button>
               {user?.id === league?.owner_user_id && (
                 <button
@@ -413,6 +474,39 @@ function LeagueDetail({ leagueId }) {
 
       {/* league ranking */}
       <RankingTable entries={ranking} title="Ranking ligi" />
+
+      {/* danger zone */}
+      <div className="mt-8 pt-6 border-t border-surface-500/20">
+        {user?.id === league?.owner_user_id ? (
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <p className="text-sm font-semibold text-red-400">Usuń ligę</p>
+              <p className="text-xs text-gray-500 mt-0.5">Usunięcie jest nieodwracalne — wszyscy członkowie stracą dostęp.</p>
+            </div>
+            <button
+              onClick={handleDeleteLeague}
+              disabled={deleteLoading}
+              className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+            >
+              {deleteLoading ? 'Usuwam…' : 'Usuń ligę'}
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <p className="text-sm font-semibold text-gray-400">Opuść ligę</p>
+              <p className="text-xs text-gray-500 mt-0.5">Stracisz dostęp do rankingu tej ligi.</p>
+            </div>
+            <button
+              onClick={handleLeaveLeague}
+              disabled={leaveLoading}
+              className="px-4 py-2 rounded-xl text-sm font-semibold bg-surface-700/50 border border-surface-500/30 text-gray-400 hover:text-mundial-red hover:border-red-500/30 transition-colors disabled:opacity-50"
+            >
+              {leaveLoading ? 'Opuszczam…' : 'Opuść ligę'}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

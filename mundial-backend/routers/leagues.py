@@ -4,9 +4,11 @@ from db.queries import (
     AlreadyMember,
     LeagueNotFound,
     create_league,
+    delete_league,
     get_league_with_owner,
     is_league_member,
     join_league,
+    leave_league,
     list_league_members,
     list_user_leagues,
     reset_join_code,
@@ -120,6 +122,35 @@ def reset_league_code(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tylko właściciel może zresetować kod")
     new_code = reset_join_code(league_id, current_user["id"])
     return {"join_code": new_code}
+
+
+@router.delete("/{league_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_league_endpoint(
+    league_id: int,
+    current_user: dict = Depends(get_current_user),
+) -> None:
+    detail = get_league_with_owner(league_id)
+    if detail is None or not is_league_member(league_id, current_user["id"]):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Liga nie istnieje")
+    if detail["owner_user_id"] != current_user["id"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tylko właściciel może usunąć ligę")
+    delete_league(league_id, current_user["id"])
+
+
+@router.post("/{league_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
+def leave_league_endpoint(
+    league_id: int,
+    current_user: dict = Depends(get_current_user),
+) -> None:
+    detail = get_league_with_owner(league_id)
+    if detail is None or not is_league_member(league_id, current_user["id"]):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Liga nie istnieje")
+    if detail["owner_user_id"] == current_user["id"]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Właściciel nie może opuścić ligi — usuń ją zamiast tego",
+        )
+    leave_league(league_id, current_user["id"])
 
 
 @router.patch("/{league_id}/settings", status_code=status.HTTP_204_NO_CONTENT)

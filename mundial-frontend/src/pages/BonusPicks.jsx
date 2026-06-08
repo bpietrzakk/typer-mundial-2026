@@ -5,6 +5,26 @@ import {
   getGroupAdvances, setGroupAdvances as saveGroupAdvances,
 } from '../api/bonus';
 
+function TeamCrest({ team, size = 'w-8 h-8' }) {
+  const [err, setErr] = useState(false);
+  if (team.crest_url && !err) {
+    return (
+      <img
+        src={team.crest_url}
+        alt={team.name}
+        className={`${size} object-contain`}
+        onError={() => setErr(true)}
+      />
+    );
+  }
+  const code = (team.short_name || team.name).slice(0, 3).toUpperCase();
+  return (
+    <span className={`${size} rounded-full bg-surface-600 flex items-center justify-center text-[10px] font-bold text-gray-400`}>
+      {code}
+    </span>
+  );
+}
+
 export default function BonusPicks() {
   const [teams, setTeams] = useState([]);
   const [bonusDeadline, setBonusDeadline] = useState(null);
@@ -201,7 +221,7 @@ export default function BonusPicks() {
                 <span className="text-xs text-gray-500 mb-1">h</span>
                 <span className="text-2xl font-black tabular-nums text-mundial-gold score-num">{String(minutesLeft).padStart(2, '0')}</span>
                 <span className="text-xs text-gray-500 mb-1">m</span>
-                <span className="text-2xl font-black tabular-nums text-mundial-red score-num">{String(secondsLeft).padStart(2, '0')}</span>
+                <span className="text-2xl font-black tabular-nums text-mundial-gold score-num">{String(secondsLeft).padStart(2, '0')}</span>
                 <span className="text-xs text-gray-500 mb-1">s</span>
               </div>
             </div>
@@ -263,14 +283,7 @@ export default function BonusPicks() {
                     }
                     ${isLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
-                  {team.crest_url && (
-                    <img
-                      src={team.crest_url}
-                      alt={team.name}
-                      className="w-8 h-8 object-contain"
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                  )}
+                  <TeamCrest team={team} />
                   {team.name}
                 </button>
               ))}

@@ -425,6 +425,17 @@ SQL_ADMIN_KICK_MEMBER = """
     WHERE private_league_id = %s AND user_id = %s
 """
 
+SQL_DELETE_LEAGUE = """
+    DELETE FROM private_leagues
+    WHERE id = %s AND owner_user_id = %s
+"""
+
+SQL_LEAVE_LEAGUE = """
+    DELETE FROM private_league_members
+    WHERE private_league_id = %s AND user_id = %s
+      AND user_id != (SELECT owner_user_id FROM private_leagues WHERE id = %s)
+"""
+
 SQL_ADMIN_RESET_CODE_ANY = """
     UPDATE private_leagues SET join_code = %s WHERE id = %s
     RETURNING join_code
@@ -1192,6 +1203,29 @@ def admin_verify_email(user_id: int) -> bool:
             with conn.cursor() as cur:
                 cur.execute(SQL_ADMIN_VERIFY_EMAIL, (user_id,))
                 return cur.fetchone() is not None
+    finally:
+        release_conn(conn)
+
+
+def delete_league(league_id: int, owner_user_id: int) -> bool:
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(SQL_DELETE_LEAGUE, (league_id, owner_user_id))
+                return cur.rowcount > 0
+    finally:
+        release_conn(conn)
+
+
+def leave_league(league_id: int, user_id: int) -> bool:
+    # owner cannot leave — they must delete the league instead
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(SQL_LEAVE_LEAGUE, (league_id, user_id, league_id))
+                return cur.rowcount > 0
     finally:
         release_conn(conn)
 

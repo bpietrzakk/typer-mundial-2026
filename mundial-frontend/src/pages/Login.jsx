@@ -14,7 +14,7 @@ export default function Login() {
   const location = useLocation();
 
   // redirect to where the user came from (or /matches by default)
-  const from = location.state?.from?.pathname || '/matches';
+  const from = location.state?.from?.pathname || '/';
 
   const handleSubmit = async (e) => {
     e.preventDefault();

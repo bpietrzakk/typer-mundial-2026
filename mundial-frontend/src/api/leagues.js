@@ -33,3 +33,11 @@ export const resetLeagueCode = async (id) => {
   const res = await api.post(`/leagues/${id}/reset-code`);
   return res.data;
 };
+
+// delete league — owner only
+export const deleteLeague = async (id) =>
+  api.delete(`/leagues/${id}`);
+
+// leave league — non-owner members only
+export const leaveLeague = async (id) =>
+  api.post(`/leagues/${id}/leave`);

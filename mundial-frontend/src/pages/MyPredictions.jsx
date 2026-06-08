@@ -47,6 +47,8 @@ export default function MyPredictions() {
   const [ranking, setRanking] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [filter, setFilter] = useState('all'); // 'all' | 'pending' | 'scored'
+  const [sort, setSort] = useState('date'); // 'date' | 'points'
 
   useEffect(() => {
     loadPredictions();
@@ -82,6 +84,16 @@ export default function MyPredictions() {
   const cats = { exact: 0, diff: 0, tendency: 0, miss: 0 };
   scored.forEach((p) => { cats[pointsCategory(p.points_awarded, p.match_stage)]++; });
   const accuracy = scoredCount > 0 ? Math.round(((cats.exact + cats.diff + cats.tendency) / scoredCount) * 100) : 0;
+
+  // streak — consecutive non-zero results from most recent
+  let streak = 0;
+  for (let i = scored.length - 1; i >= 0; i--) {
+    if (scored[i].points_awarded > 0) streak++;
+    else break;
+  }
+
+  // last 5 scored as colored dots
+  const lastFive = scored.slice(-5).map((p) => pointsCategory(p.points_awarded, p.match_stage));
 
   // rank & gap to leader
   const myRankEntry = ranking.find((r) => r.user_id === user?.id);
@@ -120,7 +132,7 @@ export default function MyPredictions() {
       <h1 className="page-title">Moje Typy</h1>
 
       {/* hero stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <div className="glass-card p-4 text-center col-span-2 sm:col-span-1">
           <p className="text-xs text-gray-500 mb-1">Punkty</p>
           <p className="text-3xl font-extrabold gradient-text tabular-nums">{totalPoints}</p>
@@ -143,6 +155,42 @@ export default function MyPredictions() {
         </div>
       </div>
 
+      {/* streak + last 5 form */}
+      {scoredCount > 0 && (
+        <div className="glass-card px-5 py-3 mb-6 flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Forma:</span>
+            <div className="flex gap-1">
+              {lastFive.map((cat, i) => (
+                <span key={i} className={`w-3 h-3 rounded-full ${
+                  cat === 'exact'    ? 'bg-emerald-400' :
+                  cat === 'diff'     ? 'bg-yellow-400'  :
+                  cat === 'tendency' ? 'bg-orange-400' :
+                                       'bg-gray-600'
+                }`} title={cat} />
+              ))}
+            </div>
+          </div>
+          {streak >= 2 && (
+            <div className="flex items-center gap-2">
+              <svg
+                className={`w-4 h-4 shrink-0 ${streak >= 5 ? 'text-mundial-gold' : 'text-emerald-400'}`}
+                fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}
+              >
+                {streak >= 5 ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5l7.5-7.5 7.5 7.5M12 3v18" />
+                )}
+              </svg>
+              <span className={`text-sm font-bold ${streak >= 5 ? 'text-mundial-gold' : 'text-emerald-400'}`}>
+                Ale masz czutkę! {streak} z rzędu!
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* category breakdown + bar chart */}
       {scoredCount > 0 && (
         <div className="glass-card p-5 mb-6">
@@ -156,7 +204,7 @@ export default function MyPredictions() {
             {[
               { key: 'exact', label: 'Dokładny wynik', color: 'bg-emerald-400' },
               { key: 'diff', label: 'Różnica bramek', color: 'bg-yellow-400' },
-              { key: 'tendency', label: 'Wynik meczu', color: 'bg-mundial-red' },
+              { key: 'tendency', label: 'Wynik meczu', color: 'bg-orange-400' },
               { key: 'miss', label: 'Pudło', color: 'bg-red-500' },
             ].map(({ key, label, color }) => {
               const count = cats[key];
@@ -178,6 +226,34 @@ export default function MyPredictions() {
         </div>
       )}
 
+      {/* filter + sort bar */}
+      {predictions.length > 0 && (
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <div className="flex gap-1 bg-surface-800/60 rounded-xl p-1">
+            {[['all', 'Wszystkie'], ['scored', 'Rozliczone'], ['pending', 'Oczekujące']].map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setFilter(key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filter === key ? 'bg-surface-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-1 bg-surface-800/60 rounded-xl p-1 ml-auto">
+            {[['date', 'Data'], ['points', 'Punkty']].map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setSort(key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${sort === key ? 'bg-surface-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* predictions list */}
       {predictions.length === 0 ? (
         <div className="glass-card p-8 text-center text-gray-400">
@@ -187,7 +263,19 @@ export default function MyPredictions() {
         </div>
       ) : (
         <div className="grid gap-3">
-          {predictions.map((pred) => {
+          {[...predictions]
+            .filter((p) => {
+              if (filter === 'scored') return p.points_awarded != null;
+              if (filter === 'pending') return p.points_awarded == null;
+              return true;
+            })
+            .sort((a, b) => {
+              if (sort === 'points') {
+                return (b.points_awarded ?? -1) - (a.points_awarded ?? -1);
+              }
+              return new Date(b.kickoff_at) - new Date(a.kickoff_at);
+            })
+            .map((pred) => {
             const scored = pred.points_awarded != null;
             const cat = scored ? pointsCategory(pred.points_awarded, pred.match_stage) : null;
 
@@ -215,14 +303,21 @@ export default function MyPredictions() {
                     )}
 
                     {/* prediction vs result */}
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="text-gray-400">
-                        Typ: <span className="text-gray-200 font-semibold">{pred.pred_home} : {pred.pred_away}</span>
-                      </span>
+                    <div className="flex items-center gap-5 mt-1">
+                      <div>
+                        <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5">Twój typ</p>
+                        <p className="score-num text-2xl font-black text-white leading-none">{pred.pred_home} : {pred.pred_away}</p>
+                      </div>
                       {pred.home_goals != null && (
-                        <span className="text-gray-400">
-                          Wynik: <span className="text-gray-200 font-semibold">{pred.home_goals} : {pred.away_goals}</span>
-                        </span>
+                        <>
+                          <span className="text-gray-600 text-lg">→</span>
+                          <div>
+                            <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5">Wynik</p>
+                            <p className={`score-num text-2xl font-black leading-none ${cat === 'exact' ? 'text-emerald-400' : cat === 'miss' ? 'text-gray-500' : 'text-gray-200'}`}>
+                              {pred.home_goals} : {pred.away_goals}
+                            </p>
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>

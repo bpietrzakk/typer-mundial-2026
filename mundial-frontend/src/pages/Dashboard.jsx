@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getRanking } from '../api/ranking';
+import { useToast } from '../context/ToastContext';
+import { getRanking, getLeagueRanking } from '../api/ranking';
 import { getMatches } from '../api/matches';
 import { getMyPredictions } from '../api/predictions';
+import { getMyLeagues } from '../api/leagues';
 
 const STAGE_LABELS = {
   group: 'Faza grupowa', round_of_32: '1/16', round_of_16: '1/8',
@@ -13,7 +15,7 @@ const STAGE_LABELS = {
 const POINTS_CAT = {
   exact: { label: 'Dokładny', color: 'text-emerald-400' },
   diff:  { label: 'Różnica',  color: 'text-yellow-400' },
-  tendency: { label: 'Wynik', color: 'text-mundial-red' },
+  tendency: { label: 'Wynik', color: 'text-orange-400' },
   miss:  { label: 'Pudło',   color: 'text-red-400' },
 };
 
@@ -60,22 +62,46 @@ function CountdownUnit({ value, label }) {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [ranking, setRanking] = useState([]);
   const [matches, setMatches] = useState([]);
   const [predictions, setPredictions] = useState([]);
+  const [myLeague, setMyLeague] = useState(null);
+  const [leagueRanking, setLeagueRanking] = useState([]);
 
   useEffect(() => {
     Promise.all([
       getRanking().catch(() => []),
       getMatches().catch(() => []),
       getMyPredictions().catch(() => []),
-    ]).then(([r, m, p]) => {
+      getMyLeagues().catch(() => []),
+    ]).then(async ([r, m, p, leagues]) => {
       setRanking(r);
       setMatches(m);
       setPredictions(p);
+      if (leagues.length > 0) {
+        setMyLeague(leagues[0]);
+        try {
+          const lr = await getLeagueRanking(leagues[0].id);
+          setLeagueRanking(lr);
+        } catch { /* liga nie załadowana */ }
+      }
     }).finally(() => setLoading(false));
   }, []);
+
+  const handleShare = async () => {
+    if (!myEntry) return;
+    const text = `Jestem #${myEntry.rank} z ${myEntry.total_points} pkt na Mundial Typer 2026! ⚽`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Mundial Typer 2026', text, url: window.location.origin });
+      } else {
+        await navigator.clipboard.writeText(text);
+        addToast('Skopiowano do schowka!');
+      }
+    } catch { /* user anulował */ }
+  };
 
   const myEntry = ranking.find((r) => r.user_id === user?.id);
   const leader = ranking[0];
@@ -92,6 +118,12 @@ export default function Dashboard() {
 
   const predMap = {};
   predictions.forEach((p) => { predMap[p.match_id] = p; });
+
+  const finishedMatches = matches.filter((m) => m.status === 'finished').length;
+  const totalMatches = matches.length;
+  const tournamentPct = totalMatches > 0 ? Math.round((finishedMatches / totalMatches) * 100) : 0;
+
+  const myLeagueEntry = leagueRanking.find((r) => r.user_id === user?.id);
 
   const recentScored = predictions
     .filter((p) => p.points_awarded != null)
@@ -154,14 +186,28 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* accuracy pill */}
-          {scored.length > 0 && (
-            <div className="text-center bg-surface-700/50 rounded-xl px-4 py-3">
-              <p className="text-2xl font-black text-gray-200 tabular-nums">{accuracy}%</p>
-              <p className="text-xs text-gray-500">skuteczność</p>
-              <p className="text-xs text-gray-600 mt-0.5">{scored.length} typy</p>
-            </div>
-          )}
+          <div className="flex items-start gap-3">
+            {/* accuracy pill */}
+            {scored.length > 0 && (
+              <div className="text-center bg-surface-700/50 rounded-xl px-4 py-3">
+                <p className="text-2xl font-black text-gray-200 tabular-nums">{accuracy}%</p>
+                <p className="text-xs text-gray-500">skuteczność</p>
+                <p className="text-xs text-gray-600 mt-0.5">{scored.length} typy</p>
+              </div>
+            )}
+            {/* share button */}
+            {myEntry && (
+              <button
+                onClick={handleShare}
+                className="p-2.5 rounded-xl bg-surface-700/50 text-gray-400 hover:text-mundial-teal hover:bg-surface-700 transition-colors"
+                title="Udostępnij swój wynik"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* gap to leader bar */}
@@ -186,6 +232,48 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* tournament progress */}
+      {totalMatches > 0 && (
+        <div className="glass-card px-5 py-4 mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">Postęp turnieju</p>
+            <p className="text-xs text-gray-400 tabular-nums">{finishedMatches} / {totalMatches} meczów</p>
+          </div>
+          <div className="h-2 bg-surface-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-mundial-teal to-mundial-red rounded-full transition-all duration-1000"
+              style={{ width: `${tournamentPct}%` }}
+            />
+          </div>
+          <p className="text-xs text-gray-600 mt-1.5">{tournamentPct}% turnieju za nami</p>
+        </div>
+      )}
+
+      {/* my league position */}
+      {myLeague && myLeagueEntry && (
+        <Link to={`/leagues/${myLeague.id}`} className="glass-card px-5 py-4 mb-6 flex items-center justify-between gap-3 hover:border-mundial-teal/30 transition-all group block">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-0.5">{myLeague.name}</p>
+            <p className="text-sm text-gray-400">
+              Twoja pozycja w lidze
+            </p>
+          </div>
+          <div className="flex items-center gap-4 shrink-0">
+            <div className="text-center">
+              <p className="text-2xl font-black text-mundial-gold tabular-nums">#{myLeagueEntry.rank}</p>
+              <p className="text-xs text-gray-500">miejsce</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-gray-200 tabular-nums">{leagueRanking.length}</p>
+              <p className="text-xs text-gray-500">graczy</p>
+            </div>
+            <svg className="w-4 h-4 text-gray-600 group-hover:text-mundial-teal transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </Link>
+      )}
 
       {/* next match countdown */}
       {nextMatch && (

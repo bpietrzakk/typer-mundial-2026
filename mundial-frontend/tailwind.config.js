@@ -13,7 +13,7 @@ export default {
         mundial: {
           teal:  '#00B4D8',  // primary — wszystkie active states, linki, akcenty
           red:   '#E61D25',  // accent — FIFA 2026 official red, live, ważne CTA
-          gold:  '#C8A428',  // ranking, trofeum
+          gold:  '#D4AF37',  // ranking, trofeum
           navy:  '#0A1128',  // ciemne tło
         },
         surface: {
@@ -26,7 +26,7 @@ export default {
       },
       fontFamily: {
         sans:    ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['Barlow Condensed', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['Bebas Neue', 'Inter', 'system-ui', 'sans-serif'],
       },
       backgroundImage: {
         // Teal → Red — czysty, uderzający, FIFA vibe

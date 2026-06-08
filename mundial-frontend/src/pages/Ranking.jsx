@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { getRanking } from '../api/ranking';
 import RankingTable from '../components/RankingTable';
 
@@ -43,9 +44,22 @@ function PodiumCard({ entry, platformHeight, isCurrentUser }) {
 
 export default function Ranking() {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const handleShare = async (entry) => {
+    const text = `Jestem #${entry.rank} z ${entry.total_points} pkt na Mundial Typer 2026! ⚽`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Mundial Typer 2026', text, url: window.location.origin });
+      } else {
+        await navigator.clipboard.writeText(text);
+        addToast('Skopiowano do schowka!');
+      }
+    } catch { /* user anulował */ }
+  };
 
   useEffect(() => { loadRanking(); }, []);
 
@@ -103,10 +117,19 @@ export default function Ranking() {
           <span className="text-gray-500 text-sm">·</span>
           <span className="text-lg font-bold tabular-nums text-gray-200">{myEntry.total_points} pkt</span>
           {entries[0] && myEntry.total_points < entries[0].total_points && (
-            <span className="ml-auto text-xs text-gray-500">
+            <span className="text-xs text-gray-500">
               {entries[0].total_points - myEntry.total_points} pkt za liderem
             </span>
           )}
+          <button
+            onClick={() => handleShare(myEntry)}
+            className="ml-auto p-2 rounded-lg text-gray-500 hover:text-mundial-teal hover:bg-surface-700/50 transition-colors"
+            title="Udostępnij"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+            </svg>
+          </button>
         </div>
       )}
 

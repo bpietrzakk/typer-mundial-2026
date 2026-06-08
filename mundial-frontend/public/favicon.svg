@@ -2,7 +2,7 @@
   <defs>
     <linearGradient id="trophy" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%"   stop-color="#FFE168"/>
-      <stop offset="40%"  stop-color="#C8A428"/>
+      <stop offset="40%"  stop-color="#D4AF37"/>
       <stop offset="100%" stop-color="#7A5810"/>
     </linearGradient>
     <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">

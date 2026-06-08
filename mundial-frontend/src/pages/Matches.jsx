@@ -244,7 +244,7 @@ export default function Matches() {
   return (
     <div className="page-container">
       <div className="flex items-center gap-3 mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold font-display gradient-text">Mecze</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold font-display text-white">Mecze</h1>
         {hasLive && (
           <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-mundial-red/15 border border-mundial-red/30 text-xs font-semibold text-mundial-red">
             <span className="w-1.5 h-1.5 bg-mundial-red rounded-full animate-pulse" />

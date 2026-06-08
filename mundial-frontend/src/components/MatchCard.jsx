@@ -68,7 +68,7 @@ export default function MatchCard({ match, prediction, onPredictionSaved }) {
   };
 
   return (
-    <div className="glass-card p-4 sm:p-5 animate-fade-in">
+    <div className={`glass-card p-4 sm:p-5 animate-fade-in transition-all ${isLive ? 'border-mundial-red/70 shadow-glow-red' : ''}`}>
       {/* top row — stage badge + kickoff time */}
       <div className="flex items-center justify-between mb-4">
         <span className={STAGE_BADGE[stage] || 'badge-group'}>

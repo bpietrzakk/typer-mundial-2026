@@ -31,7 +31,7 @@
     position: relative;
     z-index: 1;
   }
-  h1 { @apply font-display font-bold tracking-wide uppercase; }
+  h1 { @apply font-display font-bold tracking-wide; }
   h2, h3, h4 { @apply font-sans font-semibold tracking-tight; }
 
   ::-webkit-scrollbar { width: 8px; }
@@ -44,6 +44,9 @@
   .glass-card {
     @apply bg-surface-800/80 backdrop-blur-md border border-surface-500/30
            rounded-2xl shadow-card transition-all duration-300;
+  }
+  a.glass-card, button.glass-card {
+    @apply active:scale-[0.98];
   }
 
   /* gradient text — teal → red */
@@ -99,15 +102,15 @@
   /* points */
   .points-exact    { @apply text-emerald-400 font-bold; }
   .points-diff     { @apply text-yellow-400 font-bold; }
-  .points-tendency { @apply text-amber-400 font-bold; }
-  .points-miss     { @apply text-red-400; }
+  .points-tendency { @apply text-orange-400 font-bold; }
+  .points-miss     { @apply text-red-400 font-bold; }
 
   /* layout */
   .page-container {
     @apply max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-28 md:pb-8;
   }
   .page-title {
-    @apply text-3xl sm:text-4xl font-bold font-display gradient-text mb-8;
+    @apply text-3xl sm:text-4xl font-bold font-display text-white mb-8;
   }
   .score-num { @apply font-display tabular-nums; }
   .skeleton  { @apply bg-surface-700 rounded-lg animate-pulse; }

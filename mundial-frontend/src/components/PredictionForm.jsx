@@ -99,10 +99,14 @@ export default function PredictionForm({ matchId, initialHome, initialAway, onSa
         <button
           type="submit"
           disabled={submitting || saved}
-          className={`flex-1 text-sm !py-2 transition-all duration-300 ${saved ? 'btn-secondary !border-emerald-500/50 !text-emerald-400' : 'btn-primary'}`}
+          className={`flex-1 text-sm !py-2 transition-all duration-300 ${
+            saved
+              ? 'btn-secondary !border-emerald-500/60 !text-emerald-400 !shadow-[0_0_20px_rgba(52,211,153,0.3)] scale-[1.02]'
+              : 'btn-primary'
+          }`}
         >
           {saved ? (
-            <span className="flex items-center justify-center gap-1.5">
+            <span className="flex items-center justify-center gap-1.5 animate-slide-up">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
