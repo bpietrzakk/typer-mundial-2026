@@ -446,13 +446,125 @@ FRONTEND_URL=http://localhost:5173
 
 ## Deploy (produkcja)
 
-| Co | Gdzie | Jak |
-|----|-------|-----|
-| Frontend | Vercel | Połącz repo `mundial-frontend`, auto-deploy z `main` |
-| Backend | Railway | Połącz repo `mundial-backend`, ustaw env vars |
-| Baza | Supabase | Stwórz projekt, uruchom migracje przez SQL editor |
+**Stack:** Azure Static Web Apps + Azure Container Apps + Supabase
+**Koszt:** ~$0 (kredyty studenckie Azure 100$ + Supabase free tier)
+**Pojemność:** spokojnie obsługuje 5–50 userów w ramach free tierów
 
-Koszt: ~$5/mies. (Railway) + $0 (Vercel + Supabase)
+### Architektura
+
+| Co | Gdzie | Tier |
+|----|-------|------|
+| Frontend | Azure Static Web Apps | Free |
+| Backend | Azure Container Apps | Free (180k vCPU-sec/mies) |
+| Baza | Supabase | Free (500MB) |
+
+### Krok 1 — Supabase (baza)
+
+1. Wejdź na [supabase.com](https://supabase.com) → New project
+2. Skopiuj `connection string` (Settings → Database → URI)
+3. Uruchom migracje przez SQL editor: `001_init.sql`, potem `002_seed_mundial_2026.sql`
+
+### Krok 2 — Azure Container Apps (backend)
+
+```bash
+# zaloguj się do Azure
+az login
+
+# zbuduj i wypchnij do Azure Container Registry
+az group create --name mundial-rg --location westeurope
+az acr create --name mundialtyper --resource-group mundial-rg --sku Basic
+az acr login --name mundialtyper
+az acr build --registry mundialtyper --image backend:latest ./mundial-backend
+
+# stwórz Container Apps environment
+az containerapp env create --name mundial-env --resource-group mundial-rg --location westeurope
+
+# deploy backendu
+az containerapp create \
+  --name mundial-backend \
+  --resource-group mundial-rg \
+  --environment mundial-env \
+  --image mundialtyper.azurecr.io/backend:latest \
+  --registry-server mundialtyper.azurecr.io \
+  --min-replicas 0 --max-replicas 3 \
+  --target-port 8000 \
+  --ingress external \
+  --env-vars \
+    POSTGRES_HOST=<supabase-host> \
+    POSTGRES_PORT=5432 \
+    POSTGRES_USER=postgres \
+    POSTGRES_PASSWORD=<supabase-password> \
+    POSTGRES_DB=postgres \
+    JWT_SECRET=<min-32-znaki> \
+    JWT_EXPIRE_DAYS=7 \
+    FOOTBALL_API_KEY=<klucz> \
+    RESEND_API_KEY=<klucz> \
+    EMAIL_FROM="Mundial Typer <noreply@twojadomena.pl>" \
+    REQUIRE_VERIFIED_EMAIL=true \
+    ADMIN_EMAILS=twoj@email.com \
+    FRONTEND_URL=https://<app>.azurestaticapps.net \
+    DEV_SEED=false
+```
+
+Po deploymencie pobierz URL backendu:
+```bash
+az containerapp show --name mundial-backend --resource-group mundial-rg --query properties.configuration.ingress.fqdn -o tsv
+```
+
+### Krok 3 — Azure Static Web Apps (frontend)
+
+1. Azure Portal → Create → Static Web App
+2. Połącz z GitHub repo
+3. Build settings:
+   - **App location:** `/mundial-frontend`
+   - **Api location:** *(puste)*
+   - **Output location:** `dist`
+4. W ustawieniach aplikacji dodaj zmienną:
+   ```
+   VITE_API_URL=https://<backend-url>.azurecontainerapps.io
+   ```
+5. Zaktualizuj `FRONTEND_URL` na backendu na finalny URL frontu
+
+### Krok 4 — Po deploy (OBOWIĄZKOWE)
+
+1. Wejdź na `https://<front>/admin`
+2. Kliknij **"Pobierz dane z API"** → bootstrapuje drużyny + mecze
+3. Sprawdź czy mecze się wyświetlają
+
+### Zmienne środowiskowe — kompletna lista
+
+```env
+POSTGRES_HOST=         # Supabase host
+POSTGRES_PORT=5432
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=     # Supabase password
+POSTGRES_DB=postgres
+JWT_SECRET=            # min 32 losowych znaków
+JWT_EXPIRE_DAYS=7
+FOOTBALL_API_KEY=      # football-data.org
+RESEND_API_KEY=        # resend.com
+EMAIL_FROM=Mundial Typer <noreply@twojadomena.pl>
+REQUIRE_VERIFIED_EMAIL=true
+ADMIN_EMAILS=          # twoj@email.com (przecinek = wielu adminów)
+FRONTEND_URL=          # https://twoj-app.azurestaticapps.net
+DEV_SEED=false
+```
+
+---
+
+## Resend — konfiguracja domeny (WYMAGANE przed startem)
+
+Domyślnie Resend wysyła maile tylko na **Twój własny adres** (sandbox).
+Żeby maile weryfikacyjne i resetowanie hasła działały dla wszystkich userów:
+
+1. Wejdź na [resend.com](https://resend.com) → Domains → Add Domain
+2. Dodaj swoją domenę (np. `twojadomena.pl`)
+3. Dodaj rekordy DNS które Resend pokaże (SPF, DKIM, DMARC) — w panelu rejestratora domeny
+4. Poczekaj na weryfikację (kilka minut do kilku godzin)
+5. Zmień `EMAIL_FROM` w env na: `Mundial Typer <noreply@twojadomena.pl>`
+
+**Bez tego:** maile trafiają do spamu lub w ogóle nie docierają do innych.
+**Alternatywa:** na czas testu ustaw `REQUIRE_VERIFIED_EMAIL=false` — wtedy email nie jest wymagany do logowania.
 
 ---
 

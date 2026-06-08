@@ -92,10 +92,6 @@ async def lifespan(app: FastAPI):
     _wait_for_db()
     run_migrations()
 
-    if os.getenv("DEV_SEED", "").lower() == "true":
-        from db.dev_seed import seed_dev_data
-        seed_dev_data()
-
     task = asyncio.create_task(_poll_results())
     yield
     task.cancel()

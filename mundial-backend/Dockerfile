@@ -1,6 +1,6 @@
 # backend image: FastAPI + uvicorn, deps via uv
 # python 3.14 to match .python-version / pyproject requires-python
-FROM python:3.14-slim
+FROM python:3.12-slim
 
 # uv binary copied from the official image — fast, reproducible installs
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
