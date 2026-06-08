@@ -131,7 +131,7 @@ export default function Dashboard() {
     <div className="page-container">
 
       {/* hero */}
-      <div className="relative overflow-hidden glass-card p-6 mb-6">
+      <div className="relative overflow-hidden glass-card p-6 mb-6 animate-fade-in">
         <div className="absolute inset-0 bg-gradient-to-br from-mundial-teal/8 via-transparent to-mundial-red/8 pointer-events-none" />
         <div className="absolute -right-8 -top-8 w-48 h-48 rounded-full bg-mundial-teal/5 blur-3xl pointer-events-none" />
         <div className="absolute -left-8 -bottom-8 w-48 h-48 rounded-full bg-mundial-red/5 blur-3xl pointer-events-none" />
@@ -142,12 +142,12 @@ export default function Dashboard() {
             <h1 className="text-3xl sm:text-4xl font-black font-display gradient-text">{user?.nick}</h1>
             <div className="flex items-center gap-5 mt-3">
               <div>
-                <p className="text-4xl font-black tabular-nums text-white">{totalPoints}</p>
+                <p className="text-4xl font-black tabular-nums text-white animate-slide-up">{totalPoints}</p>
                 <p className="text-xs text-gray-500">punktów</p>
               </div>
               {myEntry && (
                 <div>
-                  <p className="text-4xl font-black tabular-nums text-mundial-gold">#{myEntry.rank}</p>
+                  <p className="text-4xl font-black tabular-nums text-mundial-gold animate-slide-up">#{myEntry.rank}</p>
                   <p className="text-xs text-gray-500">miejsce</p>
                 </div>
               )}

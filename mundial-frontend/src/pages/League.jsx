@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getMyLeagues, getLeague, createLeague, joinLeague, updateLeagueSettings } from '../api/leagues';
+import { getMyLeagues, getLeague, createLeague, joinLeague, updateLeagueSettings, resetLeagueCode } from '../api/leagues';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { getLeagueRanking } from '../api/ranking';
@@ -206,6 +206,9 @@ function LeagueDetail({ leagueId }) {
   const [poolInput, setPoolInput] = useState('');
   const [poolSaving, setPoolSaving] = useState(false);
 
+  // invite code reset
+  const [resetLoading, setResetLoading] = useState(false);
+
   useEffect(() => {
     loadLeagueData();
   }, [leagueId]);
@@ -255,6 +258,20 @@ function LeagueDetail({ leagueId }) {
       addToast(err.response?.data?.detail || 'Nie udało się zapisać', 'error');
     } finally {
       setPoolSaving(false);
+    }
+  };
+
+  const handleResetCode = async () => {
+    if (!window.confirm('Na pewno zresetować kod? Stary kod przestanie działać.')) return;
+    setResetLoading(true);
+    try {
+      const { join_code } = await resetLeagueCode(leagueId);
+      setLeague((l) => ({ ...l, join_code }));
+      addToast('Nowy kod zaproszenia wygenerowany');
+    } catch (err) {
+      addToast(err.response?.data?.detail || 'Nie udało się zresetować kodu', 'error');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -310,6 +327,16 @@ function LeagueDetail({ leagueId }) {
               >
                 {copied ? 'Skopiowano' : 'Kopiuj'}
               </button>
+              {user?.id === league?.owner_user_id && (
+                <button
+                  onClick={handleResetCode}
+                  disabled={resetLoading}
+                  className="px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-500 hover:text-mundial-red text-sm transition-colors disabled:opacity-50"
+                  title="Wygeneruj nowy kod — stary przestanie działać"
+                >
+                  {resetLoading ? '…' : 'Resetuj'}
+                </button>
+              )}
             </div>
           </div>
           <div className="text-right">

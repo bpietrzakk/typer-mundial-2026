@@ -9,6 +9,7 @@ from db.queries import (
     join_league,
     list_league_members,
     list_user_leagues,
+    reset_join_code,
     update_prize_pool,
 )
 from routers.deps import get_current_user
@@ -17,6 +18,7 @@ from schemas.models import (
     JoinLeagueRequest,
     LeagueDetailResponse,
     LeagueSummary,
+    ResetCodeResponse,
     UpdateLeagueSettingsRequest,
 )
 
@@ -104,6 +106,20 @@ def get_league(
         )
     members = list_league_members(league_id)
     return _league_to_response(detail, members)
+
+
+@router.post("/{league_id}/reset-code", response_model=ResetCodeResponse)
+def reset_league_code(
+    league_id: int,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    detail = get_league_with_owner(league_id)
+    if detail is None or not is_league_member(league_id, current_user["id"]):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Liga nie istnieje")
+    if detail["owner_user_id"] != current_user["id"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tylko właściciel może zresetować kod")
+    new_code = reset_join_code(league_id, current_user["id"])
+    return {"join_code": new_code}
 
 
 @router.patch("/{league_id}/settings", status_code=status.HTTP_204_NO_CONTENT)

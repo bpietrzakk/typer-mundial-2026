@@ -100,7 +100,7 @@ export default function MatchCard({ match, prediction, onPredictionSaved }) {
         {/* score / vs */}
         <div className="flex-shrink-0 w-24 text-center">
           {isFinished || isLive ? (
-            <div className={`text-2xl font-extrabold score-num ${isLive ? 'text-red-400 animate-pulse-slow' : 'text-white'}`}>
+            <div className={`text-3xl font-black score-num tracking-tight ${isLive ? 'text-mundial-red animate-pulse-slow' : 'text-white'}`}>
               {home_goals} : {away_goals}
             </div>
           ) : (

@@ -397,6 +397,13 @@ SQL_UPDATE_PRIZE_POOL = """
     WHERE id = %s AND owner_user_id = %s
 """
 
+SQL_RESET_JOIN_CODE = """
+    UPDATE private_leagues
+    SET join_code = %s
+    WHERE id = %s AND owner_user_id = %s
+    RETURNING join_code
+"""
+
 SQL_IS_LEAGUE_MEMBER = """
     SELECT 1 FROM private_league_members
     WHERE private_league_id = %s AND user_id = %s
@@ -1098,6 +1105,27 @@ def update_prize_pool(league_id: int, owner_user_id: int, amount: int | None) ->
         with conn:
             with conn.cursor() as cur:
                 cur.execute(SQL_UPDATE_PRIZE_POOL, (amount, league_id, owner_user_id))
+    finally:
+        release_conn(conn)
+
+
+def reset_join_code(league_id: int, owner_user_id: int) -> str:
+    # generate a new code, retry on the rare collision with an existing code
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                for _ in range(5):
+                    code = generate_join_code()
+                    try:
+                        cur.execute(SQL_RESET_JOIN_CODE, (code, league_id, owner_user_id))
+                        row = cur.fetchone()
+                        if row is None:
+                            raise LeagueNotFound
+                        return row["join_code"]
+                    except UniqueViolation:
+                        conn.rollback()
+                raise RuntimeError("could not generate unique join_code after retries")
     finally:
         release_conn(conn)
 

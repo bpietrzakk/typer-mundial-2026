@@ -26,18 +26,19 @@ export default {
       },
       fontFamily: {
         sans:    ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['Space Grotesk', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['Barlow Condensed', 'Inter', 'system-ui', 'sans-serif'],
       },
       backgroundImage: {
-        // Teal → Red — znajomy kolor + oficjalny akcent FIFA
+        // Teal → Red — czysty, uderzający, FIFA vibe
         'gradient-mundial':   'linear-gradient(90deg, #00B4D8 0%, #E61D25 100%)',
         'gradient-teal-red':  'linear-gradient(135deg, #00B4D8 0%, #E61D25 100%)',
         'gradient-card':      'linear-gradient(145deg, rgba(30,37,54,0.8) 0%, rgba(17,24,39,0.9) 100%)',
       },
       boxShadow: {
-        'glow-teal': '0 0 20px rgba(0, 180, 216, 0.35)',
-        'glow-red':  '0 0 20px rgba(230, 29, 37, 0.35)',
-        'glow-gold': '0 0 20px rgba(200, 164, 40, 0.35)',
+        'glow-teal':   '0 0 20px rgba(0, 180, 216, 0.35)',
+        'glow-purple': '0 0 20px rgba(123, 47, 255, 0.35)',
+        'glow-red':    '0 0 20px rgba(230, 29, 37, 0.35)',
+        'glow-gold':   '0 0 20px rgba(200, 164, 40, 0.35)',
         'card':      '0 4px 24px rgba(0, 0, 0, 0.3)',
         'card-hover':'0 8px 40px rgba(0, 0, 0, 0.5)',
       },

@@ -71,6 +71,7 @@ export default function Navbar() {
           <div className="flex items-center justify-between h-16">
 
             <Link to="/" className="flex items-center gap-2 group">
+              <img src="/favicon.svg" alt="" className="w-8 h-8 rounded-lg shrink-0" />
               <span className="font-extrabold text-lg gradient-text group-hover:opacity-80 transition-opacity">
                 Mundial Typer
               </span>

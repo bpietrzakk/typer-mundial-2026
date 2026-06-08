@@ -194,6 +194,10 @@ class UpdateLeagueSettingsRequest(BaseModel):
     prize_pool_per_person: int | None = Field(default=None, ge=0, le=10000)
 
 
+class ResetCodeResponse(BaseModel):
+    join_code: str
+
+
 # --- bonuses ---
 
 class ChampionBonusRequest(BaseModel):

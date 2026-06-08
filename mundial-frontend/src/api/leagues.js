@@ -27,3 +27,9 @@ export const getMyLeagues = async () => {
 // update league settings (prize pool) — owner only
 export const updateLeagueSettings = async (id, prizePoolPerPerson) =>
   api.patch(`/leagues/${id}/settings`, { prize_pool_per_person: prizePoolPerPerson });
+
+// reset invite code — owner only
+export const resetLeagueCode = async (id) => {
+  const res = await api.post(`/leagues/${id}/reset-code`);
+  return res.data;
+};
