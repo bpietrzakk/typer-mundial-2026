@@ -52,7 +52,7 @@ def test_old_attempts_fall_out_of_window():
     later = NOW + timedelta(seconds=120)
     state = record_failure(state, later)
     assert is_locked(state, later) is False
-    assert len(state.failed_attempts) == 1
+    assert len(state.attempts) == 1
 
 
 def test_reset_clears_state():
@@ -62,4 +62,4 @@ def test_reset_clears_state():
     assert is_locked(state, NOW) is True
     cleared = reset()
     assert is_locked(cleared, NOW) is False
-    assert cleared.failed_attempts == []
+    assert cleared.attempts == []

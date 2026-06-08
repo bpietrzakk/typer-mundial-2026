@@ -20,7 +20,15 @@ from domain.auth import (
     hash_token,
     verify_password,
 )
-from domain.rate_limit import RateLimitState, is_locked, record_failure
+from domain.rate_limit import (
+    RateLimitState,
+    is_locked,
+    record_failure,
+    record_attempt,
+    RESEND_WINDOW_SECONDS,
+    RESEND_MAX_ATTEMPTS,
+    RESEND_LOCKOUT_SECONDS,
+)
 from routers.deps import get_current_user, is_admin_email
 from schemas.models import (
     ForgotPasswordRequest,
@@ -57,6 +65,8 @@ _RESET_TTL = timedelta(hours=1)
 # swap for Redis if we ever run multiple workers / instances.
 # tests reset this via _LOGIN_RATE_LIMIT.clear()
 _LOGIN_RATE_LIMIT: dict[str, RateLimitState] = {}
+_RESEND_RATE_LIMIT: dict[str, RateLimitState] = {}
+_FORGOT_PASSWORD_RATE_LIMIT: dict[str, RateLimitState] = {}
 
 
 def _client_ip(request: Request) -> str:
@@ -139,7 +149,29 @@ def register(body: RegisterRequest, response: Response) -> dict:
 
 
 @router.post("/resend-verification", status_code=status.HTTP_204_NO_CONTENT)
-def resend_verification(body: ResendVerificationRequest) -> None:
+def resend_verification(body: ResendVerificationRequest, request: Request) -> None:
+    ip = _client_ip(request)
+    now = datetime.now(timezone.utc)
+    state = _RESEND_RATE_LIMIT.get(ip, RateLimitState())
+
+    if is_locked(state, now):
+        delta = state.locked_until - now
+        minutes = int(delta.total_seconds() // 60)
+        time_str = f"{minutes} min" if minutes > 0 else f"{int(delta.total_seconds())} s"
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Zbyt wiele prób, spróbuj ponownie za {time_str}",
+        )
+
+    # count the attempt before doing work
+    _RESEND_RATE_LIMIT[ip] = record_attempt(
+        state, 
+        now, 
+        window_seconds=RESEND_WINDOW_SECONDS, 
+        max_attempts=RESEND_MAX_ATTEMPTS, 
+        lockout_seconds=RESEND_LOCKOUT_SECONDS
+    )
+
     # always 204 — never reveal whether the email exists or is already verified.
     # only sends a new link for an existing, still-unverified account
     user = get_user_by_email(body.email)
@@ -162,7 +194,29 @@ def verify_email(body: VerifyEmailRequest) -> dict:
 
 
 @router.post("/forgot-password", status_code=status.HTTP_204_NO_CONTENT)
-def forgot_password(body: ForgotPasswordRequest) -> None:
+def forgot_password(body: ForgotPasswordRequest, request: Request) -> None:
+    ip = _client_ip(request)
+    now = datetime.now(timezone.utc)
+    state = _FORGOT_PASSWORD_RATE_LIMIT.get(ip, RateLimitState())
+
+    if is_locked(state, now):
+        delta = state.locked_until - now
+        minutes = int(delta.total_seconds() // 60)
+        time_str = f"{minutes} min" if minutes > 0 else f"{int(delta.total_seconds())} s"
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Zbyt wiele prób, spróbuj ponownie za {time_str}",
+        )
+
+    # count the attempt before doing work
+    _FORGOT_PASSWORD_RATE_LIMIT[ip] = record_attempt(
+        state, 
+        now, 
+        window_seconds=RESEND_WINDOW_SECONDS, 
+        max_attempts=RESEND_MAX_ATTEMPTS, 
+        lockout_seconds=RESEND_LOCKOUT_SECONDS
+    )
+
     # always return 204 — never reveal whether the email exists (no enumeration)
     user = get_user_by_email(body.email)
     if user is None:
@@ -196,9 +250,13 @@ def login(body: LoginRequest, request: Request, response: Response) -> dict:
     now = datetime.now(timezone.utc)
     state = _LOGIN_RATE_LIMIT.get(ip, RateLimitState())
     if is_locked(state, now):
+        delta = state.locked_until - now
+        minutes = int(delta.total_seconds() // 60)
+        seconds = int(delta.total_seconds() % 60)
+        time_str = f"{minutes} min {seconds} s" if minutes > 0 else f"{seconds} s"
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Zbyt wiele prób logowania, spróbuj ponownie za chwilę",
+            detail=f"Zbyt wiele prób logowania, spróbuj ponownie za {time_str}",
         )
 
     user = get_user_by_email(body.email)
