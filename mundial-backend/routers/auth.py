@@ -127,11 +127,20 @@ def register(body: RegisterRequest, response: Response) -> dict:
     pwd_hash = hash_password(body.password)
     try:
         user = create_user(body.nick, body.email, pwd_hash)
-    except UniqueViolation:
-        # do not leak which field collided — uniform message
+    except UniqueViolation as e:
+        msg = "Email lub nick jest już zajęty"
+        
+        constraint = e.diag.constraint_name if e.diag else ""
+        detail = e.diag.message_detail if e.diag else ""
+        
+        if constraint == "users_email_key" or (detail and "email" in detail):
+            msg = "Użytkownik z tym adresem email już istnieje"
+        elif constraint == "users_nick_key" or (detail and "nick" in detail):
+            msg = "Użytkownik z takim nickiem już istnieje"
+            
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Email lub nick jest już zajęty",
+            detail=msg,
         )
 
     user["is_admin"] = is_admin_email(user["email"])
