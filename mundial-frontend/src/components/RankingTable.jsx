@@ -1,8 +1,5 @@
 import { useAuth } from '../context/AuthContext';
 
-// medal icons for top 3
-const MEDALS = ['🥇', '🥈', '🥉'];
-
 export default function RankingTable({ entries, title }) {
   const { user } = useAuth();
 
@@ -34,7 +31,6 @@ export default function RankingTable({ entries, title }) {
           <tbody>
             {entries.map((entry) => {
               const isCurrentUser = user && entry.user_id === user.id;
-              const medal = entry.rank <= 3 ? MEDALS[entry.rank - 1] : null;
 
               return (
                 <tr
@@ -46,11 +42,14 @@ export default function RankingTable({ entries, title }) {
                     }`}
                 >
                   <td className="px-5 py-3.5">
-                    {medal ? (
-                      <span className="text-lg">{medal}</span>
-                    ) : (
-                      <span className="text-gray-500 font-mono text-sm">{entry.rank}</span>
-                    )}
+                    <span className={`font-bold tabular-nums text-sm ${
+                      entry.rank === 1 ? 'text-mundial-gold text-base' :
+                      entry.rank === 2 ? 'text-gray-300' :
+                      entry.rank === 3 ? 'text-mundial-orange' :
+                      'text-gray-500 font-mono'
+                    }`}>
+                      {entry.rank}
+                    </span>
                   </td>
                   <td className="px-5 py-3.5">
                     <span className={`font-medium ${isCurrentUser ? 'text-mundial-teal' : 'text-gray-200'}`}>

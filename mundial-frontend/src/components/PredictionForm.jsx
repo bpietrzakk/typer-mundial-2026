@@ -5,6 +5,7 @@ export default function PredictionForm({ matchId, initialHome, initialAway, onSa
   const [home, setHome] = useState(initialHome ?? 0);
   const [away, setAway] = useState(initialAway ?? 0);
   const [submitting, setSubmitting] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
@@ -14,7 +15,8 @@ export default function PredictionForm({ matchId, initialHome, initialAway, onSa
 
     try {
       const pred = await addPrediction(matchId, home, away);
-      onSaved(pred);
+      setSaved(true);
+      setTimeout(() => onSaved(pred), 600);
     } catch (err) {
       const msg = err.response?.data?.detail || 'Nie udało się zapisać typu';
       setError(msg);
@@ -37,22 +39,23 @@ export default function PredictionForm({ matchId, initialHome, initialAway, onSa
           <button
             type="button"
             onClick={() => step(setHome, home, -1)}
-            className="w-8 h-8 rounded-lg bg-surface-600/50 text-gray-400 hover:text-white hover:bg-surface-600 transition-colors text-lg font-bold"
+            className="w-11 h-11 rounded-lg bg-surface-600/50 text-gray-400 hover:text-white hover:bg-surface-600 transition-colors text-lg font-bold"
           >
             −
           </button>
           <input
             type="number"
+            inputMode="numeric"
             min={0}
             max={99}
             value={home}
             onChange={(e) => setHome(Math.max(0, Math.min(99, parseInt(e.target.value) || 0)))}
-            className="w-14 h-10 text-center text-xl font-bold rounded-lg bg-surface-600/50 border border-surface-500/30 text-white focus:outline-none focus:border-mundial-teal/50"
+            className="w-14 h-11 text-center text-xl font-bold rounded-lg bg-surface-600/50 border border-surface-500/30 text-white focus:outline-none focus:border-mundial-teal/50"
           />
           <button
             type="button"
             onClick={() => step(setHome, home, 1)}
-            className="w-8 h-8 rounded-lg bg-surface-600/50 text-gray-400 hover:text-white hover:bg-surface-600 transition-colors text-lg font-bold"
+            className="w-11 h-11 rounded-lg bg-surface-600/50 text-gray-400 hover:text-white hover:bg-surface-600 transition-colors text-lg font-bold"
           >
             +
           </button>
@@ -65,22 +68,23 @@ export default function PredictionForm({ matchId, initialHome, initialAway, onSa
           <button
             type="button"
             onClick={() => step(setAway, away, -1)}
-            className="w-8 h-8 rounded-lg bg-surface-600/50 text-gray-400 hover:text-white hover:bg-surface-600 transition-colors text-lg font-bold"
+            className="w-11 h-11 rounded-lg bg-surface-600/50 text-gray-400 hover:text-white hover:bg-surface-600 transition-colors text-lg font-bold"
           >
             −
           </button>
           <input
             type="number"
+            inputMode="numeric"
             min={0}
             max={99}
             value={away}
             onChange={(e) => setAway(Math.max(0, Math.min(99, parseInt(e.target.value) || 0)))}
-            className="w-14 h-10 text-center text-xl font-bold rounded-lg bg-surface-600/50 border border-surface-500/30 text-white focus:outline-none focus:border-mundial-teal/50"
+            className="w-14 h-11 text-center text-xl font-bold rounded-lg bg-surface-600/50 border border-surface-500/30 text-white focus:outline-none focus:border-mundial-teal/50"
           />
           <button
             type="button"
             onClick={() => step(setAway, away, 1)}
-            className="w-8 h-8 rounded-lg bg-surface-600/50 text-gray-400 hover:text-white hover:bg-surface-600 transition-colors text-lg font-bold"
+            className="w-11 h-11 rounded-lg bg-surface-600/50 text-gray-400 hover:text-white hover:bg-surface-600 transition-colors text-lg font-bold"
           >
             +
           </button>
@@ -94,10 +98,17 @@ export default function PredictionForm({ matchId, initialHome, initialAway, onSa
       <div className="flex gap-2">
         <button
           type="submit"
-          disabled={submitting}
-          className="flex-1 btn-primary text-sm !py-2"
+          disabled={submitting || saved}
+          className={`flex-1 text-sm !py-2 transition-all duration-300 ${saved ? 'btn-secondary !border-emerald-500/50 !text-emerald-400' : 'btn-primary'}`}
         >
-          {submitting ? 'Zapisuję…' : 'Zapisz typ'}
+          {saved ? (
+            <span className="flex items-center justify-center gap-1.5">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+              Zapisano!
+            </span>
+          ) : submitting ? 'Zapisuję…' : 'Zapisz typ'}
         </button>
         <button
           type="button"

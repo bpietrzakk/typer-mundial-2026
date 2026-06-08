@@ -24,11 +24,14 @@ export default function BonusPicks() {
   const [groupSaved, setGroupSaved] = useState(false);
 
   const [submitError, setSubmitError] = useState('');
+  const [now, setNow] = useState(new Date());
 
-  const isLocked = new Date() > BONUS_DEADLINE;
+  const isLocked = now > BONUS_DEADLINE;
 
   useEffect(() => {
     loadData();
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
   }, []);
 
   const loadData = async () => {
@@ -117,7 +120,7 @@ export default function BonusPicks() {
     }
   };
 
-  const timeLeft = BONUS_DEADLINE - new Date();
+  const timeLeft = BONUS_DEADLINE - now;
   const daysLeft = Math.max(0, Math.floor(timeLeft / (1000 * 60 * 60 * 24)));
   const hoursLeft = Math.max(0, Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
 
@@ -230,7 +233,7 @@ export default function BonusPicks() {
                       ? 'bg-mundial-gold/20 border-2 border-mundial-gold text-mundial-gold shadow-glow-orange'
                       : 'bg-surface-700/30 border border-surface-500/20 text-gray-300 hover:bg-surface-700/50 hover:border-surface-500/40'
                     }
-                    ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    ${isLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                   {team.crest_url && (
                     <img
@@ -271,21 +274,38 @@ export default function BonusPicks() {
 
       {/* group advance picks */}
       <section>
-        <h2 className="text-xl font-bold text-gray-200 mb-4">
+        <h2 className="text-xl font-bold text-gray-200 mb-2">
           Awanse z grup
           <span className="text-sm font-normal text-gray-500 ml-2">(+3 pkt za każdą trafioną drużynę)</span>
         </h2>
+
+        {groupNames.length > 0 && (
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex-1 h-1.5 bg-surface-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-mundial-teal to-mundial-magenta rounded-full transition-all duration-500"
+                style={{ width: `${(groupNames.filter(g => (groupPicks[g] || []).length === 2).length / groupNames.length) * 100}%` }}
+              />
+            </div>
+            <span className="text-sm text-gray-400 tabular-nums shrink-0">
+              {groupNames.filter(g => (groupPicks[g] || []).length === 2).length}/{groupNames.length} grup
+            </span>
+          </div>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {groupNames.map((group) => {
             const groupTeams = teamsByGroup[group] || [];
             const picks = groupPicks[group] || [];
 
+            const groupComplete = picks.length === 2;
             return (
-              <div key={group} className="glass-card p-4">
-                <h3 className="font-semibold text-gray-300 mb-3">
-                  Grupa {group}
-                  <span className="text-xs text-gray-500 ml-2">({picks.length}/2 wybranych)</span>
+              <div key={group} className={`glass-card p-4 ${groupComplete ? '!border-mundial-teal/40' : ''}`}>
+                <h3 className="font-semibold text-gray-300 mb-3 flex items-center justify-between">
+                  <span>Grupa {group}</span>
+                  <span className={`text-xs tabular-nums ${groupComplete ? 'text-mundial-teal' : 'text-gray-500'}`}>
+                    {picks.length}/2
+                  </span>
                 </h3>
                 <div className="space-y-1.5">
                   {groupTeams.map((team) => {
@@ -300,7 +320,7 @@ export default function BonusPicks() {
                             ? 'bg-mundial-teal/20 border border-mundial-teal/50 text-mundial-teal'
                             : 'bg-surface-700/20 border border-surface-500/10 text-gray-400 hover:bg-surface-700/40 hover:text-gray-200'
                           }
-                          ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          ${isLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                       >
                         {team.crest_url && (
                           <img

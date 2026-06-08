@@ -118,7 +118,7 @@ export default function Matches() {
       <h1 className="page-title">Mecze</h1>
 
       {/* stage / finished tabs */}
-      <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-2">
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
         {tabs.map((tab) => (
           <button
             key={tab}

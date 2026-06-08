@@ -30,6 +30,27 @@ function formatKickoff(isoString) {
   });
 }
 
+function TeamCrest({ team, size = 'w-9 h-9' }) {
+  const [imgErr, setImgErr] = useState(false);
+  const initials = (team.short_name || team.name).slice(0, 3).toUpperCase();
+
+  if (team.crest_url && !imgErr) {
+    return (
+      <img
+        src={team.crest_url}
+        alt={team.name}
+        className={`${size} object-contain flex-shrink-0`}
+        onError={() => setImgErr(true)}
+      />
+    );
+  }
+  return (
+    <span className={`${size} rounded-full bg-surface-600/80 flex items-center justify-center text-xs font-bold text-gray-400 flex-shrink-0`}>
+      {initials}
+    </span>
+  );
+}
+
 export default function MatchCard({ match, prediction, onPredictionSaved }) {
   const [showForm, setShowForm] = useState(false);
   const { home_team, away_team, stage, status, kickoff_at, home_goals, away_goals } = match;
@@ -73,14 +94,7 @@ export default function MatchCard({ match, prediction, onPredictionSaved }) {
               <p className="text-xs text-gray-500 mt-0.5">{home_team.short_name}</p>
             )}
           </div>
-          {home_team.crest_url && (
-            <img
-              src={home_team.crest_url}
-              alt={home_team.name}
-              className="w-9 h-9 object-contain flex-shrink-0"
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
-          )}
+          <TeamCrest team={home_team} />
         </div>
 
         {/* score / vs */}
@@ -96,14 +110,7 @@ export default function MatchCard({ match, prediction, onPredictionSaved }) {
 
         {/* away team */}
         <div className="flex-1 flex items-center justify-start gap-2">
-          {away_team.crest_url && (
-            <img
-              src={away_team.crest_url}
-              alt={away_team.name}
-              className="w-9 h-9 object-contain flex-shrink-0"
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
-          )}
+          <TeamCrest team={away_team} />
           <div className="text-left">
             <p className="font-semibold text-gray-100 text-sm sm:text-base">
               {away_team.name}

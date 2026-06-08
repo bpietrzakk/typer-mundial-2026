@@ -36,13 +36,10 @@
 }
 
 @layer components {
-  /* glassmorphism card used across the app */
+  /* glassmorphism card used across the app — no default hover (add hover styles per element) */
   .glass-card {
     @apply bg-surface-800/80 backdrop-blur-md border border-surface-500/30
            rounded-2xl shadow-card transition-all duration-300;
-  }
-  .glass-card:hover {
-    @apply shadow-card-hover border-surface-500/50;
   }
 
   /* gradient text — used for headings and accents */
@@ -105,9 +102,9 @@
   .points-tendency { @apply text-mundial-orange font-bold; }
   .points-miss { @apply text-red-400; }
 
-  /* page container */
+  /* page container — extra bottom padding on mobile to clear the fixed bottom nav */
   .page-container {
-    @apply max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+    @apply max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-28 md:pb-8;
   }
 
   /* page heading */
@@ -123,6 +120,15 @@
   /* skeleton loader placeholder */
   .skeleton {
     @apply bg-surface-700 rounded-lg animate-pulse;
+  }
+
+  /* hide scrollbar while keeping scroll functionality */
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }
 
@@ -147,4 +153,12 @@
 @keyframes auth-glow {
   0% { transform: translate(0, 0) rotate(0deg); }
   100% { transform: translate(2%, 1%) rotate(3deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-bg::before { animation: none; }
+  .animate-fade-in,
+  .animate-slide-up,
+  .animate-gradient-x,
+  .animate-pulse-slow { animation: none; }
 }

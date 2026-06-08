@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { resetPassword } from '../api/auth';
+import PasswordInput from '../components/PasswordInput';
 
 export default function ResetPassword() {
   const [params] = useSearchParams();
@@ -61,28 +62,24 @@ export default function ResetPassword() {
               <label htmlFor="rp-pass" className="block text-sm font-medium text-gray-400 mb-1.5">
                 Nowe hasło
               </label>
-              <input
+              <PasswordInput
                 id="rp-pass"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 autoComplete="new-password"
-                className="input-field"
               />
             </div>
             <div>
               <label htmlFor="rp-confirm" className="block text-sm font-medium text-gray-400 mb-1.5">
                 Powtórz hasło
               </label>
-              <input
+              <PasswordInput
                 id="rp-confirm"
-                type="password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 placeholder="••••••••"
                 autoComplete="new-password"
-                className="input-field"
               />
             </div>
 

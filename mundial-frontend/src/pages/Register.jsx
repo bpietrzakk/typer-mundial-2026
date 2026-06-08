@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import PasswordInput from '../components/PasswordInput';
 
 export default function Register() {
   const [nick, setNick] = useState('');
@@ -107,14 +108,12 @@ export default function Register() {
             <label htmlFor="reg-password" className="block text-sm font-medium text-gray-400 mb-1.5">
               Hasło
             </label>
-            <input
+            <PasswordInput
               id="reg-password"
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Minimum 8 znaków"
               autoComplete="new-password"
-              className="input-field"
             />
           </div>
 
@@ -122,14 +121,12 @@ export default function Register() {
             <label htmlFor="reg-confirm" className="block text-sm font-medium text-gray-400 mb-1.5">
               Potwierdź hasło
             </label>
-            <input
+            <PasswordInput
               id="reg-confirm"
-              type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Powtórz hasło"
               autoComplete="new-password"
-              className="input-field"
             />
           </div>
 

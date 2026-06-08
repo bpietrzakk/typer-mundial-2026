@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { getMyPredictions } from '../api/predictions';
 
 const STAGE_LABELS = {
@@ -123,7 +124,7 @@ export default function MyPredictions() {
       {predictions.length === 0 ? (
         <div className="glass-card p-8 text-center text-gray-400">
           Nie masz jeszcze żadnych typów — przejdź do{' '}
-          <a href="/matches" className="text-mundial-teal hover:underline">Meczów</a>{' '}
+          <Link to="/matches" className="text-mundial-teal hover:underline">Meczów</Link>{' '}
           i zacznij typować!
         </div>
       ) : (
@@ -137,7 +138,7 @@ export default function MyPredictions() {
                 <div className="flex items-center justify-between">
                   {/* match info */}
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                       <span className="text-sm font-medium text-gray-200">
                         {pred.home_team_name || 'Drużyna'} vs {pred.away_team_name || 'Drużyna'}
                       </span>
@@ -147,6 +148,13 @@ export default function MyPredictions() {
                         </span>
                       )}
                     </div>
+                    {pred.kickoff_at && (
+                      <p className="text-xs text-gray-600 mb-1">
+                        {new Date(pred.kickoff_at).toLocaleDateString('pl-PL', {
+                          day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                        })}
+                      </p>
+                    )}
 
                     {/* prediction vs result */}
                     <div className="flex items-center gap-4 text-sm">
