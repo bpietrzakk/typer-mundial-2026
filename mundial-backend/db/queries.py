@@ -127,6 +127,27 @@ SQL_GET_USER_BY_ID = """
     WHERE id = %s
 """
 
+SQL_INSERT_EMAIL_VERIFICATION_TOKEN = """
+    INSERT INTO email_verification_tokens (user_id, token_hash, expires_at)
+    VALUES (%s, %s, %s)
+"""
+
+# consume the token: mark it used only if still valid and unused.
+# RETURNING user_id is empty when the token is unknown / expired / already used
+SQL_CONSUME_EMAIL_VERIFICATION_TOKEN = """
+    UPDATE email_verification_tokens
+    SET used_at = %s
+    WHERE token_hash = %s AND used_at IS NULL AND expires_at > %s
+    RETURNING user_id
+"""
+
+SQL_MARK_EMAIL_VERIFIED = """
+    UPDATE users
+    SET email_verified = TRUE
+    WHERE id = %s
+    RETURNING id, nick, email, email_verified, created_at
+"""
+
 SQL_LIST_MATCHES = """
     SELECT
         m.id, m.stage, m.kickoff_at, m.status, m.home_goals, m.away_goals,
@@ -428,6 +449,40 @@ def get_user_by_id(user_id: int) -> dict | None:
                 cur.execute(SQL_GET_USER_BY_ID, (user_id,))
                 row = cur.fetchone()
                 return dict(row) if row else None
+    finally:
+        release_conn(conn)
+
+
+def create_email_verification_token(user_id: int, token_hash: str, expires_at) -> None:
+    # called right after register — stores only the hash of the emailed token
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    SQL_INSERT_EMAIL_VERIFICATION_TOKEN,
+                    (user_id, token_hash, expires_at),
+                )
+    finally:
+        release_conn(conn)
+
+
+def verify_email_token(token_hash: str, now) -> dict | None:
+    # consumes the token and flips the user to verified, all in one transaction.
+    # returns the updated user, or None if the token is invalid/expired/used
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    SQL_CONSUME_EMAIL_VERIFICATION_TOKEN,
+                    (now, token_hash, now),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    return None
+                cur.execute(SQL_MARK_EMAIL_VERIFIED, (row["user_id"],))
+                return dict(cur.fetchone())
     finally:
         release_conn(conn)
 

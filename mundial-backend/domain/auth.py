@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
@@ -43,3 +45,16 @@ def decode_access_token(token: str, secret: str) -> dict | None:
         return jwt.decode(token, secret, algorithms=[_JWT_ALG])
     except JWTError:
         return None
+
+
+def generate_token() -> str:
+    # opaque random token for email verification / password reset
+    # url-safe so it can go straight into a link query string
+    return secrets.token_urlsafe(32)
+
+
+def hash_token(raw: str) -> str:
+    # deterministic hash so we can look the token up by hash in the DB.
+    # safe here because the raw token is high-entropy random (not a password) —
+    # we never store the raw value, only this hash
+    return hashlib.sha256(raw.encode()).hexdigest()

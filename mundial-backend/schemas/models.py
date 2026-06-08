@@ -17,6 +17,11 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class VerifyEmailRequest(BaseModel):
+    # raw token from the email link (?token=...)
+    token: str
+
+
 # --- auth: response bodies ---
 
 class UserResponse(BaseModel):

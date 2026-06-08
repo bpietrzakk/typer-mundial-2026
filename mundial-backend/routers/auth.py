@@ -1,14 +1,35 @@
+import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from psycopg2.errors import UniqueViolation
 
-from db.queries import create_user, get_user_by_email
-from domain.auth import create_access_token, hash_password, verify_password
+from db.queries import (
+    create_email_verification_token,
+    create_user,
+    get_user_by_email,
+    verify_email_token,
+)
+from domain.auth import (
+    create_access_token,
+    generate_token,
+    hash_password,
+    hash_token,
+    verify_password,
+)
 from domain.rate_limit import RateLimitState, is_locked, record_failure
 from routers.deps import get_current_user
-from schemas.models import LoginRequest, RegisterRequest, UserResponse
+from schemas.models import (
+    LoginRequest,
+    RegisterRequest,
+    UserResponse,
+    VerifyEmailRequest,
+)
+from services.email import send_verification_email
+
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -18,6 +39,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # secure=False in dev (HTTP); set COOKIE_SECURE=true in prod (HTTPS only)
 _COOKIE_NAME = "access_token"
 _COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+
+# email verification links are valid for 24 hours
+_VERIFICATION_TTL = timedelta(hours=24)
 
 
 # in-memory login rate-limit store, keyed by client IP.
@@ -74,9 +98,32 @@ def register(body: RegisterRequest, response: Response) -> dict:
             detail="Email lub nick jest już zajęty",
         )
 
+    # send the verification email — best effort, never fail the registration
+    # over it. store only the hash of the token, email the raw value
+    raw_token = generate_token()
+    expires_at = datetime.now(timezone.utc) + _VERIFICATION_TTL
+    create_email_verification_token(user["id"], hash_token(raw_token), expires_at)
+    try:
+        send_verification_email(user["email"], raw_token)
+    except Exception as exc:
+        logger.warning("verification email failed for %s: %s", user["email"], exc)
+
     secret, days = _read_jwt_config()
     token = create_access_token(user["id"], user["nick"], secret, days)
     _set_auth_cookie(response, token, days)
+    return user
+
+
+@router.post("/verify-email", response_model=UserResponse)
+def verify_email(body: VerifyEmailRequest) -> dict:
+    # consumes the token from the email link and flips the account to verified
+    now = datetime.now(timezone.utc)
+    user = verify_email_token(hash_token(body.token), now)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Link weryfikacyjny jest nieprawidłowy lub wygasł",
+        )
     return user
 
 

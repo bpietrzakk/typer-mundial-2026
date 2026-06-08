@@ -116,6 +116,74 @@ def test_login_locks_after_five_failed_attempts(monkeypatch):
     assert "Zbyt wiele prób" in resp.json()["detail"]
 
 
+# --- registration sends a verification email ---
+
+def test_register_sends_verification_email(monkeypatch):
+    new_user = {**FAKE_USER, "email": "new@example.com"}
+    monkeypatch.setattr(auth_module, "create_user", lambda n, e, p: new_user)
+    # capture the token stored and the email sent
+    stored = {}
+    monkeypatch.setattr(
+        auth_module, "create_email_verification_token",
+        lambda uid, th, exp: stored.update(user_id=uid, token_hash=th),
+    )
+    sent = {}
+    monkeypatch.setattr(
+        auth_module, "send_verification_email",
+        lambda to, token: sent.update(to=to, token=token),
+    )
+
+    resp = client.post(
+        "/auth/register",
+        json={"nick": "bartek", "email": "new@example.com", "password": "hunter22"},
+    )
+
+    assert resp.status_code == 201
+    assert resp.json()["email_verified"] is False
+    # a token was stored and an email went out to the new address
+    assert stored["user_id"] == new_user["id"]
+    assert sent["to"] == "new@example.com"
+    assert sent["token"]  # non-empty raw token
+
+
+def test_register_succeeds_even_if_email_send_fails(monkeypatch):
+    # email is best-effort — a Resend outage must not break registration
+    monkeypatch.setattr(auth_module, "create_user", lambda n, e, p: FAKE_USER)
+    monkeypatch.setattr(
+        auth_module, "create_email_verification_token", lambda uid, th, exp: None,
+    )
+
+    def boom(to, token):
+        raise RuntimeError("resend down")
+
+    monkeypatch.setattr(auth_module, "send_verification_email", boom)
+
+    resp = client.post(
+        "/auth/register",
+        json={"nick": "bartek", "email": "b@example.com", "password": "hunter22"},
+    )
+    assert resp.status_code == 201
+
+
+# --- /auth/verify-email ---
+
+def test_verify_email_with_valid_token(monkeypatch):
+    verified = {**FAKE_USER, "email_verified": True}
+    monkeypatch.setattr(auth_module, "verify_email_token", lambda th, now: verified)
+
+    resp = client.post("/auth/verify-email", json={"token": "good-token"})
+    assert resp.status_code == 200
+    assert resp.json()["email_verified"] is True
+
+
+def test_verify_email_with_bad_token_returns_400(monkeypatch):
+    monkeypatch.setattr(auth_module, "verify_email_token", lambda th, now: None)
+
+    resp = client.post("/auth/verify-email", json={"token": "expired-or-fake"})
+    assert resp.status_code == 400
+    assert "nieprawidłowy" in resp.json()["detail"]
+
+
 def test_successful_login_resets_attempt_counter(monkeypatch):
     real_user = {**FAKE_USER, "password_hash": "argon2-hash-placeholder"}
 

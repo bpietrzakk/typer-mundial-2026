@@ -1,7 +1,9 @@
 from domain.auth import (
     create_access_token,
     decode_access_token,
+    generate_token,
     hash_password,
+    hash_token,
     verify_password,
 )
 
@@ -53,3 +55,25 @@ def test_jwt_expired_returns_none():
     # negative expiry → token was already expired the moment it was signed
     token = create_access_token(user_id=1, nick="x", secret=SECRET, expires_days=-1)
     assert decode_access_token(token, SECRET) is None
+
+
+# --- opaque tokens (email verification / password reset) ---
+
+def test_generate_token_is_random():
+    # two calls must not collide — high entropy random
+    assert generate_token() != generate_token()
+
+
+def test_hash_token_is_deterministic():
+    # same input -> same hash, so we can look it up in the DB
+    raw = generate_token()
+    assert hash_token(raw) == hash_token(raw)
+
+
+def test_hash_token_differs_per_input():
+    assert hash_token("a") != hash_token("b")
+
+
+def test_hash_token_does_not_expose_raw():
+    raw = generate_token()
+    assert raw not in hash_token(raw)
