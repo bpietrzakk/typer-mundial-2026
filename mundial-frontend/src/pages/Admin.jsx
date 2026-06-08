@@ -144,7 +144,7 @@ export default function Admin() {
                   <p className="font-medium text-gray-200">
                     {u.nick}
                     {!u.email_verified && (
-                      <span className="ml-2 text-xs text-mundial-orange">niezweryfikowany</span>
+                      <span className="ml-2 text-xs text-mundial-red">niezweryfikowany</span>
                     )}
                   </p>
                   <p className="text-xs text-gray-500">{u.email}</p>
@@ -152,7 +152,7 @@ export default function Admin() {
               </div>
               <div className="flex items-center gap-3 text-right">
                 <div>
-                  <p className="score-num text-lg font-bold text-mundial-teal">{u.total_points}</p>
+                  <p className="score-num text-lg font-bold text-mundial-green">{u.total_points}</p>
                   <p className="text-xs text-gray-500">{u.prediction_count} typów</p>
                 </div>
                 {confirmDeleteId === u.id ? (

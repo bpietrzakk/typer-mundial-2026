@@ -151,7 +151,7 @@ export default function MyPredictions() {
             {[
               { key: 'exact', label: 'Dokładny wynik', color: 'bg-emerald-400' },
               { key: 'diff', label: 'Różnica bramek', color: 'bg-yellow-400' },
-              { key: 'tendency', label: 'Wynik meczu', color: 'bg-mundial-orange' },
+              { key: 'tendency', label: 'Wynik meczu', color: 'bg-mundial-red' },
               { key: 'miss', label: 'Pudło', color: 'bg-red-500' },
             ].map(({ key, label, color }) => {
               const count = cats[key];
@@ -177,7 +177,7 @@ export default function MyPredictions() {
       {predictions.length === 0 ? (
         <div className="glass-card p-8 text-center text-gray-400">
           Nie masz jeszcze żadnych typów — przejdź do{' '}
-          <Link to="/matches" className="text-mundial-teal hover:underline">Meczów</Link>{' '}
+          <Link to="/matches" className="text-mundial-green hover:underline">Meczów</Link>{' '}
           i zacznij typować!
         </div>
       ) : (

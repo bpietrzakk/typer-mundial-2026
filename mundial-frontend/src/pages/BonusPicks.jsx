@@ -241,7 +241,7 @@ export default function BonusPicks() {
                   disabled={isLocked}
                   className={`p-3 rounded-xl text-sm font-medium transition-all duration-200 flex flex-col items-center gap-1.5
                     ${champion === team.id
-                      ? 'bg-mundial-gold/20 border-2 border-mundial-gold text-mundial-gold shadow-glow-orange'
+                      ? 'bg-mundial-gold/20 border-2 border-mundial-gold text-mundial-gold shadow-glow-blue'
                       : 'bg-surface-700/30 border border-surface-500/20 text-gray-300 hover:bg-surface-700/50 hover:border-surface-500/40'
                     }
                     ${isLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
@@ -264,7 +264,7 @@ export default function BonusPicks() {
                 <button
                   onClick={handleChampionSave}
                   disabled={championSaving}
-                  className="btn-primary text-sm !px-8 shadow-glow-teal"
+                  className="btn-primary text-sm !px-8 shadow-glow-green"
                 >
                   {championSaving ? 'Zapisuję…' : 'Zapisz wybór mistrza'}
                 </button>
@@ -294,7 +294,7 @@ export default function BonusPicks() {
           <div className="flex items-center gap-3 mb-4">
             <div className="flex-1 h-1.5 bg-surface-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-mundial-teal to-mundial-magenta rounded-full transition-all duration-500"
+                className="h-full bg-gradient-to-r from-mundial-green to-mundial-red rounded-full transition-all duration-500"
                 style={{ width: `${(groupNames.filter(g => (groupPicks[g] || []).length === 2).length / groupNames.length) * 100}%` }}
               />
             </div>
@@ -311,10 +311,10 @@ export default function BonusPicks() {
 
             const groupComplete = picks.length === 2;
             return (
-              <div key={group} className={`glass-card p-4 ${groupComplete ? '!border-mundial-teal/40' : ''}`}>
+              <div key={group} className={`glass-card p-4 ${groupComplete ? '!border-mundial-green/40' : ''}`}>
                 <h3 className="font-semibold text-gray-300 mb-3 flex items-center justify-between">
                   <span>Grupa {group}</span>
-                  <span className={`text-xs tabular-nums ${groupComplete ? 'text-mundial-teal' : 'text-gray-500'}`}>
+                  <span className={`text-xs tabular-nums ${groupComplete ? 'text-mundial-green' : 'text-gray-500'}`}>
                     {picks.length}/2
                   </span>
                 </h3>
@@ -328,7 +328,7 @@ export default function BonusPicks() {
                         disabled={isLocked}
                         className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200
                           ${picked
-                            ? 'bg-mundial-teal/20 border border-mundial-teal/50 text-mundial-teal'
+                            ? 'bg-mundial-green/20 border border-mundial-green/50 text-mundial-green'
                             : 'bg-surface-700/20 border border-surface-500/10 text-gray-400 hover:bg-surface-700/40 hover:text-gray-200'
                           }
                           ${isLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}

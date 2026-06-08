@@ -158,7 +158,7 @@ export default function Register() {
         {/* login link */}
         <p className="text-center mt-6 text-gray-500 text-sm">
           Masz już konto?{' '}
-          <Link to="/login" className="text-mundial-teal hover:text-mundial-teal/80 font-medium transition-colors">
+          <Link to="/login" className="text-mundial-green hover:text-mundial-green/80 font-medium transition-colors">
             Zaloguj się
           </Link>
         </p>

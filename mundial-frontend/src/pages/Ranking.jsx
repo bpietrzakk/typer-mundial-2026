@@ -5,9 +5,9 @@ import RankingTable from '../components/RankingTable';
 
 function PodiumCard({ entry, height, isCurrentUser }) {
   const colors = {
-    1: { ring: 'border-mundial-gold/60', glow: 'shadow-glow-orange', label: 'text-mundial-gold', bg: 'bg-mundial-gold/10' },
+    1: { ring: 'border-mundial-gold/60', glow: 'shadow-[0_0_20px_rgba(200,164,40,0.4)]', label: 'text-mundial-gold', bg: 'bg-mundial-gold/10' },
     2: { ring: 'border-gray-400/40', glow: '', label: 'text-gray-300', bg: 'bg-gray-400/10' },
-    3: { ring: 'border-mundial-orange/40', glow: '', label: 'text-mundial-orange', bg: 'bg-mundial-orange/10' },
+    3: { ring: 'border-mundial-red/40', glow: '', label: 'text-mundial-red', bg: 'bg-mundial-red/10' },
   }[entry.rank] || {};
 
   return (
@@ -29,9 +29,9 @@ function PodiumCard({ entry, height, isCurrentUser }) {
         className={`w-full rounded-t-xl ${colors.bg} border border-surface-500/20 flex flex-col items-center pt-3 pb-2 px-2`}
         style={{ minHeight: height }}
       >
-        <p className={`font-bold text-sm text-center truncate max-w-full ${isCurrentUser ? 'text-mundial-teal' : 'text-gray-200'}`}>
+        <p className={`font-bold text-sm text-center truncate max-w-full ${isCurrentUser ? 'text-mundial-green' : 'text-gray-200'}`}>
           {entry.nick}
-          {isCurrentUser && <span className="block text-xs text-mundial-teal/60">(Ty)</span>}
+          {isCurrentUser && <span className="block text-xs text-mundial-green/60">(Ty)</span>}
         </p>
         <p className={`text-xl font-black tabular-nums mt-1 ${colors.label}`}>
           {entry.total_points}
@@ -98,7 +98,7 @@ export default function Ranking() {
 
       {/* user's position banner (if not in top 3) */}
       {myEntry && myEntry.rank > 3 && (
-        <div className="glass-card px-5 py-3 mb-6 flex items-center gap-3 border-mundial-teal/20">
+        <div className="glass-card px-5 py-3 mb-6 flex items-center gap-3 border-mundial-green/20">
           <span className="text-sm text-gray-400">Twoja pozycja:</span>
           <span className="text-2xl font-black tabular-nums text-mundial-gold">#{myEntry.rank}</span>
           <span className="text-gray-500 text-sm">·</span>

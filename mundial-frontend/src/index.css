@@ -15,46 +15,35 @@
     min-height: 100vh;
   }
 
-  /* headings use the display font (Space Grotesk) for a sportier feel */
   h1, h2, h3, h4 {
     @apply font-display tracking-tight;
   }
 
-  /* custom scrollbar — keeps the dark theme consistent */
-  ::-webkit-scrollbar {
-    width: 8px;
-  }
-  ::-webkit-scrollbar-track {
-    @apply bg-surface-900;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-surface-500 rounded-full;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-surface-600;
-  }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { @apply bg-surface-900; }
+  ::-webkit-scrollbar-thumb { @apply bg-surface-500 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-surface-600; }
 }
 
 @layer components {
-  /* glassmorphism card used across the app — no default hover (add hover styles per element) */
   .glass-card {
     @apply bg-surface-800/80 backdrop-blur-md border border-surface-500/30
            rounded-2xl shadow-card transition-all duration-300;
   }
 
-  /* gradient text — used for headings and accents */
+  /* gradient text — official FIFA 2026 red→green→blue */
   .gradient-text {
     @apply bg-clip-text text-transparent bg-gradient-mundial;
   }
 
-  /* primary button with mundial gradient */
+  /* primary button — official tri-color gradient */
   .btn-primary {
     @apply relative px-6 py-3 rounded-xl font-semibold text-white
-           bg-gradient-to-r from-mundial-teal via-mundial-magenta to-mundial-orange
+           bg-gradient-to-r from-mundial-red via-mundial-green to-mundial-blue
            bg-[length:200%_100%] bg-left
            hover:bg-right
            transition-all duration-500 ease-out
-           shadow-lg hover:shadow-glow-teal
+           shadow-lg hover:shadow-glow-green
            active:scale-[0.97]
            disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none;
   }
@@ -63,7 +52,7 @@
   .btn-secondary {
     @apply px-6 py-3 rounded-xl font-semibold
            border border-surface-500/50 text-gray-300
-           hover:border-mundial-teal/50 hover:text-mundial-teal
+           hover:border-mundial-green/50 hover:text-mundial-green
            bg-surface-800/50 backdrop-blur-sm
            transition-all duration-300
            active:scale-[0.97];
@@ -74,7 +63,7 @@
     @apply w-full px-4 py-3 rounded-xl
            bg-surface-600/50 border border-surface-500/30
            text-gray-100 placeholder-gray-500
-           focus:outline-none focus:border-mundial-teal/50 focus:ring-2 focus:ring-mundial-teal/20
+           focus:outline-none focus:border-mundial-green/50 focus:ring-2 focus:ring-mundial-green/20
            transition-all duration-300;
   }
 
@@ -82,57 +71,49 @@
   .badge {
     @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider;
   }
-  .badge-group { @apply badge bg-mundial-teal/20 text-mundial-teal; }
-  .badge-r16 { @apply badge bg-blue-500/20 text-blue-400; }
-  .badge-quarter { @apply badge bg-purple-500/20 text-purple-400; }
-  .badge-semi { @apply badge bg-mundial-orange/20 text-mundial-orange; }
-  .badge-final { @apply badge bg-mundial-gold/20 text-mundial-gold; }
+  .badge-group   { @apply badge bg-mundial-green/20 text-mundial-green; }
+  .badge-r16     { @apply badge bg-mundial-blue/20  text-blue-400; }
+  .badge-quarter { @apply badge bg-purple-500/20    text-purple-400; }
+  .badge-semi    { @apply badge bg-mundial-red/20   text-mundial-red; }
+  .badge-final   { @apply badge bg-mundial-gold/20  text-mundial-gold; }
 
   /* status indicator dot */
-  .status-dot {
-    @apply inline-block w-2 h-2 rounded-full mr-2;
-  }
+  .status-dot       { @apply inline-block w-2 h-2 rounded-full mr-2; }
   .status-scheduled { @apply status-dot bg-emerald-400; }
-  .status-live { @apply status-dot bg-red-500 animate-pulse; }
-  .status-finished { @apply status-dot bg-gray-500; }
+  .status-live      { @apply status-dot bg-mundial-red animate-pulse; }
+  .status-finished  { @apply status-dot bg-gray-500; }
 
   /* points color coding */
-  .points-exact { @apply text-emerald-400 font-bold; }
-  .points-diff { @apply text-yellow-400 font-bold; }
-  .points-tendency { @apply text-mundial-orange font-bold; }
-  .points-miss { @apply text-red-400; }
+  .points-exact     { @apply text-emerald-400 font-bold; }
+  .points-diff      { @apply text-yellow-400 font-bold; }
+  .points-tendency  { @apply text-amber-400 font-bold; }
+  .points-miss      { @apply text-red-400; }
 
-  /* page container — extra bottom padding on mobile to clear the fixed bottom nav */
+  /* page container */
   .page-container {
     @apply max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-28 md:pb-8;
   }
 
-  /* page heading */
   .page-title {
     @apply text-3xl sm:text-4xl font-bold font-display gradient-text mb-8;
   }
 
-  /* match scores — display font with aligned figures */
   .score-num {
     @apply font-display tabular-nums;
   }
 
-  /* skeleton loader placeholder */
   .skeleton {
     @apply bg-surface-700 rounded-lg animate-pulse;
   }
 
-  /* hide scrollbar while keeping scroll functionality */
   .scrollbar-hide {
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
 }
 
-/* animated gradient background for auth pages */
+/* auth page background — updated to official FIFA 2026 colors */
 .auth-bg {
   background: linear-gradient(135deg, #0B0E14 0%, #111827 40%, #0A1128 100%);
   position: relative;
@@ -141,17 +122,16 @@
 .auth-bg::before {
   content: '';
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle at 30% 50%, rgba(0, 180, 216, 0.08) 0%, transparent 50%),
-              radial-gradient(circle at 70% 50%, rgba(230, 0, 126, 0.06) 0%, transparent 50%),
-              radial-gradient(circle at 50% 80%, rgba(255, 107, 53, 0.05) 0%, transparent 50%);
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background:
+    radial-gradient(circle at 25% 50%, rgba(230, 29, 37,  0.07) 0%, transparent 45%),
+    radial-gradient(circle at 75% 50%, rgba(42,  57, 141,  0.07) 0%, transparent 45%),
+    radial-gradient(circle at 50% 80%, rgba(60,  172, 59,  0.05) 0%, transparent 45%);
   animation: auth-glow 8s ease-in-out infinite alternate;
 }
 @keyframes auth-glow {
-  0% { transform: translate(0, 0) rotate(0deg); }
+  0%   { transform: translate(0, 0)   rotate(0deg); }
   100% { transform: translate(2%, 1%) rotate(3deg); }
 }
 

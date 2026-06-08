@@ -62,7 +62,7 @@ function GroupCard({ group, teams, matches, predictions, onPredictionSaved }) {
       {/* group header */}
       <div className="px-4 pt-4 pb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-black uppercase tracking-widest text-mundial-teal bg-mundial-teal/10 px-2 py-0.5 rounded-md">
+          <span className="text-xs font-black uppercase tracking-widest text-mundial-green bg-mundial-green/10 px-2 py-0.5 rounded-md">
             Grupa {group}
           </span>
           <span className="text-xs text-gray-600 tabular-nums">{played}/{total}</span>
@@ -72,7 +72,7 @@ function GroupCard({ group, teams, matches, predictions, onPredictionSaved }) {
             {[...Array(total)].map((_, i) => (
               <div
                 key={i}
-                className={`w-1.5 h-1.5 rounded-full ${i < played ? 'bg-mundial-teal' : 'bg-surface-600'}`}
+                className={`w-1.5 h-1.5 rounded-full ${i < played ? 'bg-mundial-green' : 'bg-surface-600'}`}
               />
             ))}
           </div>
@@ -96,9 +96,9 @@ function GroupCard({ group, teams, matches, predictions, onPredictionSaved }) {
           </thead>
           <tbody>
             {standings.map((s, idx) => (
-              <tr key={s.team.id} className={`border-t border-surface-500/10 ${idx < 2 && hasAnyResults ? 'bg-mundial-teal/4' : ''}`}>
+              <tr key={s.team.id} className={`border-t border-surface-500/10 ${idx < 2 && hasAnyResults ? 'bg-mundial-green/4' : ''}`}>
                 <td className="py-1.5 pl-1">
-                  <span className={`font-bold ${idx < 2 && hasAnyResults ? 'text-mundial-teal' : 'text-gray-600'}`}>
+                  <span className={`font-bold ${idx < 2 && hasAnyResults ? 'text-mundial-green' : 'text-gray-600'}`}>
                     {idx + 1}
                   </span>
                 </td>
@@ -227,7 +227,7 @@ function PlayoffTab({ stage, matches, predictions, onPredictionSaved }) {
   );
 }
 
-const TAB_STYLE_ACTIVE = 'bg-gradient-to-r from-mundial-teal to-mundial-magenta text-white shadow-glow-teal';
+const TAB_STYLE_ACTIVE = 'bg-gradient-to-r from-mundial-green to-mundial-red text-white shadow-glow-green';
 const TAB_STYLE_IDLE = 'bg-surface-800/60 text-gray-400 hover:text-gray-200 hover:bg-surface-700/60';
 
 export default function Matches() {
