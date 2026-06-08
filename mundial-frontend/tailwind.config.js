@@ -7,16 +7,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Official FIFA World Cup 2026 colors
-        // Red = Canada, Green = Mexico, Blue = USA
+        // Primary accent — teal/cyan (oryginalne, rozpoznawalne)
+        // Red — oficjalny kolor FIFA 2026 (akcent)
+        // Gold — trofeum
         mundial: {
-          red:    '#E61D25',  // Torch Red — official Canada color
-          green:  '#3CAC3B',  // Average Green — official Mexico color
-          blue:   '#2A398D',  // Hermes Blue — official USA color
-          gold:   '#C8A428',  // Trophy gold
-          navy:   '#0A1128',  // Deep dark background
+          teal:  '#00B4D8',  // primary — wszystkie active states, linki, akcenty
+          red:   '#E61D25',  // accent — FIFA 2026 official red, live, ważne CTA
+          gold:  '#C8A428',  // ranking, trofeum
+          navy:  '#0A1128',  // ciemne tło
         },
-        // app surfaces — dark theme
         surface: {
           900: '#0B0E14',
           800: '#111827',
@@ -26,24 +25,21 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        sans:    ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
         display: ['Space Grotesk', 'Inter', 'system-ui', 'sans-serif'],
       },
       backgroundImage: {
-        // Official 2026 tri-color gradient: Kanada → Meksyk → USA
-        'gradient-mundial': 'linear-gradient(90deg, #E61D25 0%, #3CAC3B 50%, #2A398D 100%)',
-        // Two-color variants
-        'gradient-red-green':  'linear-gradient(135deg, #E61D25 0%, #3CAC3B 100%)',
-        'gradient-green-blue': 'linear-gradient(135deg, #3CAC3B 0%, #2A398D 100%)',
-        'gradient-red-blue':   'linear-gradient(135deg, #E61D25 0%, #2A398D 100%)',
-        'gradient-card': 'linear-gradient(145deg, rgba(30,37,54,0.8) 0%, rgba(17,24,39,0.9) 100%)',
+        // Teal → Red — znajomy kolor + oficjalny akcent FIFA
+        'gradient-mundial':   'linear-gradient(90deg, #00B4D8 0%, #E61D25 100%)',
+        'gradient-teal-red':  'linear-gradient(135deg, #00B4D8 0%, #E61D25 100%)',
+        'gradient-card':      'linear-gradient(145deg, rgba(30,37,54,0.8) 0%, rgba(17,24,39,0.9) 100%)',
       },
       boxShadow: {
-        'glow-red':   '0 0 20px rgba(230, 29, 37, 0.35)',
-        'glow-green': '0 0 20px rgba(60, 172, 59, 0.35)',
-        'glow-blue':  '0 0 20px rgba(42, 57, 141, 0.35)',
-        'card':       '0 4px 24px rgba(0, 0, 0, 0.3)',
-        'card-hover': '0 8px 40px rgba(0, 0, 0, 0.5)',
+        'glow-teal': '0 0 20px rgba(0, 180, 216, 0.35)',
+        'glow-red':  '0 0 20px rgba(230, 29, 37, 0.35)',
+        'glow-gold': '0 0 20px rgba(200, 164, 40, 0.35)',
+        'card':      '0 4px 24px rgba(0, 0, 0, 0.3)',
+        'card-hover':'0 8px 40px rgba(0, 0, 0, 0.5)',
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',

@@ -34,7 +34,7 @@ export function useToast() {
 const TYPE_STYLES = {
   success: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
   error: 'bg-red-500/10 border-red-500/30 text-red-400',
-  info: 'bg-mundial-green/10 border-mundial-green/30 text-mundial-green',
+  info: 'bg-mundial-teal/10 border-mundial-teal/30 text-mundial-teal',
 };
 
 const TYPE_ICON = {

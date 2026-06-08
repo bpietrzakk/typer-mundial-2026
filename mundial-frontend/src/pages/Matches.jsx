@@ -62,7 +62,7 @@ function GroupCard({ group, teams, matches, predictions, onPredictionSaved }) {
       {/* group header */}
       <div className="px-4 pt-4 pb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-black uppercase tracking-widest text-mundial-green bg-mundial-green/10 px-2 py-0.5 rounded-md">
+          <span className="text-xs font-black uppercase tracking-widest text-mundial-teal bg-mundial-teal/10 px-2 py-0.5 rounded-md">
             Grupa {group}
           </span>
           <span className="text-xs text-gray-600 tabular-nums">{played}/{total}</span>
@@ -72,7 +72,7 @@ function GroupCard({ group, teams, matches, predictions, onPredictionSaved }) {
             {[...Array(total)].map((_, i) => (
               <div
                 key={i}
-                className={`w-1.5 h-1.5 rounded-full ${i < played ? 'bg-mundial-green' : 'bg-surface-600'}`}
+                className={`w-1.5 h-1.5 rounded-full ${i < played ? 'bg-mundial-teal' : 'bg-surface-600'}`}
               />
             ))}
           </div>
@@ -96,9 +96,9 @@ function GroupCard({ group, teams, matches, predictions, onPredictionSaved }) {
           </thead>
           <tbody>
             {standings.map((s, idx) => (
-              <tr key={s.team.id} className={`border-t border-surface-500/10 ${idx < 2 && hasAnyResults ? 'bg-mundial-green/4' : ''}`}>
+              <tr key={s.team.id} className={`border-t border-surface-500/10 ${idx < 2 && hasAnyResults ? 'bg-mundial-teal/4' : ''}`}>
                 <td className="py-1.5 pl-1">
-                  <span className={`font-bold ${idx < 2 && hasAnyResults ? 'text-mundial-green' : 'text-gray-600'}`}>
+                  <span className={`font-bold ${idx < 2 && hasAnyResults ? 'text-mundial-teal' : 'text-gray-600'}`}>
                     {idx + 1}
                   </span>
                 </td>
@@ -141,7 +141,7 @@ function GroupCard({ group, teams, matches, predictions, onPredictionSaved }) {
       {/* group matches — shown in a responsive grid when card spans full width */}
       {expanded && (
         <div className="border-t border-surface-500/10 bg-surface-900/30 p-3">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid lg:grid-cols-2 gap-3">
             {groupMatches.map((m) => (
               <MatchCard
                 key={m.id}
@@ -157,7 +157,16 @@ function GroupCard({ group, teams, matches, predictions, onPredictionSaved }) {
   );
 }
 
-function UpcomingSection({ matches, predictions, onPredictionSaved }) {
+function UpcomingSection({ matches, predictions, onPredictionSaved, teamsByGroup }) {
+  // build matchId → group name for group-stage matches
+  const matchGroup = {};
+  Object.entries(teamsByGroup || {}).forEach(([grp, teams]) => {
+    matches.forEach((m) => {
+      if (m.stage === 'group' && teams.some((t) => t.id === m.home_team.id)) {
+        matchGroup[m.id] = grp;
+      }
+    });
+  });
   const upcoming = [...matches]
     .filter((m) => m.status !== 'finished')
     .sort((a, b) => new Date(a.kickoff_at) - new Date(b.kickoff_at));
@@ -190,12 +199,18 @@ function UpcomingSection({ matches, predictions, onPredictionSaved }) {
           </p>
           <div className="grid gap-3">
             {dayMatches.map((m) => (
-              <MatchCard
-                key={m.id}
-                match={m}
-                prediction={predictions[m.id]}
-                onPredictionSaved={onPredictionSaved}
-              />
+              <div key={m.id}>
+                {matchGroup[m.id] && (
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-600 mb-1.5 ml-1">
+                    Grupa {matchGroup[m.id]}
+                  </p>
+                )}
+                <MatchCard
+                  match={m}
+                  prediction={predictions[m.id]}
+                  onPredictionSaved={onPredictionSaved}
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -227,7 +242,7 @@ function PlayoffTab({ stage, matches, predictions, onPredictionSaved }) {
   );
 }
 
-const TAB_STYLE_ACTIVE = 'bg-gradient-to-r from-mundial-green to-mundial-red text-white shadow-glow-green';
+const TAB_STYLE_ACTIVE = 'bg-gradient-to-r from-mundial-teal to-mundial-red text-white shadow-glow-teal';
 const TAB_STYLE_IDLE = 'bg-surface-800/60 text-gray-400 hover:text-gray-200 hover:bg-surface-700/60';
 
 export default function Matches() {
@@ -373,6 +388,7 @@ export default function Matches() {
           matches={matches}
           predictions={predictions}
           onPredictionSaved={handlePredictionSaved}
+          teamsByGroup={teamsByGroup}
         />
       )}
 

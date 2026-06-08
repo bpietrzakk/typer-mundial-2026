@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { changeNick, changePassword, deleteAccount } from '../api/settings';
@@ -208,6 +208,12 @@ export default function Settings() {
           </div>
         </Section>
 
+      </div>
+
+      <div className="mt-6 text-center">
+        <Link to="/rules" className="text-sm text-gray-600 hover:text-gray-400 transition-colors underline underline-offset-2">
+          Zasady punktacji
+        </Link>
       </div>
     </div>
   );

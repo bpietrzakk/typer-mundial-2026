@@ -62,6 +62,8 @@ export default function BonusPicks() {
         picks[a.group_name].push(a.team_id);
       });
       setGroupPicks(picks);
+      // if user already has saved picks, start in view mode
+      if (advanceData.length > 0) setGroupSaved(true);
     } catch {
       setError('Nie udało się załadować drużyn');
     } finally {
@@ -241,7 +243,7 @@ export default function BonusPicks() {
                   disabled={isLocked}
                   className={`p-3 rounded-xl text-sm font-medium transition-all duration-200 flex flex-col items-center gap-1.5
                     ${champion === team.id
-                      ? 'bg-mundial-gold/20 border-2 border-mundial-gold text-mundial-gold shadow-glow-blue'
+                      ? 'bg-mundial-gold/20 border-2 border-mundial-gold text-mundial-gold shadow-glow-teal'
                       : 'bg-surface-700/30 border border-surface-500/20 text-gray-300 hover:bg-surface-700/50 hover:border-surface-500/40'
                     }
                     ${isLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
@@ -264,7 +266,7 @@ export default function BonusPicks() {
                 <button
                   onClick={handleChampionSave}
                   disabled={championSaving}
-                  className="btn-primary text-sm !px-8 shadow-glow-green"
+                  className="btn-primary text-sm !px-8 shadow-glow-teal"
                 >
                   {championSaving ? 'Zapisuję…' : 'Zapisz wybór mistrza'}
                 </button>
@@ -294,7 +296,7 @@ export default function BonusPicks() {
           <div className="flex items-center gap-3 mb-4">
             <div className="flex-1 h-1.5 bg-surface-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-mundial-green to-mundial-red rounded-full transition-all duration-500"
+                className="h-full bg-gradient-to-r from-mundial-teal to-mundial-red rounded-full transition-all duration-500"
                 style={{ width: `${(groupNames.filter(g => (groupPicks[g] || []).length === 2).length / groupNames.length) * 100}%` }}
               />
             </div>
@@ -310,28 +312,43 @@ export default function BonusPicks() {
             const picks = groupPicks[group] || [];
 
             const groupComplete = picks.length === 2;
+            // view mode = saved; edit mode = not saved (or locked)
+            const viewMode = groupSaved || isLocked;
             return (
-              <div key={group} className={`glass-card p-4 ${groupComplete ? '!border-mundial-green/40' : ''}`}>
+              <div key={group} className={`glass-card p-4 transition-all duration-300
+                ${groupComplete && groupSaved ? '!border-sky-500/40' : ''}
+                ${groupComplete && !groupSaved && !isLocked ? '!border-amber-500/40' : ''}`}>
                 <h3 className="font-semibold text-gray-300 mb-3 flex items-center justify-between">
                   <span>Grupa {group}</span>
-                  <span className={`text-xs tabular-nums ${groupComplete ? 'text-mundial-green' : 'text-gray-500'}`}>
+                  <span className={`text-xs tabular-nums flex items-center gap-1 ${
+                    groupComplete && groupSaved    ? 'text-sky-400'    :
+                    groupComplete && !groupSaved   ? 'text-amber-400'  :
+                    'text-gray-500'
+                  }`}>
+                    {groupComplete && groupSaved && (
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                      </svg>
+                    )}
                     {picks.length}/2
                   </span>
                 </h3>
-                <div className="space-y-1.5">
+                <div className={`space-y-1.5 transition-opacity duration-200 ${viewMode ? 'opacity-50' : ''}`}>
                   {groupTeams.map((team) => {
                     const picked = picks.includes(team.id);
                     return (
                       <button
                         key={team.id}
                         onClick={() => toggleGroupPick(group, team.id)}
-                        disabled={isLocked}
+                        disabled={viewMode}
                         className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200
                           ${picked
-                            ? 'bg-mundial-green/20 border border-mundial-green/50 text-mundial-green'
+                            ? viewMode
+                              ? 'bg-sky-400/20 border border-sky-400/40 text-sky-300'
+                              : 'bg-amber-400/20 border border-amber-400/50 text-amber-300'
                             : 'bg-surface-700/20 border border-surface-500/10 text-gray-400 hover:bg-surface-700/40 hover:text-gray-200'
                           }
-                          ${isLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                          ${viewMode ? 'cursor-default' : 'cursor-pointer'}`}
                       >
                         {team.crest_url && (
                           <img
@@ -353,9 +370,18 @@ export default function BonusPicks() {
 
         {!isLocked && groupNames.length > 0 && (
           <div className="mt-6">
-            <button onClick={handleGroupSave} disabled={groupSaving} className="btn-primary">
-              {groupSaving ? 'Zapisuję…' : groupSaved ? 'Zapisano awanse!' : 'Zapisz awanse z grup'}
-            </button>
+            {groupSaved ? (
+              <button
+                onClick={() => setGroupSaved(false)}
+                className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                Zmień awanse
+              </button>
+            ) : (
+              <button onClick={handleGroupSave} disabled={groupSaving} className="btn-primary">
+                {groupSaving ? 'Zapisuję…' : 'Zapisz awanse z grup'}
+              </button>
+            )}
           </div>
         )}
       </section>

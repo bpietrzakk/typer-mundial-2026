@@ -258,12 +258,12 @@ function LeagueDetail({ leagueId }) {
           <div>
             <p className="text-sm text-gray-400">Kod zaproszenia</p>
             <div className="flex items-center gap-2 mt-1">
-              <code className="bg-surface-600/50 px-3 py-1.5 rounded-lg text-mundial-green font-mono font-bold text-lg tracking-widest">
+              <code className="bg-surface-600/50 px-3 py-1.5 rounded-lg text-mundial-teal font-mono font-bold text-lg tracking-widest">
                 {league?.join_code}
               </code>
               <button
                 onClick={copyCode}
-                className="px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-400 hover:text-mundial-green text-sm transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-400 hover:text-mundial-teal text-sm transition-colors"
               >
                 {copied ? 'Skopiowano' : 'Kopiuj'}
               </button>

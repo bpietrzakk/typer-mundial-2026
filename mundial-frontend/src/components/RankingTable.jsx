@@ -37,7 +37,7 @@ export default function RankingTable({ entries, title }) {
                   key={entry.user_id}
                   className={`border-b border-surface-500/10 transition-colors
                     ${isCurrentUser
-                      ? 'bg-mundial-green/10 hover:bg-mundial-green/15'
+                      ? 'bg-mundial-teal/10 hover:bg-mundial-teal/15'
                       : 'hover:bg-surface-700/30'
                     }`}
                 >
@@ -52,11 +52,11 @@ export default function RankingTable({ entries, title }) {
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
-                    <span className={`font-medium ${isCurrentUser ? 'text-mundial-green' : 'text-gray-200'}`}>
+                    <span className={`font-medium ${isCurrentUser ? 'text-mundial-teal' : 'text-gray-200'}`}>
                       {entry.nick}
                     </span>
                     {isCurrentUser && (
-                      <span className="ml-2 text-xs text-mundial-green/70">(Ty)</span>
+                      <span className="ml-2 text-xs text-mundial-teal/70">(Ty)</span>
                     )}
                   </td>
                   <td className="px-5 py-3.5 text-right">

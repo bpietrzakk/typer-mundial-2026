@@ -50,7 +50,7 @@ export default function PredictionForm({ matchId, initialHome, initialAway, onSa
             max={99}
             value={home}
             onChange={(e) => setHome(Math.max(0, Math.min(99, parseInt(e.target.value) || 0)))}
-            className="w-14 h-11 text-center text-xl font-bold rounded-lg bg-surface-600/50 border border-surface-500/30 text-white focus:outline-none focus:border-mundial-green/50"
+            className="w-14 h-11 text-center text-xl font-bold rounded-lg bg-surface-600/50 border border-surface-500/30 text-white focus:outline-none focus:border-mundial-teal/50"
           />
           <button
             type="button"
@@ -79,7 +79,7 @@ export default function PredictionForm({ matchId, initialHome, initialAway, onSa
             max={99}
             value={away}
             onChange={(e) => setAway(Math.max(0, Math.min(99, parseInt(e.target.value) || 0)))}
-            className="w-14 h-11 text-center text-xl font-bold rounded-lg bg-surface-600/50 border border-surface-500/30 text-white focus:outline-none focus:border-mundial-green/50"
+            className="w-14 h-11 text-center text-xl font-bold rounded-lg bg-surface-600/50 border border-surface-500/30 text-white focus:outline-none focus:border-mundial-teal/50"
           />
           <button
             type="button"

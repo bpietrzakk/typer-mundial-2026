@@ -132,8 +132,8 @@ export default function Dashboard() {
 
       {/* hero */}
       <div className="relative overflow-hidden glass-card p-6 mb-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-mundial-green/8 via-transparent to-mundial-red/8 pointer-events-none" />
-        <div className="absolute -right-8 -top-8 w-48 h-48 rounded-full bg-mundial-green/5 blur-3xl pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-mundial-teal/8 via-transparent to-mundial-red/8 pointer-events-none" />
+        <div className="absolute -right-8 -top-8 w-48 h-48 rounded-full bg-mundial-teal/5 blur-3xl pointer-events-none" />
         <div className="absolute -left-8 -bottom-8 w-48 h-48 rounded-full bg-mundial-red/5 blur-3xl pointer-events-none" />
 
         <div className="relative flex items-start justify-between gap-4 flex-wrap">
@@ -176,7 +176,7 @@ export default function Dashboard() {
             </div>
             <div className="h-1.5 bg-surface-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-mundial-green to-mundial-red rounded-full transition-all duration-1000"
+                className="h-full bg-gradient-to-r from-mundial-teal to-mundial-red rounded-full transition-all duration-1000"
                 style={{ width: `${leaderPct}%` }}
               />
             </div>
@@ -254,7 +254,7 @@ export default function Dashboard() {
         <div className="glass-card overflow-hidden">
           <div className="px-5 py-4 border-b border-surface-500/20 flex items-center justify-between">
             <h2 className="font-semibold text-gray-200">Ostatnie wyniki</h2>
-            <Link to="/predictions" className="text-xs text-mundial-green hover:text-mundial-green/80 transition-colors">
+            <Link to="/predictions" className="text-xs text-mundial-teal hover:text-mundial-teal/80 transition-colors">
               Wszystkie →
             </Link>
           </div>
@@ -298,7 +298,7 @@ export default function Dashboard() {
         <div className="glass-card overflow-hidden">
           <div className="px-5 py-4 border-b border-surface-500/20 flex items-center justify-between">
             <h2 className="font-semibold text-gray-200">Ranking</h2>
-            <Link to="/ranking" className="text-xs text-mundial-green hover:text-mundial-green/80 transition-colors">
+            <Link to="/ranking" className="text-xs text-mundial-teal hover:text-mundial-teal/80 transition-colors">
               Pełny →
             </Link>
           </div>
@@ -311,7 +311,7 @@ export default function Dashboard() {
                 return (
                   <div
                     key={entry.user_id}
-                    className={`px-5 py-3 flex items-center gap-3 ${isMe ? 'bg-mundial-green/8' : ''}`}
+                    className={`px-5 py-3 flex items-center gap-3 ${isMe ? 'bg-mundial-teal/8' : ''}`}
                   >
                     <span className={`w-6 text-center font-bold text-sm tabular-nums ${
                       entry.rank === 1 ? 'text-mundial-gold' :
@@ -319,8 +319,8 @@ export default function Dashboard() {
                       entry.rank === 3 ? 'text-mundial-red' :
                       'text-gray-600'
                     }`}>{entry.rank}</span>
-                    <span className={`flex-1 text-sm font-medium truncate ${isMe ? 'text-mundial-green' : 'text-gray-200'}`}>
-                      {entry.nick}{isMe && <span className="ml-1.5 text-xs text-mundial-green/60">(Ty)</span>}
+                    <span className={`flex-1 text-sm font-medium truncate ${isMe ? 'text-mundial-teal' : 'text-gray-200'}`}>
+                      {entry.nick}{isMe && <span className="ml-1.5 text-xs text-mundial-teal/60">(Ty)</span>}
                     </span>
                     <span className="text-sm font-bold tabular-nums text-gray-300">{entry.total_points}</span>
                   </div>
@@ -333,10 +333,10 @@ export default function Dashboard() {
           {myEntry && !topRanking.find((r) => r.user_id === user?.id) && (
             <>
               <div className="px-5 py-1 text-center text-xs text-gray-600">• • •</div>
-              <div className="px-5 py-3 flex items-center gap-3 bg-mundial-green/8 border-t border-surface-500/10">
+              <div className="px-5 py-3 flex items-center gap-3 bg-mundial-teal/8 border-t border-surface-500/10">
                 <span className="w-6 text-center font-bold text-sm tabular-nums text-gray-400">{myEntry.rank}</span>
-                <span className="flex-1 text-sm font-medium text-mundial-green truncate">
-                  {user?.nick} <span className="text-xs text-mundial-green/60">(Ty)</span>
+                <span className="flex-1 text-sm font-medium text-mundial-teal truncate">
+                  {user?.nick} <span className="text-xs text-mundial-teal/60">(Ty)</span>
                 </span>
                 <span className="text-sm font-bold tabular-nums text-gray-300">{myEntry.total_points}</span>
               </div>
@@ -348,9 +348,9 @@ export default function Dashboard() {
 
       {/* quick actions */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-6">
-        <Link to="/matches" className="glass-card p-4 flex items-center gap-3 hover:border-mundial-green/40 transition-all group cursor-pointer">
-          <div className="w-10 h-10 rounded-xl bg-mundial-green/15 flex items-center justify-center shrink-0 group-hover:bg-mundial-green/25 transition-colors">
-            <svg className="w-5 h-5 text-mundial-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <Link to="/matches" className="glass-card p-4 flex items-center gap-3 hover:border-mundial-teal/40 transition-all group cursor-pointer">
+          <div className="w-10 h-10 rounded-xl bg-mundial-teal/15 flex items-center justify-center shrink-0 group-hover:bg-mundial-teal/25 transition-colors">
+            <svg className="w-5 h-5 text-mundial-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
             </svg>
           </div>

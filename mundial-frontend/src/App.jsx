@@ -16,6 +16,7 @@ import BonusPicks from './pages/BonusPicks';
 import Admin from './pages/Admin';
 import Settings from './pages/Settings';
 import Dashboard from './pages/Dashboard';
+import Rules from './pages/Rules';
 
 // layout wrapper — navbar + page content for authenticated routes
 function AppLayout({ children }) {
@@ -113,6 +114,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AppLayout><Settings /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rules"
+            element={
+              <ProtectedRoute>
+                <AppLayout><Rules /></AppLayout>
               </ProtectedRoute>
             }
           />

@@ -146,7 +146,12 @@ export default function MyPredictions() {
       {/* category breakdown + bar chart */}
       {scoredCount > 0 && (
         <div className="glass-card p-5 mb-6">
-          <p className="text-sm font-semibold text-gray-400 mb-4">Rozkład typów ({scoredCount} rozliczonych)</p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-semibold text-gray-400">Rozkład typów ({scoredCount} rozliczonych)</p>
+            <Link to="/rules" className="text-xs text-gray-600 hover:text-gray-400 transition-colors underline underline-offset-2">
+              Zasady
+            </Link>
+          </div>
           <div className="space-y-2.5">
             {[
               { key: 'exact', label: 'Dokładny wynik', color: 'bg-emerald-400' },
@@ -177,7 +182,7 @@ export default function MyPredictions() {
       {predictions.length === 0 ? (
         <div className="glass-card p-8 text-center text-gray-400">
           Nie masz jeszcze żadnych typów — przejdź do{' '}
-          <Link to="/matches" className="text-mundial-green hover:underline">Meczów</Link>{' '}
+          <Link to="/matches" className="text-mundial-teal hover:underline">Meczów</Link>{' '}
           i zacznij typować!
         </div>
       ) : (

@@ -160,10 +160,10 @@ export default function Navbar() {
                   key={to}
                   to={to}
                   className={`relative flex-1 flex flex-col items-center justify-center gap-1 py-2.5 transition-colors min-h-[56px]
-                    ${active ? 'text-mundial-green' : 'text-gray-500 active:text-gray-300'}`}
+                    ${active ? 'text-mundial-teal' : 'text-gray-500 active:text-gray-300'}`}
                 >
                   {active && (
-                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-mundial-green rounded-full" />
+                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-mundial-teal rounded-full" />
                   )}
                   <NavIcon d={d} />
                   <span className="text-[10px] font-medium leading-none">{label}</span>

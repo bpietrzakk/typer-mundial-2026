@@ -23,7 +23,7 @@ export default function VerifyEmail() {
       <div className="relative w-full max-w-md animate-fade-in text-center">
         {status === 'loading' && (
           <div className="glass-card p-10">
-            <div className="w-12 h-12 mx-auto border-4 border-mundial-green/30 border-t-mundial-green rounded-full animate-spin" />
+            <div className="w-12 h-12 mx-auto border-4 border-mundial-teal/30 border-t-mundial-teal rounded-full animate-spin" />
             <p className="text-gray-400 mt-4">Weryfikuję konto…</p>
           </div>
         )}
