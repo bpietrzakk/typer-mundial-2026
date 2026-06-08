@@ -26,3 +26,7 @@ export const setMatchResult = async (matchId, homeGoals, awayGoals) => {
   });
   return res.data;
 };
+
+// permanently delete a user and all their data (admin only)
+export const deleteUser = async (userId) =>
+  api.delete(`/admin/users/${userId}`);

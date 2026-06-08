@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { changeNick, changePassword, deleteAccount, adminDeleteUser } from '../api/settings';
-import { getUsers as getAdminUsers } from '../api/admin';
+import { changeNick, changePassword, deleteAccount } from '../api/settings';
 import PasswordInput from '../components/PasswordInput';
 
 function Section({ title, description, children }) {
@@ -38,17 +37,6 @@ export default function Settings() {
   const [deletePwd, setDeletePwd] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // admin: user list
-  const [adminUsers, setAdminUsers] = useState([]);
-  const [adminSearch, setAdminSearch] = useState('');
-  const [deletingUserId, setDeletingUserId] = useState(null);
-  const [confirmDeleteUserId, setConfirmDeleteUserId] = useState(null);
-
-  useEffect(() => {
-    if (user?.is_admin) {
-      getAdminUsers().then(setAdminUsers).catch(() => {});
-    }
-  }, [user]);
 
   const handleNickSave = async (e) => {
     e.preventDefault();
@@ -106,28 +94,6 @@ export default function Settings() {
     }
   };
 
-  const handleAdminDelete = async (userId) => {
-    if (confirmDeleteUserId !== userId) {
-      setConfirmDeleteUserId(userId);
-      return;
-    }
-    setDeletingUserId(userId);
-    try {
-      await adminDeleteUser(userId);
-      setAdminUsers((prev) => prev.filter((u) => u.id !== userId));
-      setConfirmDeleteUserId(null);
-      addToast('Konto użytkownika usunięte');
-    } catch (err) {
-      addToast(err.response?.data?.detail || 'Nie udało się usunąć konta', 'error');
-    } finally {
-      setDeletingUserId(null);
-    }
-  };
-
-  const filteredUsers = adminUsers.filter((u) =>
-    u.nick.toLowerCase().includes(adminSearch.toLowerCase()) ||
-    u.email.toLowerCase().includes(adminSearch.toLowerCase())
-  );
 
   return (
     <div className="page-container max-w-2xl">
@@ -241,62 +207,6 @@ export default function Settings() {
             </form>
           </div>
         </Section>
-
-        {/* admin: user management */}
-        {user?.is_admin && (
-          <Section title="Zarządzanie użytkownikami" description="Widoczne tylko dla adminów">
-            <input
-              type="text"
-              value={adminSearch}
-              onChange={(e) => setAdminSearch(e.target.value)}
-              placeholder="Szukaj po nicku lub emailu…"
-              className="input-field text-sm mb-4"
-            />
-            <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-              {filteredUsers.map((u) => (
-                <div
-                  key={u.id}
-                  className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-surface-700/30 border border-surface-500/10"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-200 truncate">{u.nick}</p>
-                    <p className="text-xs text-gray-500 truncate">{u.email}</p>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-xs text-gray-500 tabular-nums">{u.total_points} pkt</span>
-                    {confirmDeleteUserId === u.id ? (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleAdminDelete(u.id)}
-                          disabled={deletingUserId === u.id}
-                          className="text-xs px-3 py-1.5 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors"
-                        >
-                          {deletingUserId === u.id ? '…' : 'Potwierdź'}
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteUserId(null)}
-                          className="text-xs px-3 py-1.5 rounded-lg bg-surface-600/50 text-gray-400 hover:text-gray-200 transition-colors"
-                        >
-                          Anuluj
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleAdminDelete(u.id)}
-                        className="text-xs px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                      >
-                        Usuń
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {filteredUsers.length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-4">Brak wyników</p>
-              )}
-            </div>
-          </Section>
-        )}
 
       </div>
     </div>
