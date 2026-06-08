@@ -26,6 +26,7 @@ from schemas.models import (
     ForgotPasswordRequest,
     LoginRequest,
     RegisterRequest,
+    ResendVerificationRequest,
     ResetPasswordRequest,
     UserResponse,
     VerifyEmailRequest,
@@ -88,6 +89,24 @@ def _set_auth_cookie(response: Response, token: str, expires_days: int) -> None:
     )
 
 
+def _require_verified() -> bool:
+    # read at request time so tests can flip it per-test.
+    # off in dev (sandbox emails only reach the account owner); turn on in prod
+    return os.getenv("REQUIRE_VERIFIED_EMAIL", "false").lower() == "true"
+
+
+def _issue_verification(user: dict) -> None:
+    # generate a fresh verification token, store its hash, email the raw value.
+    # best effort — a mail outage must not break register/resend
+    raw_token = generate_token()
+    expires_at = datetime.now(timezone.utc) + _VERIFICATION_TTL
+    create_email_verification_token(user["id"], hash_token(raw_token), expires_at)
+    try:
+        send_verification_email(user["email"], raw_token)
+    except Exception as exc:
+        logger.warning("verification email failed for %s: %s", user["email"], exc)
+
+
 @router.post(
     "/register",
     response_model=UserResponse,
@@ -105,20 +124,27 @@ def register(body: RegisterRequest, response: Response) -> dict:
             detail="Email lub nick jest już zajęty",
         )
 
-    # send the verification email — best effort, never fail the registration
-    # over it. store only the hash of the token, email the raw value
-    raw_token = generate_token()
-    expires_at = datetime.now(timezone.utc) + _VERIFICATION_TTL
-    create_email_verification_token(user["id"], hash_token(raw_token), expires_at)
-    try:
-        send_verification_email(user["email"], raw_token)
-    except Exception as exc:
-        logger.warning("verification email failed for %s: %s", user["email"], exc)
+    _issue_verification(user)
+
+    # when verification is required we don't hand out a session yet — the user
+    # must confirm their email and then log in. otherwise auto-login as before
+    if _require_verified():
+        return user
 
     secret, days = _read_jwt_config()
     token = create_access_token(user["id"], user["nick"], secret, days)
     _set_auth_cookie(response, token, days)
     return user
+
+
+@router.post("/resend-verification", status_code=status.HTTP_204_NO_CONTENT)
+def resend_verification(body: ResendVerificationRequest) -> None:
+    # always 204 — never reveal whether the email exists or is already verified.
+    # only sends a new link for an existing, still-unverified account
+    user = get_user_by_email(body.email)
+    if user is None or user["email_verified"]:
+        return
+    _issue_verification(user)
 
 
 @router.post("/verify-email", response_model=UserResponse)
@@ -186,6 +212,13 @@ def login(body: LoginRequest, request: Request, response: Response) -> dict:
 
     # successful login clears the counter for this IP
     _LOGIN_RATE_LIMIT.pop(ip, None)
+
+    # credentials are valid — block unverified accounts when required
+    if _require_verified() and not user["email_verified"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Potwierdź swój adres email zanim się zalogujesz",
+        )
 
     secret, days = _read_jwt_config()
     token = create_access_token(user["id"], user["nick"], secret, days)

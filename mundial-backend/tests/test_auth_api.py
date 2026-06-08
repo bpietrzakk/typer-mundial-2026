@@ -184,6 +184,89 @@ def test_verify_email_with_bad_token_returns_400(monkeypatch):
     assert "nieprawidłowy" in resp.json()["detail"]
 
 
+# --- /auth/resend-verification (no enumeration) ---
+
+def test_resend_verification_for_unverified_user_sends(monkeypatch):
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: FAKE_USER)
+    monkeypatch.setattr(
+        auth_module, "create_email_verification_token", lambda *a: None,
+    )
+    sent = {}
+    monkeypatch.setattr(
+        auth_module, "send_verification_email",
+        lambda to, token: sent.update(to=to),
+    )
+
+    resp = client.post("/auth/resend-verification", json={"email": "b@example.com"})
+    assert resp.status_code == 204
+    assert sent["to"] == FAKE_USER["email"]
+
+
+def test_resend_verification_skips_already_verified(monkeypatch):
+    verified = {**FAKE_USER, "email_verified": True}
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: verified)
+    calls = []
+    monkeypatch.setattr(
+        auth_module, "send_verification_email", lambda *a: calls.append("sent"),
+    )
+
+    resp = client.post("/auth/resend-verification", json={"email": "b@example.com"})
+    assert resp.status_code == 204
+    assert calls == []
+
+
+def test_resend_verification_unknown_email_still_204(monkeypatch):
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: None)
+    calls = []
+    monkeypatch.setattr(
+        auth_module, "send_verification_email", lambda *a: calls.append("sent"),
+    )
+
+    resp = client.post("/auth/resend-verification", json={"email": "x@example.com"})
+    assert resp.status_code == 204
+    assert calls == []
+
+
+# --- login gate when REQUIRE_VERIFIED_EMAIL=true ---
+
+def test_login_blocked_for_unverified_when_required(monkeypatch):
+    monkeypatch.setenv("REQUIRE_VERIFIED_EMAIL", "true")
+    unverified = {**FAKE_USER, "email_verified": False, "password_hash": "h"}
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: unverified)
+    monkeypatch.setattr(auth_module, "verify_password", lambda p, h: True)
+
+    resp = client.post("/auth/login", json={"email": "b@example.com", "password": "ok"})
+    assert resp.status_code == 403
+    assert "Potwierdź" in resp.json()["detail"]
+
+
+def test_login_allowed_for_verified_when_required(monkeypatch):
+    monkeypatch.setenv("REQUIRE_VERIFIED_EMAIL", "true")
+    verified = {**FAKE_USER, "email_verified": True, "password_hash": "h"}
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: verified)
+    monkeypatch.setattr(auth_module, "verify_password", lambda p, h: True)
+
+    resp = client.post("/auth/login", json={"email": "b@example.com", "password": "ok"})
+    assert resp.status_code == 200
+
+
+def test_register_does_not_auto_login_when_verification_required(monkeypatch):
+    monkeypatch.setenv("REQUIRE_VERIFIED_EMAIL", "true")
+    monkeypatch.setattr(auth_module, "create_user", lambda n, e, p: FAKE_USER)
+    monkeypatch.setattr(
+        auth_module, "create_email_verification_token", lambda *a: None,
+    )
+    monkeypatch.setattr(auth_module, "send_verification_email", lambda *a: None)
+
+    resp = client.post(
+        "/auth/register",
+        json={"nick": "bartek", "email": "b@example.com", "password": "hunter22"},
+    )
+    assert resp.status_code == 201
+    # no session cookie handed out — user must verify then log in
+    assert "access_token=" not in resp.headers.get("set-cookie", "")
+
+
 # --- /auth/forgot-password (no user enumeration) ---
 
 def test_forgot_password_known_email_sends_reset(monkeypatch):
