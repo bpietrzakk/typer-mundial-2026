@@ -29,7 +29,7 @@ export default function BonusPicks() {
 
   useEffect(() => {
     loadData();
-    const timer = setInterval(() => setNow(new Date()), 60_000);
+    const timer = setInterval(() => setNow(new Date()), 1_000);
     return () => clearInterval(timer);
   }, []);
 
@@ -127,8 +127,10 @@ export default function BonusPicks() {
   };
 
   const timeLeft = bonusDeadline ? bonusDeadline - now : 0;
-  const daysLeft = Math.max(0, Math.floor(timeLeft / (1000 * 60 * 60 * 24)));
-  const hoursLeft = Math.max(0, Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
+  const daysLeft    = Math.max(0, Math.floor(timeLeft / (1000 * 60 * 60 * 24)));
+  const hoursLeft   = Math.max(0, Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
+  const minutesLeft = Math.max(0, Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60)));
+  const secondsLeft = Math.max(0, Math.floor((timeLeft % (1000 * 60)) / 1000));
 
   if (loading) {
     return (
@@ -187,8 +189,21 @@ export default function BonusPicks() {
           </div>
           {!isLocked ? (
             <div className="text-right">
-              <p className="text-sm text-gray-400">Pozostało</p>
-              <p className="text-xl font-bold text-mundial-gold score-num">{daysLeft}d {hoursLeft}h</p>
+              <p className="text-sm text-gray-400 mb-1">Pozostało</p>
+              <div className="flex items-end gap-1 justify-end">
+                {daysLeft > 0 && (
+                  <>
+                    <span className="text-2xl font-black tabular-nums text-mundial-gold score-num">{daysLeft}</span>
+                    <span className="text-xs text-gray-500 mb-1">d</span>
+                  </>
+                )}
+                <span className="text-2xl font-black tabular-nums text-mundial-gold score-num">{String(hoursLeft).padStart(2, '0')}</span>
+                <span className="text-xs text-gray-500 mb-1">h</span>
+                <span className="text-2xl font-black tabular-nums text-mundial-gold score-num">{String(minutesLeft).padStart(2, '0')}</span>
+                <span className="text-xs text-gray-500 mb-1">m</span>
+                <span className="text-2xl font-black tabular-nums text-mundial-red score-num">{String(secondsLeft).padStart(2, '0')}</span>
+                <span className="text-xs text-gray-500 mb-1">s</span>
+              </div>
             </div>
           ) : (
             <span className="badge bg-red-500/20 text-red-400">Zamknięte</span>

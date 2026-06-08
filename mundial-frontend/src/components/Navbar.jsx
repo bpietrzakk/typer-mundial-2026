@@ -72,7 +72,7 @@ export default function Navbar() {
 
             <Link to="/" className="flex items-center gap-2 group">
               <img src="/favicon.svg" alt="" className="w-8 h-8 rounded-lg shrink-0" />
-              <span className="font-extrabold text-lg gradient-text group-hover:opacity-80 transition-opacity">
+              <span className="font-display font-bold text-xl tracking-wide gradient-text group-hover:opacity-80 transition-opacity">
                 Mundial Typer
               </span>
             </Link>

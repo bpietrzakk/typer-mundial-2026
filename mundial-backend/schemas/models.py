@@ -140,9 +140,29 @@ class AdminUserEntry(BaseModel):
     nick: str
     email: EmailStr
     email_verified: bool
+    is_admin: bool = False
     created_at: datetime
     total_points: int
     prediction_count: int
+
+
+class AdminLeagueEntry(BaseModel):
+    id: int
+    name: str
+    join_code: str
+    owner_nick: str
+    owner_email: str
+    member_count: int
+    created_at: datetime
+
+
+class AdminStatsResponse(BaseModel):
+    total_users: int
+    total_predictions: int
+    finished_matches: int
+    scheduled_matches: int
+    total_leagues: int
+    champion_picks: int
 
 
 # --- ranking ---
