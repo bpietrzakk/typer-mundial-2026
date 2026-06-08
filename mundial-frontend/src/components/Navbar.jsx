@@ -33,7 +33,6 @@ export default function Navbar() {
 
           {/* logo */}
           <Link to="/matches" className="flex items-center gap-2 group">
-            <span className="text-2xl">🏟️</span>
             <span className="font-extrabold text-lg gradient-text group-hover:opacity-80 transition-opacity">
               Mundial Typer
             </span>

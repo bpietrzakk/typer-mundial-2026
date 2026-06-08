@@ -40,7 +40,6 @@ export default function ResetPassword() {
     <div className="auth-bg min-h-screen flex items-center justify-center px-4">
       <div className="relative w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <span className="text-5xl mb-4 block">🔐</span>
           <h1 className="text-3xl font-extrabold gradient-text mb-2">Nowe hasło</h1>
           <p className="text-gray-400">Ustaw nowe hasło do swojego konta</p>
         </div>
@@ -54,7 +53,7 @@ export default function ResetPassword() {
           </div>
         ) : done ? (
           <div className="glass-card p-8 text-center">
-            <p className="text-emerald-400">✅ Hasło zmienione! Przekierowuję do logowania…</p>
+            <p className="text-emerald-400">Hasło zmienione! Przekierowuję do logowania…</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="glass-card p-8 space-y-5">

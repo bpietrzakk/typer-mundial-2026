@@ -174,7 +174,7 @@ export default function BonusPicks() {
               <p className="text-xl font-bold text-mundial-gold score-num">{daysLeft}d {hoursLeft}h</p>
             </div>
           ) : (
-            <span className="badge bg-red-500/20 text-red-400">🔒 Zamknięte</span>
+            <span className="badge bg-red-500/20 text-red-400">Zamknięte</span>
           )}
         </div>
       </div>
@@ -188,7 +188,7 @@ export default function BonusPicks() {
       {/* champion pick */}
       <section className="mb-8">
         <h2 className="text-xl font-bold text-gray-200 mb-4">
-          🏆 Mistrz turnieju
+          Mistrz turnieju
           <span className="text-sm font-normal text-gray-500 ml-2">(+20 pkt za trafienie)</span>
         </h2>
 
@@ -214,7 +214,7 @@ export default function BonusPicks() {
           {champion && !isLocked && (
             <div className="mt-4 flex items-center gap-3">
               <button onClick={handleChampionSave} disabled={championSaving} className="btn-primary text-sm">
-                {championSaving ? 'Zapisuję…' : championSaved ? '✅ Zapisano!' : '💾 Zapisz wybór mistrza'}
+                {championSaving ? 'Zapisuję…' : championSaved ? 'Zapisano!' : 'Zapisz wybór mistrza'}
               </button>
               <span className="text-sm text-gray-400">
                 Wybrany: <span className="text-mundial-gold font-semibold">
@@ -229,7 +229,7 @@ export default function BonusPicks() {
       {/* group advance picks */}
       <section>
         <h2 className="text-xl font-bold text-gray-200 mb-4">
-          📊 Awanse z grup
+          Awanse z grup
           <span className="text-sm font-normal text-gray-500 ml-2">(+3 pkt za każdą trafioną drużynę)</span>
         </h2>
 
@@ -259,7 +259,6 @@ export default function BonusPicks() {
                           }
                           ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
-                        {picked && <span className="mr-1.5">✓</span>}
                         {team.name}
                       </button>
                     );
@@ -273,7 +272,7 @@ export default function BonusPicks() {
         {!isLocked && groupNames.length > 0 && (
           <div className="mt-6">
             <button onClick={handleGroupSave} disabled={groupSaving} className="btn-primary">
-              {groupSaving ? 'Zapisuję…' : groupSaved ? '✅ Zapisano awanse!' : '💾 Zapisz awanse z grup'}
+              {groupSaving ? 'Zapisuję…' : groupSaved ? 'Zapisano awanse!' : 'Zapisz awanse z grup'}
             </button>
           </div>
         )}

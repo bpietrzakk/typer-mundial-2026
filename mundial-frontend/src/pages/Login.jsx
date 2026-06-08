@@ -53,7 +53,6 @@ export default function Login() {
       <div className="relative w-full max-w-md animate-fade-in">
         {/* header */}
         <div className="text-center mb-8">
-          <span className="text-5xl mb-4 block">🏟️</span>
           <h1 className="text-3xl font-extrabold gradient-text mb-2">
             Mundial Typer 2026
           </h1>

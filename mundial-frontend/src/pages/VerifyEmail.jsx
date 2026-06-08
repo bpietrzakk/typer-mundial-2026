@@ -30,7 +30,6 @@ export default function VerifyEmail() {
 
         {status === 'ok' && (
           <div className="glass-card p-10 space-y-4">
-            <span className="text-5xl block">✅</span>
             <h1 className="text-2xl font-extrabold gradient-text">Konto potwierdzone!</h1>
             <p className="text-gray-400">Możesz się teraz zalogować.</p>
             <Link to="/login" className="btn-primary inline-block">Zaloguj się</Link>
@@ -39,7 +38,6 @@ export default function VerifyEmail() {
 
         {status === 'error' && (
           <div className="glass-card p-10 space-y-4">
-            <span className="text-5xl block">⚠️</span>
             <h1 className="text-2xl font-extrabold text-red-400">Link nieprawidłowy</h1>
             <p className="text-gray-400">
               Link weryfikacyjny jest nieprawidłowy lub wygasł.

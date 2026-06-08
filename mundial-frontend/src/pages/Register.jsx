@@ -64,7 +64,6 @@ export default function Register() {
       <div className="relative w-full max-w-md animate-fade-in">
         {/* header */}
         <div className="text-center mb-8">
-          <span className="text-5xl mb-4 block">⚽</span>
           <h1 className="text-3xl font-extrabold gradient-text mb-2">
             Dołącz do gry!
           </h1>
@@ -154,7 +153,6 @@ export default function Register() {
               'Zarejestruj się'
             )}
           </button>
-
           <p className="text-xs text-gray-500 text-center">
             Po rejestracji wyślemy link weryfikacyjny na Twój email.
           </p>
@@ -171,3 +169,4 @@ export default function Register() {
     </div>
   );
 }
+

@@ -112,10 +112,10 @@ function LeagueList() {
       {/* action buttons */}
       <div className="flex flex-wrap gap-3 mb-6">
         <button onClick={() => setShowJoin(!showJoin)} className="btn-primary text-sm">
-          🔗 Dołącz do ligi
+          Dołącz do ligi
         </button>
         <button onClick={() => setShowCreate(!showCreate)} className="btn-secondary text-sm">
-          ➕ Utwórz ligę
+          Utwórz ligę
         </button>
       </div>
 
@@ -265,7 +265,7 @@ function LeagueDetail({ leagueId }) {
                 onClick={copyCode}
                 className="px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-400 hover:text-mundial-teal text-sm transition-colors"
               >
-                {copied ? '✅ Skopiowano' : '📋 Kopiuj'}
+                {copied ? 'Skopiowano' : 'Kopiuj'}
               </button>
             </div>
           </div>

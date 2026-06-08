@@ -62,9 +62,9 @@ export default function Admin() {
     setBootResult('');
     try {
       const r = await bootstrap();
-      setBootResult(`✅ Drużyny: ${r.teams}, mecze +${r.matches_inserted}/~${r.matches_updated}, grupy: ${r.groups_assigned}`);
+      setBootResult(`Drużyny: ${r.teams}, mecze +${r.matches_inserted}/~${r.matches_updated}, grupy: ${r.groups_assigned}`);
     } catch (err) {
-      setBootResult(`❌ ${err.response?.data?.detail || 'Błąd bootstrapu (sprawdź FOOTBALL_API_KEY)'}`);
+      setBootResult(`Błąd bootstrapu (sprawdź FOOTBALL_API_KEY): ${err.response?.data?.detail || ''}`);
     } finally {
       setBootLoading(false);
     }
@@ -91,7 +91,7 @@ export default function Admin() {
           ponownego uruchomienia.
         </p>
         <button onClick={handleBootstrap} disabled={bootLoading} className="btn-primary text-sm">
-          {bootLoading ? 'Pobieram…' : '⬇️ Pobierz dane z API'}
+          {bootLoading ? 'Pobieram…' : 'Pobierz dane z API'}
         </button>
         {bootResult && <p className="text-sm text-gray-300 mt-3">{bootResult}</p>}
       </div>
