@@ -283,12 +283,22 @@ export default function Dashboard() {
           </p>
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex-1">
-              <p className="font-semibold text-gray-200 text-sm sm:text-base">
-                {nextMatch.home_team.name}
-                <span className="text-gray-500 mx-2">vs</span>
-                {nextMatch.away_team.name}
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <div className="flex items-center gap-3 mb-1">
+                {nextMatch.home_team.crest_url && (
+                  <img src={nextMatch.home_team.crest_url} alt={nextMatch.home_team.name} className="w-8 h-8 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
+                )}
+                <p className="font-semibold text-gray-200 text-sm sm:text-base">
+                  {nextMatch.home_team.name}
+                </p>
+                <span className="text-gray-500 font-bold">vs</span>
+                <p className="font-semibold text-gray-200 text-sm sm:text-base">
+                  {nextMatch.away_team.name}
+                </p>
+                {nextMatch.away_team.crest_url && (
+                  <img src={nextMatch.away_team.crest_url} alt={nextMatch.away_team.name} className="w-8 h-8 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
+                )}
+              </div>
+              <p className="text-xs text-gray-500">
                 {STAGE_LABELS[nextMatch.stage] || nextMatch.stage} ·{' '}
                 {new Date(nextMatch.kickoff_at).toLocaleDateString('pl-PL', {
                   day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',

@@ -1,91 +1,132 @@
-# ⚽ Mundial Typer
+# Mundial Typer 2026
 
-Aplikacja do typowania wyników meczów Mundialu 2026 dla znajomych.
-Prywatne ligi z kodem zaproszenia, automatyczne pobieranie wyników, ranking i bonusy za mistrza turnieju.
+Aplikacja do typowania wyników meczów Mundialu 2026 dla znajomych. Prywatne ligi z kodem zaproszenia, automatyczne pobieranie wyników, ranking z podium i bonusy za mistrza turnieju.
 
-> 🇬🇧 [English version below](#-mundial-typer-english)
+> [English version below](#mundial-typer-2026-english)
+
+---
+
+## Screenshoty
+
+<!-- Dodaj screenshoty do folderu docs/screenshots/ i odkomentuj poniższe linie -->
+
+<!--
+| Dashboard | Mecze | Ranking |
+|-----------|-------|---------|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Mecze](docs/screenshots/matches.png) | ![Ranking](docs/screenshots/ranking.png) |
+
+| Moje Typy | Bonusy | Liga |
+|-----------|--------|------|
+| ![Typy](docs/screenshots/predictions.png) | ![Bonusy](docs/screenshots/bonus.png) | ![Liga](docs/screenshots/league.png) |
+-->
+
+> Screenshoty pojawią się po pierwszym deploy.
 
 ---
 
 ## Funkcje
 
-- Konto użytkownika (email + hasło, bezpieczne bcrypt + JWT)
-- Prywatna liga dla znajomych z unikalnym kodem zaproszenia
+**Typowanie:**
 - Typowanie wyników wszystkich 64 meczów Mundialu 2026
-- Bonus przed turniejem: mistrz turnieju i awanse z grup
-- Automatyczne pobieranie wyników z football-data.org (co 5 minut)
-- Ranking globalny i w obrębie prywatnej ligi
-- Wyższe punkty w fazach pucharowych (mnożniki)
-- Interfejs responsywny — działa na telefonie jak apka (PWA)
-- Reset hasła przez email
+- Zmiana typu przed startem meczu
+- Bonusy przed turniejem: mistrz i awanse z grup (deadline: 3. mecz turnieju)
+- Odliczanie do końca typowania bonusowego
+
+**Ranking i statystyki:**
+- Ranking globalny z podium (złoto/srebro/brąz)
+- Ranking w obrębie prywatnej ligi
+- Moje typy ze statystykami (skuteczność, rozkład, forma, passa)
+- Postęp turnieju na Dashboardzie
+
+**Prywatne ligi:**
+- Tworzenie ligi i dołączanie kodem zaproszenia
+- Link zaproszenia (`/join/:code`) — dołącza automatycznie po kliknięciu
+- Reset kodu zaproszenia przez właściciela
+- Pula nagród z automatycznym podziałem 50/30/20%
+- Usunięcie ligi (właściciel) / wyjście z ligi (członek)
+
+**Konto:**
+- Rejestracja email + hasło, weryfikacja emaila
+- Reset hasła przez email (jednorazowy link, ważny 1h)
+- Zmiana nicku i hasła w ustawieniach
+
+**Aplikacja:**
+- Interfejs responsywny — dark mode, glassmorphism
+- Działa na telefonie jak natywna apka (PWA, ikona na ekranie głównym)
+- Udostępnianie wyniku (native share API)
+- Automatyczne pobieranie wyników z football-data.org (co 5 min)
+
+**Panel admina:**
+- Wpisywanie wyników meczów z UI
+- Bootstrap danych turnieju z API
+- Zarządzanie użytkownikami (weryfikacja emaila, usuwanie kont)
+- Podgląd wszystkich prywatnych lig z listą członków
+- Reset kodu ligi, kick z ligi
 
 ---
 
-## System punktacji
+## Punktacja
 
-### Mecze
+### Mecze — liczy się najwyższy trafiony próg
 
-Liczy się najwyższy trafiony próg — punkty się nie sumują.
-
-| Trafienie | Faza grupowa | 1/8 finału | Ćwierćfinał | Półfinał | Finał |
-|-----------|:-----------:|:----------:|:-----------:|:--------:|:-----:|
+| Trafienie | Faza grupowa | 1/8 | Ćwierćfinał | Półfinał | Finał |
+|-----------|:-----------:|:---:|:-----------:|:--------:|:-----:|
 | Dokładny wynik | 5 | 7 | 9 | 11 | 15 |
 | Różnica bramek | 3 | 4 | 5 | 6 | 8 |
-| Tylko wynik (kto wygrał) | 2 | 3 | 4 | 5 | 6 |
+| Wynik meczu (kto wygrał) | 2 | 3 | 4 | 5 | 6 |
 
-### Bonusy (typowane przed startem turnieju)
+### Bonusy
 
-| Trafienie | Punkty |
-|-----------|--------|
-| Mistrz turnieju | 20 |
-| Awans z grupy (za każdą drużynę) | 3 |
+| Trafienie | Punkty | Kiedy przyznawane |
+|-----------|--------|------------------|
+| Mistrz turnieju | 20 | Po finale |
+| Awans z grupy (za każdą drużynę) | 3 | Po fazie grupowej |
 
 ---
 
-## Stack technologiczny
+## Stack
 
 | Warstwa | Technologia |
 |---------|-------------|
-| Frontend | React + Vite (JavaScript) |
-| Stylowanie | Tailwind CSS |
-| Backend | Python 3.11+, FastAPI, uvicorn |
+| Frontend | React 18 + Vite (JavaScript) |
+| Stylowanie | Tailwind CSS, glassmorphism |
+| Czcionki | Bebas Neue (display) + Inter (body) |
+| Backend | Python 3.12, FastAPI, uvicorn |
 | Baza danych | PostgreSQL 16 |
-| Auth | JWT + bcrypt (passlib) |
-| E-mail | Resend (3000 maili/mies. za darmo) |
-| Dane meczów | football-data.org API (darmowy tier) |
-| Hosting frontend | Vercel (darmowy) |
-| Hosting backend | Railway (~$5/mies.) |
-| Hosting bazy | Supabase (darmowy, 500 MB) |
-| Migracje bazy | Raw SQL pliki (`db/migrations/NNN_nazwa.sql`) |
+| Auth | JWT (httpOnly cookie) + Argon2id |
+| Email | Resend |
+| Dane meczów | football-data.org API |
+| Hosting frontend | Azure Static Web Apps |
+| Hosting backend | Azure Container Apps |
+| Hosting bazy | Supabase (PostgreSQL) |
 | Mobile | PWA (Progressive Web App) |
 
 ---
 
-## Schemat bazy danych
+## Schemat bazy
 
 ```
-users                    — konta graczy
-leagues                  — ligi (Mundial, Ekstraklasa...)
-teams                    — drużyny
-matches                  — mecze z fazą (group/round_of_16/quarter/semi/final)
-predictions              — typy wyników meczów
-bonus_predictions        — typ mistrza turnieju
-group_advance_predictions— typy awansów z grup
-scoring_rules            — konfiguracja punktów per faza
-private_leagues          — prywatne ligi znajomych (z join_code)
-private_league_members   — przynależność do prywatnej ligi
+users                     — konta graczy
+leagues                   — ligi (Mundial 2026)
+teams                     — drużyny z herbami
+matches                   — mecze z fazą i statusem
+predictions               — typy wyników meczów
+bonus_predictions         — typ mistrza turnieju
+group_advance_predictions — typy awansów z grup
+scoring_rules             — punkty per faza (konfigurowalnie)
+private_leagues           — prywatne ligi znajomych
+private_league_members    — przynależność do ligi
+password_reset_tokens     — tokeny resetu hasła
 ```
 
 ---
 
 ## Struktura projektu
 
-Jeden monorepo z dwoma podfolderami:
-
 ```
-mundial_typer_2026/              ← jeden git repo
-├── mundial-backend/             ← FastAPI, deploy na Railway
-└── mundial-frontend/            ← React + Vite, deploy na Vercel
+mundial_typer_2026/
+├── mundial-backend/      ← FastAPI (Python)
+└── mundial-frontend/     ← React + Vite
 ```
 
 ---
@@ -95,274 +136,229 @@ mundial_typer_2026/              ← jeden git repo
 | Metoda | Ścieżka | Opis | Auth |
 |--------|---------|------|------|
 | POST | `/auth/register` | Rejestracja | — |
-| POST | `/auth/login` | Logowanie, zwraca JWT | — |
-| POST | `/auth/forgot-password` | Wyślij link do resetu hasła | — |
-| POST | `/auth/reset-password` | Ustaw nowe hasło przez token | — |
-| GET | `/matches` | Lista wszystkich meczów | ✅ |
-| GET | `/matches/{id}` | Szczegóły meczu | ✅ |
-| POST | `/predictions` | Dodaj typ (tylko przed startem) | ✅ |
+| POST | `/auth/login` | Logowanie | — |
+| POST | `/auth/logout` | Wylogowanie | ✅ |
+| GET | `/auth/me` | Dane zalogowanego | ✅ |
+| POST | `/auth/forgot-password` | Link do resetu hasła | — |
+| POST | `/auth/reset-password` | Ustaw nowe hasło | — |
+| GET | `/matches` | Lista meczów | ✅ |
+| POST | `/predictions` | Dodaj/zmień typ | ✅ |
 | GET | `/predictions/mine` | Moje typy | ✅ |
-| POST | `/bonus/champion` | Typuj mistrza turnieju | ✅ |
-| POST | `/bonus/group-advances` | Typuj awanse z grup | ✅ |
+| POST | `/bonus/champion` | Typuj mistrza | ✅ |
+| POST | `/bonus/group-advances` | Typuj awanse | ✅ |
 | GET | `/ranking` | Ranking globalny | ✅ |
-| GET | `/ranking/{league_id}` | Ranking prywatnej ligi | ✅ |
-| POST | `/leagues` | Stwórz prywatną ligę | ✅ |
-| POST | `/leagues/join` | Dołącz do ligi kodem | ✅ |
+| GET | `/ranking/{league_id}` | Ranking ligi | ✅ |
+| POST | `/leagues` | Utwórz ligę | ✅ |
+| POST | `/leagues/join` | Dołącz kodem | ✅ |
 | GET | `/leagues/{id}` | Szczegóły ligi | ✅ |
-| POST | `/matches/{id}/result` | Wpisz wynik (admin) | ✅ admin |
+| POST | `/leagues/{id}/leave` | Opuść ligę | ✅ |
+| DELETE | `/leagues/{id}` | Usuń ligę (właściciel) | ✅ |
+| POST | `/leagues/{id}/reset-code` | Reset kodu | ✅ |
+| POST | `/matches/bootstrap` | Pobierz dane z API | ✅ admin |
+| POST | `/matches/{id}/result` | Wpisz wynik | ✅ admin |
 
-Pełna dokumentacja auto-generowana przez FastAPI: `http://localhost:8000/docs`
+Pełna dokumentacja: `http://localhost:8000/docs`
 
 ---
 
-## Jak uruchomić lokalnie
+## Uruchomienie lokalnie
 
-### Opcja A — wszystko w Dockerze (najszybciej)
-
-Jedna komenda stawia bazę, backend i frontend. Wymaga tylko Dockera.
+### Docker (najszybciej)
 
 ```bash
-# 1. sklonuj repo i wejdź do katalogu
-git clone https://github.com/bpietrzakk/typer-mundial-2026.git
-cd typer-mundial-2026
+git clone <repo>
+cd mundial_typer_2026
 
-# 2. utwórz plik .env backendu (sekrety NIE są w repo)
 cp mundial-backend/.env.example mundial-backend/.env
-# otwórz mundial-backend/.env i uzupełnij minimum:
-#   JWT_SECRET=<losowy ciąg min. 32 znaki>
-#   FOOTBALL_API_KEY=<klucz z football-data.org>   (opcjonalne na start)
-#   ADMIN_EMAILS=twoj@email.com                     (kto może wpisywać wyniki)
+# uzupełnij .env: JWT_SECRET, ADMIN_EMAILS
 
-# 3. zbuduj i odpal całość (z roota repo)
 docker compose up --build
 ```
 
-Po chwili:
-- **Aplikacja:** http://localhost:8080
-- **Swagger (API backendu):** http://localhost:8000/docs
+- Aplikacja: http://localhost:8080
+- Swagger: http://localhost:8000/docs
 
-Backend sam czeka na bazę i odpala migracje przy pierwszym starcie.
-Zatrzymanie: `Ctrl+C`, potem `docker compose down` (dane bazy zostają;
-`docker compose down -v` czyści też bazę).
+### Dewelopka z hot-reload
 
-> Wygenerowanie losowego `JWT_SECRET`:
-> `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`
-
-### Opcja B — dewelopka z hot-reload (backend i front lokalnie)
-
-Wygodniejsze przy kodowaniu — zmiany w kodzie odświeżają się na żywo.
-
-#### Wymagania
-
-- Python 3.14+
-- Node.js 20+
-- Docker (do samej bazy PostgreSQL)
-- [uv](https://github.com/astral-sh/uv) — menedżer paczek Python
-
-#### Backend
-
+**Backend:**
 ```bash
 cd mundial-backend
-
-# utwórz .env
-cp .env.example .env
-# uzupełnij: JWT_SECRET, FOOTBALL_API_KEY, ADMIN_EMAILS
-
-# uruchom samą bazę danych
-docker compose up -d
-
-# zainstaluj zależności
+cp .env.example .env        # uzupełnij JWT_SECRET, FOOTBALL_API_KEY, ADMIN_EMAILS
+docker compose up -d        # tylko baza
 uv sync
-
-# migracje — jeden skrypt aplikuje wszystkie po kolei
 ./scripts/migrate.sh
-# (./scripts/migrate.sh --reset  czyści bazę i nakłada od zera)
-
-# uruchom serwer z auto-restartem
 uv run uvicorn main:app --reload
 ```
 
-Backend: http://localhost:8000 · Swagger: http://localhost:8000/docs
-
-#### Frontend
-
+**Frontend:**
 ```bash
 cd mundial-frontend
 npm install
 npm run dev
 ```
 
-Frontend: http://localhost:5173 (Vite proxy-uje API do backendu na :8000)
+> Wygeneruj `JWT_SECRET`: `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`
 
 ---
 
-## Zmienne środowiskowe (backend)
-
-Plik `.env` — **nigdy nie wrzucaj do repozytorium**.
+## Zmienne środowiskowe
 
 ```env
+# baza danych
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_USER=mundial
 POSTGRES_PASSWORD=mundial
 POSTGRES_DB=mundial
 
-JWT_SECRET=twoj-tajny-klucz-min-32-znaki
+# auth
+JWT_SECRET=          # min 32 losowe znaki
 JWT_EXPIRE_DAYS=7
 
-FOOTBALL_API_KEY=twoj-klucz-z-football-data.org
-RESEND_API_KEY=twoj-klucz-z-resend.com
+# maile
+RESEND_API_KEY=      # resend.com
+EMAIL_FROM=Mundial Typer <noreply@twojadomena.pl>
+REQUIRE_VERIFIED_EMAIL=true   # false na dev
+
+# dane meczów
+FOOTBALL_API_KEY=    # football-data.org (wymaga weryfikacji konta)
+
+# dostęp admina
+ADMIN_EMAILS=        # przecinek = wielu adminów
+
+# CORS
 FRONTEND_URL=http://localhost:5173
 ```
 
 ---
 
-## Bezpieczeństwo
+## Deploy (produkcja)
 
-- Hasła hashowane **bcrypt** z solą — nieodwracalne
-- Sesje jako **JWT token** w httpOnly cookie (nie localStorage)
-- **HTTPS** na produkcji (automatyczne certyfikaty Vercel + Railway)
-- Rate limiting: max 5 prób logowania/minutę
-- SQL wyłącznie przez parametryzowane zapytania (zero f-stringów)
-- Weryfikacja emaila po rejestracji
-- Reset hasła przez jednorazowy token ważny 1 godzinę
+**Azure Static Web Apps + Azure Container Apps + Supabase ≈ $0/mies.**
 
----
+### 1. Supabase (baza)
+- Nowy projekt na [supabase.com](https://supabase.com)
+- Uruchom migracje przez SQL editor: `001_init.sql` → `002_seed_mundial_2026.sql`
+- Skopiuj connection string
 
-## Deploy na produkcję
+### 2. Azure Container Apps (backend)
+```bash
+az group create --name mundial-rg --location westeurope
+az acr create --name mundialtyper --resource-group mundial-rg --sku Basic
+az acr build --registry mundialtyper --image backend:latest ./mundial-backend
+az containerapp env create --name mundial-env --resource-group mundial-rg --location westeurope
+az containerapp create \
+  --name mundial-backend \
+  --resource-group mundial-rg \
+  --environment mundial-env \
+  --image mundialtyper.azurecr.io/backend:latest \
+  --min-replicas 0 --max-replicas 3 \
+  --target-port 8000 --ingress external \
+  --env-vars POSTGRES_HOST=... JWT_SECRET=... FOOTBALL_API_KEY=... \
+             RESEND_API_KEY=... REQUIRE_VERIFIED_EMAIL=true \
+             ADMIN_EMAILS=twoj@email.com DEV_SEED=false \
+             FRONTEND_URL=https://<app>.azurestaticapps.net
+```
 
-### Baza danych (Supabase)
+### 3. Azure Static Web Apps (frontend)
+- Azure Portal → Create → Static Web App → połącz z GitHub
+- App location: `/mundial-frontend`, Output: `dist`
+- Dodaj env: `VITE_API_URL=https://<backend>.azurecontainerapps.io`
 
-1. Załóż konto na [supabase.com](https://supabase.com)
-2. Stwórz nowy projekt → skopiuj connection string
-3. Uruchom migracje przez Supabase SQL editor
+### 4. Po deploy — obowiązkowe
+- Wejdź na `/admin` → **"Pobierz dane z API"** (bootstrap drużyn i meczów)
 
-### Backend (Railway)
+### Resend — własna domena (wymagane)
 
-1. Załóż konto na [railway.app](https://railway.app)
-2. Połącz z repozytorium GitHub, ustaw katalog roboczy na `mundial-backend`
-3. Ustaw zmienne środowiskowe w panelu Railway
-4. Railway automatycznie deployuje przy każdym push na `main`
+Bez własnej domeny maile trafiają do spamu lub nie dochodzą.
 
-### Frontend (Vercel)
-
-1. Załóż konto na [vercel.com](https://vercel.com)
-2. Połącz z repozytorium GitHub, ustaw katalog roboczy na `mundial-frontend`
-3. Ustaw zmienną `VITE_API_URL=https://twoj-backend.railway.app`
-4. Vercel automatycznie deployuje przy każdym push na `main`
+1. Kup domenę (np. Cloudflare Registrar)
+2. resend.com → Domains → Add Domain
+3. Dodaj rekordy DNS (SPF, DKIM, DMARC) wskazane przez Resend
+4. Ustaw `EMAIL_FROM=Mundial Typer <noreply@twojadomena.pl>`
 
 ### Koszt
 
 | Serwis | Plan | Koszt |
 |--------|------|-------|
-| Vercel | Hobby (darmowy) | $0 |
-| Railway | Starter | ~$5/mies. |
-| Supabase | Free | $0 |
+| Azure Static Web Apps | Free | $0 |
+| Azure Container Apps | Free tier (180k vCPU-sec/mies.) | ~$0 |
+| Supabase | Free (500MB) | $0 |
 | football-data.org | Free | $0 |
 | Resend | Free (3000 maili/mies.) | $0 |
-| **Razem** | | **~$5/mies.** |
+| **Razem** | | **~$0/mies.** |
 
 ---
 
-## Podział pracy
+## Bezpieczeństwo
 
-| Bartek (backend) | Daniel (frontend) |
-|------------------|-------------------|
-| FastAPI — auth, endpointy, migracje | React — strony, komponenty, routing |
-| Integracja football-data.org | Tailwind — responsywny design, PWA |
-| Logika punktacji + bonusy | Formularze typowania, walidacja |
-| Deploy Railway + Supabase | Deploy Vercel |
-
-Wspólnie: schemat bazy danych + kontrakt API (co endpoint zwraca).
-
----
-
-## Dlaczego nie kicktipp.pl?
-
-| Funkcja | kicktipp.pl | Ta apka |
-|---------|-------------|---------|
-| Prywatne ligi | ✅ | ✅ |
-| Kod zaproszenia | ✅ | ✅ |
-| Auto wyniki | ✅ | ✅ |
-| Typ mistrza + awanse | ✅ | ✅ |
-| Mobilna apka | ✅ natywna | PWA (wystarczy) |
-| Reklamy | ✅ (plan darmowy) | ❌ |
-| Własny branding | ❌ | ✅ |
-| Cena | $0 (z reklamami) | ~$5/mies. |
+- Hasła: **Argon2id** (pwdlib) — nieodwracalne
+- Sesja: **JWT w httpOnly cookie** — nie localStorage
+- SQL: wyłącznie **parametryzowane zapytania** — zero f-stringów z danymi usera
+- Rate limiting: max 5 prób logowania/minutę
+- Email weryfikacyjny przy rejestracji
+- Reset hasła przez jednorazowy token ważny 1h
+- HTTPS automatycznie na Azure + Cloudflare
 
 ---
 
-## Plan budowania (6 tygodni)
-
-| Tydzień | Co budujemy |
-|---------|-------------|
-| 1-2 | Auth (rejestracja, logowanie, JWT), podstawowy deploy |
-| 3 | Mecze + typowanie wyników |
-| 4 | Ranking + prywatne ligi z kodem zaproszenia |
-| 5 | Auto wyniki z API + bonusy (mistrz, awanse) |
-| 6 | PWA, reset hasła, testy, finalne szlify |
-
-Mundial 2026 startuje **11 czerwca** — deadline na gotową apkę.
-
----
-
-## Uruchomienie testów
+## Testy
 
 ```bash
-# backend
 cd mundial-backend
 uv run pytest
-
-# frontend
-cd mundial-frontend
-npm run test
 ```
 
 ---
 
 ---
 
-# ⚽ Mundial Typer (English)
+# Mundial Typer 2026 (English)
 
-A football World Cup 2026 prediction app for friends.
-Private leagues with invite codes, automatic results, leaderboard and tournament bonuses.
+A World Cup 2026 prediction app for friends. Private leagues with invite codes, automatic results, leaderboard with podium and tournament bonuses.
 
-> 🇵🇱 [Wersja polska powyżej](#-mundial-typer)
+> [Wersja polska powyżej](#mundial-typer-2026)
+
+---
+
+## Screenshots
+
+<!-- Add screenshots to docs/screenshots/ and uncomment below -->
+
+> Screenshots will appear after the first deploy.
 
 ---
 
 ## Features
 
-- User accounts (email + password, secure bcrypt + JWT)
-- Private leagues for friends with unique invite codes
-- Predict results for all 64 World Cup 2026 matches
-- Tournament bonuses: champion pick and group stage advances
-- Automatic result fetching from football-data.org (every 5 minutes)
-- Global and per-league leaderboard
-- Higher points in knockout stages (multipliers)
-- Responsive UI — installable on phone as PWA
-- Password reset via email
+- Predict all 64 World Cup 2026 matches, change picks before kickoff
+- Pre-tournament bonuses: champion pick and group stage advances
+- Global leaderboard with gold/silver/bronze podium
+- Private leagues — invite by code or shareable link (`/join/:code`)
+- Dashboard with tournament progress, league position and streak tracker
+- Automatic result fetching from football-data.org every 5 minutes
+- PWA — installable on mobile home screen
+- Share your ranking position (native share API)
+- Admin panel: bootstrap data, set results, manage users and leagues
 
 ---
 
-## Scoring System
+## Scoring
 
-### Matches
+### Matches — highest matching tier wins
 
-Only the highest matching tier is awarded — points do not stack.
-
-| Match | Group stage | Round of 16 | Quarter | Semi | Final |
-|-------|:-----------:|:-----------:|:-------:|:----:|:-----:|
+| Tier | Group | R16 | QF | SF | Final |
+|------|:-----:|:---:|:--:|:--:|:-----:|
 | Exact score | 5 | 7 | 9 | 11 | 15 |
 | Goal difference | 3 | 4 | 5 | 6 | 8 |
-| Correct result (who won) | 2 | 3 | 4 | 5 | 6 |
+| Correct winner | 2 | 3 | 4 | 5 | 6 |
 
-### Bonuses (picked before the tournament starts)
+### Bonuses
 
-| Pick | Points |
-|------|--------|
-| Tournament champion | 20 |
-| Group stage advance (per team) | 3 |
+| Pick | Points | Awarded |
+|------|--------|---------|
+| Tournament champion | 20 | After final |
+| Group advance (per team) | 3 | After group stage |
 
 ---
 
@@ -370,199 +366,49 @@ Only the highest matching tier is awarded — points do not stack.
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | React + Vite (JavaScript) |
+| Frontend | React 18 + Vite |
 | Styling | Tailwind CSS |
-| Backend | Python 3.11+, FastAPI, uvicorn |
+| Fonts | Bebas Neue + Inter |
+| Backend | Python 3.12, FastAPI |
 | Database | PostgreSQL 16 |
-| Auth | JWT + bcrypt (passlib) |
-| Email | Resend (3,000 emails/month free) |
-| Match data | football-data.org API (free tier) |
-| Frontend hosting | Vercel (free) |
-| Backend hosting | Railway (~$5/month) |
-| DB hosting | Supabase (free, 500 MB) |
-| Mobile | PWA (Progressive Web App) |
+| Auth | JWT (httpOnly cookie) + Argon2id |
+| Email | Resend |
+| Match data | football-data.org API |
+| Hosting | Azure Static Web Apps + Container Apps |
+| Database hosting | Supabase |
+| Mobile | PWA |
 
 ---
 
-## API Endpoints
-
-| Method | Path | Description | Auth |
-|--------|------|-------------|------|
-| POST | `/auth/register` | Create account | — |
-| POST | `/auth/login` | Log in, returns JWT | — |
-| POST | `/auth/forgot-password` | Send password reset link | — |
-| POST | `/auth/reset-password` | Set new password via token | — |
-| GET | `/matches` | All matches | ✅ |
-| GET | `/matches/{id}` | Match details | ✅ |
-| POST | `/predictions` | Add prediction (before kickoff only) | ✅ |
-| GET | `/predictions/mine` | My predictions | ✅ |
-| POST | `/bonus/champion` | Pick tournament champion | ✅ |
-| POST | `/bonus/group-advances` | Pick group stage advances | ✅ |
-| GET | `/ranking` | Global leaderboard | ✅ |
-| GET | `/ranking/{league_id}` | Private league leaderboard | ✅ |
-| POST | `/leagues` | Create private league | ✅ |
-| POST | `/leagues/join` | Join league with code | ✅ |
-| GET | `/leagues/{id}` | League details | ✅ |
-| POST | `/matches/{id}/result` | Set match result (admin) | ✅ admin |
-
-Full auto-generated docs at: `http://localhost:8000/docs`
-
----
-
-## How to Run Locally
-
-### Option A — everything in Docker (fastest)
-
-One command brings up database, backend and frontend. Only Docker required.
+## Run Locally
 
 ```bash
-git clone https://github.com/bpietrzakk/typer-mundial-2026.git
-cd typer-mundial-2026
+git clone <repo>
+cd mundial_typer_2026
 
-# create the backend .env (secrets are NOT in the repo)
 cp mundial-backend/.env.example mundial-backend/.env
-# edit mundial-backend/.env — at minimum set JWT_SECRET and ADMIN_EMAILS
+# set JWT_SECRET and ADMIN_EMAILS
 
-# build and run the whole stack from the repo root
 docker compose up --build
-```
-
-- **App:** http://localhost:8080
-- **Swagger (backend API):** http://localhost:8000/docs
-
-Backend waits for the DB and runs migrations on first start.
-Stop with `Ctrl+C` then `docker compose down` (`-v` also wipes the DB).
-
-### Option B — dev with hot-reload (backend & frontend run locally)
-
-#### Requirements
-
-- Python 3.14+
-- Node.js 20+
-- Docker (for the PostgreSQL database only)
-- [uv](https://github.com/astral-sh/uv) — Python package manager
-
-#### Backend
-
-```bash
-cd mundial-backend
-
-cp .env.example .env
-# fill in: JWT_SECRET, FOOTBALL_API_KEY, ADMIN_EMAILS
-
-docker compose up -d      # database only
-
-uv sync
-
-./scripts/migrate.sh      # applies all migrations in order
-
-uv run uvicorn main:app --reload
-```
-
-Backend: http://localhost:8000 · Swagger: http://localhost:8000/docs
-
-#### Frontend
-
-```bash
-cd mundial-frontend
-npm install
-npm run dev
-```
-
-Frontend: http://localhost:5173
-
----
-
-## Environment Variables (backend)
-
-`.env` file — **never commit to repository**.
-
-```env
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_USER=mundial
-POSTGRES_PASSWORD=mundial
-POSTGRES_DB=mundial
-
-JWT_SECRET=your-secret-key-min-32-chars
-JWT_EXPIRE_DAYS=7
-
-FOOTBALL_API_KEY=your-key-from-football-data.org
-RESEND_API_KEY=your-key-from-resend.com
-FRONTEND_URL=http://localhost:5173
+# App: http://localhost:8080
+# Swagger: http://localhost:8000/docs
 ```
 
 ---
 
-## Security
+## Deploy
 
-- Passwords hashed with **bcrypt** + salt — irreversible
-- Sessions as **JWT token** in httpOnly cookie (not localStorage)
-- **HTTPS** in production (automatic certs on Vercel + Railway)
-- Rate limiting: max 5 login attempts/minute
-- SQL exclusively via parameterised queries (no f-strings with user data)
-- Email verification on registration
-- Password reset via single-use token valid for 1 hour
+**Azure Static Web Apps + Azure Container Apps + Supabase ≈ $0/month**
 
----
+See the Polish section above for full step-by-step instructions.
 
-## Production Deploy
-
-### Database (Supabase)
-
-1. Sign up at [supabase.com](https://supabase.com)
-2. Create a new project → copy connection string
-3. Run migrations via Supabase SQL editor
-
-### Backend (Railway)
-
-1. Sign up at [railway.app](https://railway.app)
-2. Connect to GitHub repo, set root directory to `mundial-backend`
-3. Set environment variables in Railway dashboard
-4. Railway auto-deploys on every push to `main`
-
-### Frontend (Vercel)
-
-1. Sign up at [vercel.com](https://vercel.com)
-2. Connect to GitHub repo, set root directory to `mundial-frontend`
-3. Set `VITE_API_URL=https://your-backend.railway.app`
-4. Vercel auto-deploys on every push to `main`
-
-### Monthly Cost
-
-| Service | Plan | Cost |
-|---------|------|------|
-| Vercel | Hobby (free) | $0 |
-| Railway | Starter | ~$5/mo |
-| Supabase | Free | $0 |
-| football-data.org | Free | $0 |
-| Resend | Free (3k emails/mo) | $0 |
-| **Total** | | **~$5/mo** |
-
----
-
-## Build Timeline (6 weeks)
-
-| Week | What we build |
-|------|---------------|
-| 1–2 | Auth (register, login, JWT), basic deploy |
-| 3 | Matches + predictions |
-| 4 | Leaderboard + private leagues with invite codes |
-| 5 | Auto results from API + bonuses (champion, advances) |
-| 6 | PWA, password reset, tests, final polish |
-
-World Cup 2026 kicks off **June 11** — ship before that.
-
----
-
-## Running Tests
-
-```bash
-# backend
-cd mundial-backend
-uv run pytest
-
-# frontend
-cd mundial-frontend
-npm run test
+Key environment variables for production:
 ```
+REQUIRE_VERIFIED_EMAIL=true
+ADMIN_EMAILS=your@email.com
+FOOTBALL_API_KEY=...
+RESEND_API_KEY=...
+FRONTEND_URL=https://your-app.azurestaticapps.net
+```
+
+After deploy: go to `/admin` → **"Pobierz dane z API"** to bootstrap teams and fixtures.
