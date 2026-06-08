@@ -101,7 +101,7 @@ export default function MyPredictions() {
 
   return (
     <div className="page-container">
-      <h1 className="page-title">🎯 Moje Typy</h1>
+      <h1 className="page-title">Moje Typy</h1>
 
       {/* points summary card */}
       <div className="glass-card p-6 mb-6">

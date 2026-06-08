@@ -97,7 +97,7 @@ export default function PredictionForm({ matchId, initialHome, initialAway, onSa
           disabled={submitting}
           className="flex-1 btn-primary text-sm !py-2"
         >
-          {submitting ? 'Zapisuję…' : '✅ Zapisz typ'}
+          {submitting ? 'Zapisuję…' : 'Zapisz typ'}
         </button>
         <button
           type="button"

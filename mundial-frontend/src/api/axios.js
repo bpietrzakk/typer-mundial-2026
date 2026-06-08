@@ -10,16 +10,17 @@ const api = axios.create({
   },
 });
 
-// response interceptor — redirect to login on 401
-// skip redirect for /auth/me and /auth/refresh (expected to 401 when not logged in)
+// response interceptor — redirect to login on 401 for protected pages.
+// skip ALL /auth/* calls: those handle their own errors in the page
+// (e.g. a 401 on login means bad credentials — show the message, don't
+// hard-reload to /login which would wipe the error before it renders)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     const url = error.config?.url || '';
-    const isAuthCheck = url.includes('/auth/me') || url.includes('/auth/refresh');
+    const isAuthCall = url.includes('/auth/');
 
-    if (error.response?.status === 401 && !isAuthCheck) {
-      // push to login without hard reload — preserves React state
+    if (error.response?.status === 401 && !isAuthCall) {
       window.location.href = '/login';
     }
 

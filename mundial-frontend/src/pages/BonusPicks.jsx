@@ -146,7 +146,7 @@ export default function BonusPicks() {
   if (teams.length === 0) {
     return (
       <div className="page-container">
-        <h1 className="page-title">⭐ Typowanie bonusowe</h1>
+        <h1 className="page-title">Typowanie bonusowe</h1>
         <div className="glass-card p-8 text-center text-gray-400">
           Brak drużyn w bazie. Administrator musi najpierw pobrać dane turnieju
           w panelu admina.
@@ -157,7 +157,7 @@ export default function BonusPicks() {
 
   return (
     <div className="page-container">
-      <h1 className="page-title">⭐ Typowanie bonusowe</h1>
+      <h1 className="page-title">Typowanie bonusowe</h1>
 
       {/* deadline banner */}
       <div className={`glass-card p-5 mb-6 ${isLocked ? 'border-red-500/30' : 'border-mundial-gold/30'}`}>

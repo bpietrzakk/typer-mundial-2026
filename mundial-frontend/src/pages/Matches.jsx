@@ -4,12 +4,14 @@ import { getMyPredictions } from '../api/predictions';
 import MatchCard from '../components/MatchCard';
 
 // stage display order and labels
-const STAGE_ORDER = ['group', 'round_of_16', 'quarter', 'semi', 'final'];
+const STAGE_ORDER = ['group', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'third_place', 'final'];
 const STAGE_LABELS = {
   group: 'Faza grupowa',
+  round_of_32: '1/16 finału',
   round_of_16: '1/8 finału',
   quarter: 'Ćwierćfinały',
   semi: 'Półfinały',
+  third_place: 'O 3. miejsce',
   final: 'Finał',
 };
 
@@ -18,7 +20,7 @@ export default function Matches() {
   const [predictions, setPredictions] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeStage, setActiveStage] = useState('group');
+  const [activeTab, setActiveTab] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -28,36 +30,42 @@ export default function Matches() {
     setLoading(true);
     setError('');
     try {
-      // fetch matches — always works
       const matchData = await getMatches();
       setMatches(matchData);
 
-      // try to fetch user predictions — might 404 if endpoint not ready
       try {
         const predData = await getMyPredictions();
-        // index predictions by match_id for quick lookup
         const predMap = {};
         predData.forEach((p) => { predMap[p.match_id] = p; });
         setPredictions(predMap);
       } catch {
-        // endpoint not ready yet — no user predictions to show
+        // no predictions yet — fine
       }
-    } catch (err) {
+    } catch {
       setError('Nie udało się załadować meczów');
     } finally {
       setLoading(false);
     }
   };
 
-  // group matches by stage
-  const matchesByStage = {};
-  matches.forEach((m) => {
-    if (!matchesByStage[m.stage]) matchesByStage[m.stage] = [];
-    matchesByStage[m.stage].push(m);
-  });
+  // split upcoming (scheduled/live) from finished matches
+  const upcoming = matches.filter((m) => m.status !== 'finished');
+  const finished = matches.filter((m) => m.status === 'finished');
 
-  // only show stage tabs that have matches
-  const availableStages = STAGE_ORDER.filter((s) => matchesByStage[s]?.length > 0);
+  // upcoming grouped by stage — only stages that actually have matches
+  const upcomingByStage = {};
+  upcoming.forEach((m) => {
+    if (!upcomingByStage[m.stage]) upcomingByStage[m.stage] = [];
+    upcomingByStage[m.stage].push(m);
+  });
+  const availableStages = STAGE_ORDER.filter((s) => upcomingByStage[s]?.length > 0);
+
+  // tabs = upcoming stages + a "finished" tab if there are any results
+  const tabs = [...availableStages];
+  if (finished.length > 0) tabs.push('finished');
+
+  // pick a sensible default tab once data is in
+  const current = activeTab && tabs.includes(activeTab) ? activeTab : tabs[0];
 
   const handlePredictionSaved = (pred) => {
     setPredictions((prev) => ({ ...prev, [pred.match_id]: pred }));
@@ -82,41 +90,54 @@ export default function Matches() {
         <h1 className="page-title">Mecze</h1>
         <div className="glass-card p-8 text-center">
           <p className="text-red-400 mb-4">{error}</p>
-          <button onClick={loadData} className="btn-secondary">
-            Spróbuj ponownie
-          </button>
+          <button onClick={loadData} className="btn-secondary">Spróbuj ponownie</button>
         </div>
       </div>
     );
   }
 
+  // no matches at all — data not loaded yet
+  if (matches.length === 0) {
+    return (
+      <div className="page-container">
+        <h1 className="page-title">Mecze</h1>
+        <div className="glass-card p-8 text-center text-gray-400">
+          Brak meczów. Terminarz pojawi się po pobraniu danych z API
+          (administrator robi to w panelu admina).
+        </div>
+      </div>
+    );
+  }
+
+  const tabLabel = (t) => (t === 'finished' ? 'Zakończone' : STAGE_LABELS[t] || t);
+  const tabCount = (t) => (t === 'finished' ? finished.length : upcomingByStage[t]?.length || 0);
+  const shownMatches = current === 'finished' ? finished : (upcomingByStage[current] || []);
+
   return (
     <div className="page-container">
-      <h1 className="page-title">⚽ Mecze</h1>
+      <h1 className="page-title">Mecze</h1>
 
-      {/* stage filter tabs */}
+      {/* stage / finished tabs */}
       <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-2">
-        {availableStages.map((stage) => (
+        {tabs.map((tab) => (
           <button
-            key={stage}
-            onClick={() => setActiveStage(stage)}
+            key={tab}
+            onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-200
-              ${activeStage === stage
+              ${current === tab
                 ? 'bg-gradient-to-r from-mundial-teal to-mundial-magenta text-white shadow-glow-teal'
                 : 'bg-surface-800/60 text-gray-400 hover:text-gray-200 hover:bg-surface-700/60'
               }`}
           >
-            {STAGE_LABELS[stage]}
-            <span className="ml-2 text-xs opacity-70">
-              ({matchesByStage[stage]?.length || 0})
-            </span>
+            {tabLabel(tab)}
+            <span className="ml-2 text-xs opacity-70">({tabCount(tab)})</span>
           </button>
         ))}
       </div>
 
-      {/* match cards for active stage */}
+      {/* match cards for the active tab — already ordered by kickoff */}
       <div className="grid gap-4">
-        {(matchesByStage[activeStage] || []).map((match) => (
+        {shownMatches.map((match) => (
           <MatchCard
             key={match.id}
             match={match}
@@ -126,7 +147,7 @@ export default function Matches() {
         ))}
       </div>
 
-      {(!matchesByStage[activeStage] || matchesByStage[activeStage].length === 0) && (
+      {shownMatches.length === 0 && (
         <div className="glass-card p-8 text-center text-gray-400">
           Brak meczów w tej fazie
         </div>

@@ -107,7 +107,7 @@ function LeagueList() {
 
   return (
     <div className="page-container">
-      <h1 className="page-title">👥 Ligi prywatne</h1>
+      <h1 className="page-title">Ligi prywatne</h1>
 
       {/* action buttons */}
       <div className="flex flex-wrap gap-3 mb-6">
@@ -250,7 +250,7 @@ function LeagueDetail({ leagueId }) {
 
   return (
     <div className="page-container">
-      <h1 className="page-title">🏅 {league?.name}</h1>
+      <h1 className="page-title">{league?.name}</h1>
 
       {/* league info card */}
       <div className="glass-card p-5 mb-6">

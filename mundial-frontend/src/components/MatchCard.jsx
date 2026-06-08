@@ -125,7 +125,7 @@ export default function MatchCard({ match, prediction, onPredictionSaved }) {
               onClick={() => setShowForm(true)}
               className="w-full btn-secondary text-sm !py-2"
             >
-              {prediction ? '✏️ Zmień typ' : '🎯 Typuj wynik'}
+              {prediction ? 'Zmień typ' : 'Typuj wynik'}
             </button>
           ) : (
             <PredictionForm

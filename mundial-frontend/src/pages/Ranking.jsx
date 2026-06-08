@@ -49,7 +49,7 @@ export default function Ranking() {
 
   return (
     <div className="page-container">
-      <h1 className="page-title">🏆 Ranking globalny</h1>
+      <h1 className="page-title">Ranking globalny</h1>
 
       {/* quick stats */}
       {entries.length > 0 && (

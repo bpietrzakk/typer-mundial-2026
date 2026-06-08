@@ -81,7 +81,7 @@ export default function Admin() {
 
   return (
     <div className="page-container">
-      <h1 className="page-title">🛠️ Panel admina</h1>
+      <h1 className="page-title">Panel admina</h1>
 
       {/* data tools */}
       <div className="glass-card p-5 mb-6">

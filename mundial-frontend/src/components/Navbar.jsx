@@ -3,11 +3,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const NAV_LINKS = [
-  { to: '/matches', label: 'Mecze', icon: '⚽' },
-  { to: '/predictions', label: 'Moje Typy', icon: '🎯' },
-  { to: '/ranking', label: 'Ranking', icon: '🏆' },
-  { to: '/leagues', label: 'Ligi', icon: '👥' },
-  { to: '/bonus', label: 'Bonusy', icon: '⭐' },
+  { to: '/matches', label: 'Mecze' },
+  { to: '/predictions', label: 'Moje Typy' },
+  { to: '/ranking', label: 'Ranking' },
+  { to: '/leagues', label: 'Ligi' },
+  { to: '/bonus', label: 'Bonusy' },
 ];
 
 export default function Navbar() {
@@ -18,7 +18,7 @@ export default function Navbar() {
 
   // admins get an extra link to the panel
   const links = user?.is_admin
-    ? [...NAV_LINKS, { to: '/admin', label: 'Admin', icon: '🛠️' }]
+    ? [...NAV_LINKS, { to: '/admin', label: 'Admin' }]
     : NAV_LINKS;
 
   const handleLogout = async () => {
@@ -42,7 +42,7 @@ export default function Navbar() {
           {/* desktop nav links */}
           {isLoggedIn && (
             <div className="hidden md:flex items-center gap-1">
-              {links.map(({ to, label, icon }) => {
+              {links.map(({ to, label }) => {
                 const active = location.pathname.startsWith(to);
                 return (
                   <Link
@@ -54,7 +54,6 @@ export default function Navbar() {
                         : 'text-gray-400 hover:text-gray-200 hover:bg-surface-700/30'
                       }`}
                   >
-                    <span className="mr-1.5">{icon}</span>
                     {label}
                   </Link>
                 );
@@ -114,7 +113,7 @@ export default function Navbar() {
       {isLoggedIn && mobileOpen && (
         <div className="md:hidden border-t border-surface-500/20 bg-surface-900/95 backdrop-blur-xl animate-slide-up">
           <div className="px-4 py-3 space-y-1">
-            {links.map(({ to, label, icon }) => {
+            {links.map(({ to, label }) => {
               const active = location.pathname.startsWith(to);
               return (
                 <Link
@@ -127,7 +126,6 @@ export default function Navbar() {
                       : 'text-gray-400 hover:text-gray-200 hover:bg-surface-700/30'
                     }`}
                 >
-                  <span className="mr-2">{icon}</span>
                   {label}
                 </Link>
               );
