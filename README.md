@@ -98,7 +98,7 @@ Aplikacja do typowania wyników meczów Mundialu 2026 dla znajomych. Prywatne li
 | Dane meczów | football-data.org API |
 | Hosting frontend | Azure Static Web Apps |
 | Hosting backend | Azure Container Apps |
-| Hosting bazy | Supabase (PostgreSQL) |
+| Hosting bazy | Neon (PostgreSQL) |
 | Mobile | PWA (Progressive Web App) |
 
 ---
@@ -234,12 +234,12 @@ FRONTEND_URL=http://localhost:5173
 
 ## Deploy (produkcja)
 
-**Azure Static Web Apps + Azure Container Apps + Supabase ≈ $0/mies.**
+**Azure Static Web Apps + Azure Container Apps + Neon ≈ $0/mies.**
 
-### 1. Supabase (baza)
-- Nowy projekt na [supabase.com](https://supabase.com)
+### 1. Neon (baza)
+- Nowy projekt na [neon.tech](https://neon.tech), region: `eu-central-1`
 - Uruchom migracje przez SQL editor: `001_init.sql` → `002_seed_mundial_2026.sql`
-- Skopiuj connection string
+- Skopiuj dane połączenia (host, user, password, db) i dodaj `POSTGRES_SSL=require`
 
 ### 2. Azure Container Apps (backend)
 ```bash
@@ -254,10 +254,10 @@ az containerapp create \
   --image mundialtyper.azurecr.io/backend:latest \
   --min-replicas 0 --max-replicas 3 \
   --target-port 8000 --ingress external \
-  --env-vars POSTGRES_HOST=... JWT_SECRET=... FOOTBALL_API_KEY=... \
-             RESEND_API_KEY=... REQUIRE_VERIFIED_EMAIL=true \
-             ADMIN_EMAILS=twoj@email.com DEV_SEED=false \
-             FRONTEND_URL=https://<app>.azurestaticapps.net
+  --env-vars POSTGRES_HOST=... POSTGRES_SSL=require JWT_SECRET=... \
+             FOOTBALL_API_KEY=... RESEND_API_KEY=... \
+             REQUIRE_VERIFIED_EMAIL=true ADMIN_EMAILS=twoj@email.com \
+             DEV_SEED=false FRONTEND_URL=https://<app>.azurestaticapps.net
 ```
 
 ### 3. Azure Static Web Apps (frontend)
@@ -283,7 +283,7 @@ Bez własnej domeny maile trafiają do spamu lub nie dochodzą.
 |--------|------|-------|
 | Azure Static Web Apps | Free | $0 |
 | Azure Container Apps | Free tier (180k vCPU-sec/mies.) | ~$0 |
-| Supabase | Free (500MB) | $0 |
+| Neon | Free (0.5 GB) | $0 |
 | football-data.org | Free | $0 |
 | Resend | Free (3000 maili/mies.) | $0 |
 | **Razem** | | **~$0/mies.** |
@@ -375,7 +375,7 @@ A World Cup 2026 prediction app for friends. Private leagues with invite codes, 
 | Email | Resend |
 | Match data | football-data.org API |
 | Hosting | Azure Static Web Apps + Container Apps |
-| Database hosting | Supabase |
+| Database hosting | Neon |
 | Mobile | PWA |
 
 ---
@@ -398,7 +398,7 @@ docker compose up --build
 
 ## Deploy
 
-**Azure Static Web Apps + Azure Container Apps + Supabase ≈ $0/month**
+**Azure Static Web Apps + Azure Container Apps + Neon ≈ $0/month**
 
 See the Polish section above for full step-by-step instructions.
 

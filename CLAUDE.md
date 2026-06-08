@@ -34,7 +34,7 @@ Projekt dwuosobowy (bartek + Daniel). Backend w FastAPI, frontend w React.
 - **Język:** Python 3.11+
 - **Framework:** FastAPI + uvicorn
 - **Menedżer paczek:** `uv` (zależności w `pyproject.toml`, lock w `uv.lock`)
-- **Baza:** PostgreSQL 16 (lokalnie w Dockerze, produkcja na Supabase)
+- **Baza:** PostgreSQL 16 (lokalnie w Dockerze, produkcja na Neon)
 - **Dostęp do DB:** `psycopg2-binary` + jawne SQL (bez ORM)
 - **Auth:** JWT (`python-jose`) + Argon2id (`pwdlib[argon2]`)
 - **Email:** Resend (`resend` SDK)
@@ -137,7 +137,7 @@ Logika domenowa (domain/)         ← czysta, testowalna, bez I/O
    ↓ używa
 Dostęp do danych (db/)            ← SQL, connection pool
    ↓
-PostgreSQL (Supabase)
+PostgreSQL (Neon)
 ```
 
 Serwisy zewnętrzne (`services/`) są wywoływane z routerów, nie z domeny:
@@ -446,8 +446,8 @@ FRONTEND_URL=http://localhost:5173
 
 ## Deploy (produkcja)
 
-**Stack:** Azure Static Web Apps + Azure Container Apps + Supabase
-**Koszt:** ~$0 (kredyty studenckie Azure 100$ + Supabase free tier)
+**Stack:** Azure Static Web Apps + Azure Container Apps + Neon
+**Koszt:** ~$0 (kredyty studenckie Azure 100$ + Neon free tier)
 **Pojemność:** spokojnie obsługuje 5–50 userów w ramach free tierów
 
 ### Architektura
@@ -456,13 +456,16 @@ FRONTEND_URL=http://localhost:5173
 |----|-------|------|
 | Frontend | Azure Static Web Apps | Free |
 | Backend | Azure Container Apps | Free (180k vCPU-sec/mies) |
-| Baza | Supabase | Free (500MB) |
+| Baza | Neon | Free (0.5 GB) |
 
-### Krok 1 — Supabase (baza)
+### Krok 1 — Neon (baza)
 
-1. Wejdź na [supabase.com](https://supabase.com) → New project
-2. Skopiuj `connection string` (Settings → Database → URI)
-3. Uruchom migracje przez SQL editor: `001_init.sql`, potem `002_seed_mundial_2026.sql`
+1. Wejdź na [neon.tech](https://neon.tech) → New project
+2. Region: `eu-central-1 (Frankfurt)`
+3. Skopiuj connection string (Dashboard → Connection Details)
+4. Rozłóż na zmienne: `POSTGRES_HOST`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
+5. Dodaj `POSTGRES_SSL=require` (Neon wymaga SSL)
+6. Uruchom migracje przez SQL editor: `001_init.sql`, potem `002_seed_mundial_2026.sql`
 
 ### Krok 2 — Azure Container Apps (backend)
 
@@ -534,11 +537,12 @@ az containerapp show --name mundial-backend --resource-group mundial-rg --query 
 ### Zmienne środowiskowe — kompletna lista
 
 ```env
-POSTGRES_HOST=         # Supabase host
+POSTGRES_HOST=         # Neon host (ep-xxx.eu-central-1.aws.neon.tech)
 POSTGRES_PORT=5432
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=     # Supabase password
-POSTGRES_DB=postgres
+POSTGRES_USER=         # Neon user
+POSTGRES_PASSWORD=     # Neon password
+POSTGRES_DB=neondb
+POSTGRES_SSL=require
 JWT_SECRET=            # min 32 losowych znaków
 JWT_EXPIRE_DAYS=7
 FOOTBALL_API_KEY=      # football-data.org

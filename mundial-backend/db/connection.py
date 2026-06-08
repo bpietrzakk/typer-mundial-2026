@@ -13,15 +13,17 @@ _pool: pool.SimpleConnectionPool | None = None
 
 
 def _build_pool() -> pool.SimpleConnectionPool:
-    return pool.SimpleConnectionPool(
-        minconn=1,
-        maxconn=5,
+    kwargs: dict = dict(
         host=os.getenv("POSTGRES_HOST", "localhost"),
         port=os.getenv("POSTGRES_PORT", "5432"),
         user=os.getenv("POSTGRES_USER", "mundial"),
         password=os.getenv("POSTGRES_PASSWORD", "mundial"),
         dbname=os.getenv("POSTGRES_DB", "mundial"),
     )
+    ssl = os.getenv("POSTGRES_SSL")
+    if ssl:
+        kwargs["sslmode"] = ssl
+    return pool.SimpleConnectionPool(minconn=1, maxconn=5, **kwargs)
 
 
 def get_conn():
