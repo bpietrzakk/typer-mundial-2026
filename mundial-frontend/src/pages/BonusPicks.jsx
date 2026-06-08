@@ -16,7 +16,7 @@ export default function BonusPicks() {
   // champion pick
   const [champion, setChampion] = useState(null);
   const [championSaving, setChampionSaving] = useState(false);
-  const [championSaved, setChampionSaved] = useState(false);
+  const [isEditingChampion, setIsEditingChampion] = useState(false);
 
   // group advance picks — { [groupName]: [teamId, teamId] }
   const [groupPicks, setGroupPicks] = useState({});
@@ -35,7 +35,6 @@ export default function BonusPicks() {
     setLoading(true);
     setError('');
     try {
-      // teams (with real groups) + any picks the user already saved
       const [teamData, championData, advanceData] = await Promise.all([
         getTeams(),
         getChampion(),
@@ -43,9 +42,13 @@ export default function BonusPicks() {
       ]);
       setTeams(teamData);
 
-      if (championData) setChampion(championData.champion_team_id);
+      if (championData) {
+        setChampion(championData.champion_team_id);
+        setIsEditingChampion(false);
+      } else {
+        setIsEditingChampion(true);
+      }
 
-      // rebuild { group: [teamId,...] } from saved advances
       const picks = {};
       advanceData.forEach((a) => {
         if (!picks[a.group_name]) picks[a.group_name] = [];
@@ -59,7 +62,6 @@ export default function BonusPicks() {
     }
   };
 
-  // group teams by their real group_name (A..L); ungrouped teams skipped
   const teamsByGroup = {};
   teams.forEach((t) => {
     if (!t.group_name) return;
@@ -76,7 +78,7 @@ export default function BonusPicks() {
         return { ...prev, [group]: current.filter((id) => id !== teamId) };
       }
       if (current.length >= 2) {
-        return { ...prev, [group]: [current[1], teamId] };  // replace oldest
+        return { ...prev, [group]: [current[1], teamId] };
       }
       return { ...prev, [group]: [...current, teamId] };
     });
@@ -89,7 +91,7 @@ export default function BonusPicks() {
     setSubmitError('');
     try {
       await saveChampion(champion);
-      setChampionSaved(true);
+      setIsEditingChampion(false);
     } catch (err) {
       setSubmitError(err.response?.data?.detail || 'Nie udało się zapisać');
     } finally {
@@ -115,7 +117,6 @@ export default function BonusPicks() {
     }
   };
 
-  // countdown to deadline
   const timeLeft = BONUS_DEADLINE - new Date();
   const daysLeft = Math.max(0, Math.floor(timeLeft / (1000 * 60 * 60 * 24)));
   const hoursLeft = Math.max(0, Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
@@ -142,18 +143,18 @@ export default function BonusPicks() {
     );
   }
 
-  // no teams yet — guide the admin to bootstrap
   if (teams.length === 0) {
     return (
       <div className="page-container">
         <h1 className="page-title">Typowanie bonusowe</h1>
         <div className="glass-card p-8 text-center text-gray-400">
-          Brak drużyn w bazie. Administrator musi najpierw pobrać dane turnieju
-          w panelu admina.
+          Brak drużyn w bazie. Administrator musi najpierw pobrać dane turnieju w panelu admina.
         </div>
       </div>
     );
   }
+
+  const selectedChampionTeam = teams.find((t) => t.id === champion);
 
   return (
     <div className="page-container">
@@ -192,38 +193,64 @@ export default function BonusPicks() {
           <span className="text-sm font-normal text-gray-500 ml-2">(+20 pkt za trafienie)</span>
         </h2>
 
-        <div className="glass-card p-5">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-            {teams.map((team) => (
+        {!isEditingChampion && champion ? (
+          <div className="glass-card p-8 flex flex-col items-center text-center animate-fade-in">
+            <p className="text-sm text-gray-400 mb-2">Twój wybór na mistrza:</p>
+            <p className="text-4xl font-black text-mundial-gold mb-6 uppercase tracking-wider">
+              {selectedChampionTeam?.name}
+            </p>
+            
+            {!isLocked && (
               <button
-                key={team.id}
-                onClick={() => { if (!isLocked) { setChampion(team.id); setChampionSaved(false); } }}
-                disabled={isLocked}
-                className={`p-3 rounded-xl text-sm font-medium transition-all duration-200
-                  ${champion === team.id
-                    ? 'bg-mundial-gold/20 border-2 border-mundial-gold text-mundial-gold shadow-glow-orange'
-                    : 'bg-surface-700/30 border border-surface-500/20 text-gray-300 hover:bg-surface-700/50 hover:border-surface-500/40'
-                  }
-                  ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={() => setIsEditingChampion(true)}
+                className="btn-secondary text-sm !px-6"
               >
-                {team.name}
+                Zmień
               </button>
-            ))}
+            )}
           </div>
-
-          {champion && !isLocked && (
-            <div className="mt-4 flex items-center gap-3">
-              <button onClick={handleChampionSave} disabled={championSaving} className="btn-primary text-sm">
-                {championSaving ? 'Zapisuję…' : championSaved ? 'Zapisano!' : 'Zapisz wybór mistrza'}
-              </button>
-              <span className="text-sm text-gray-400">
-                Wybrany: <span className="text-mundial-gold font-semibold">
-                  {teams.find((t) => t.id === champion)?.name}
-                </span>
-              </span>
+        ) : (
+          <div className="glass-card p-5 animate-fade-in">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+              {teams.map((team) => (
+                <button
+                  key={team.id}
+                  onClick={() => setChampion(team.id)}
+                  disabled={isLocked}
+                  className={`p-3 rounded-xl text-sm font-medium transition-all duration-200
+                    ${champion === team.id
+                      ? 'bg-mundial-gold/20 border-2 border-mundial-gold text-mundial-gold shadow-glow-orange'
+                      : 'bg-surface-700/30 border border-surface-500/20 text-gray-300 hover:bg-surface-700/50 hover:border-surface-500/40'
+                    }
+                    ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {team.name}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
+            
+            {!isLocked && champion && (
+              <div className="mt-6 flex items-center justify-center gap-4">
+                <button
+                  onClick={handleChampionSave}
+                  disabled={championSaving}
+                  className="btn-primary text-sm !px-8 shadow-glow-teal"
+                >
+                  {championSaving ? 'Zapisuję…' : 'Zapisz wybór mistrza'}
+                </button>
+                {/* if we were already saved, allow canceling the edit */}
+                {selectedChampionTeam && (
+                   <button 
+                     onClick={() => setIsEditingChampion(false)}
+                     className="text-gray-500 hover:text-gray-300 text-sm transition-colors"
+                   >
+                     Anuluj
+                   </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* group advance picks */}

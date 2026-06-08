@@ -1,7 +1,7 @@
 // Mundial Typer 2026 — Service Worker
 // cache-first for static assets, network-first for API calls
 
-const CACHE_NAME = 'mundial-typer-v3';
+const CACHE_NAME = 'mundial-typer-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
