@@ -8,12 +8,14 @@ from db.queries import (
     is_league_member,
     join_league,
     list_league_members,
+    list_user_leagues,
 )
 from routers.deps import get_current_user
 from schemas.models import (
     CreateLeagueRequest,
     JoinLeagueRequest,
     LeagueDetailResponse,
+    LeagueSummary,
 )
 
 
@@ -32,6 +34,14 @@ def _league_to_response(league: dict, members: list[dict]) -> dict:
         "created_at": league["created_at"],
         "members": members,
     }
+
+
+@router.get("", response_model=list[LeagueSummary])
+def list_my_leagues(
+    current_user: dict = Depends(get_current_user),
+) -> list[dict]:
+    # all leagues the current user belongs to — empty list if none
+    return list_user_leagues(current_user["id"])
 
 
 @router.post(

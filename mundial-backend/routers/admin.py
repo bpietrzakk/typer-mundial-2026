@@ -5,6 +5,7 @@ from db.queries import (
     MatchNotFound,
     finalize_match,
     get_match_by_external_id,
+    set_team_group,
     upsert_match,
     upsert_team,
 )
@@ -28,6 +29,8 @@ def bootstrap_tournament(_admin: dict = Depends(get_admin_user)) -> dict:
 
     matches = fetch_matches()
     inserted = updated = 0
+    # derive each team's group from the group-stage fixtures
+    team_groups: dict[str, str] = {}
     for m in matches:
         existing = get_match_by_external_id(m["external_id"])
         upsert_match(
@@ -39,11 +42,18 @@ def bootstrap_tournament(_admin: dict = Depends(get_admin_user)) -> dict:
             updated += 1
         else:
             inserted += 1
+        if m["stage"] == "group" and m.get("group"):
+            team_groups[m["home_team_external_id"]] = m["group"]
+            team_groups[m["away_team_external_id"]] = m["group"]
+
+    for ext_id, group in team_groups.items():
+        set_team_group(ext_id, group)
 
     return {
         "teams": len(teams),
         "matches_inserted": inserted,
         "matches_updated": updated,
+        "groups_assigned": len(team_groups),
     }
 
 

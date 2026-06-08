@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
-import { getMatches } from '../api/matches';
-import api from '../api/axios';
+import { getTeams } from '../api/matches';
+import {
+  getChampion, setChampion as saveChampion,
+  getGroupAdvances, setGroupAdvances as saveGroupAdvances,
+} from '../api/bonus';
 
 // tournament bonus deadline (from CLAUDE.md)
 const BONUS_DEADLINE = new Date('2026-06-11T12:00:00Z');
-
-// World Cup 2026 groups (A-L, 12 groups of 4)
-// actual teams will come from the matches endpoint — we extract unique teams
-const GROUP_NAMES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
 
 export default function BonusPicks() {
   const [teams, setTeams] = useState([]);
@@ -29,22 +28,30 @@ export default function BonusPicks() {
   const isLocked = new Date() > BONUS_DEADLINE;
 
   useEffect(() => {
-    loadTeams();
+    loadData();
   }, []);
 
-  const loadTeams = async () => {
+  const loadData = async () => {
     setLoading(true);
+    setError('');
     try {
-      const matches = await getMatches();
-      // extract unique teams from group stage matches
-      const teamMap = {};
-      matches.forEach((m) => {
-        if (m.stage === 'group') {
-          if (!teamMap[m.home_team.id]) teamMap[m.home_team.id] = m.home_team;
-          if (!teamMap[m.away_team.id]) teamMap[m.away_team.id] = m.away_team;
-        }
+      // teams (with real groups) + any picks the user already saved
+      const [teamData, championData, advanceData] = await Promise.all([
+        getTeams(),
+        getChampion(),
+        getGroupAdvances(),
+      ]);
+      setTeams(teamData);
+
+      if (championData) setChampion(championData.champion_team_id);
+
+      // rebuild { group: [teamId,...] } from saved advances
+      const picks = {};
+      advanceData.forEach((a) => {
+        if (!picks[a.group_name]) picks[a.group_name] = [];
+        picks[a.group_name].push(a.team_id);
       });
-      setTeams(Object.values(teamMap).sort((a, b) => a.name.localeCompare(b.name)));
+      setGroupPicks(picks);
     } catch {
       setError('Nie udało się załadować drużyn');
     } finally {
@@ -52,18 +59,14 @@ export default function BonusPicks() {
     }
   };
 
-  // figure out which group each team belongs to (from match data)
-  // this is a simplification — real grouping would come from backend
-  const getTeamsByGroup = () => {
-    // for now return all teams in a single list per group
-    // when backend provides group info, this will be smarter
-    const perGroup = Math.ceil(teams.length / GROUP_NAMES.length);
-    const groups = {};
-    GROUP_NAMES.forEach((name, i) => {
-      groups[name] = teams.slice(i * perGroup, (i + 1) * perGroup);
-    });
-    return groups;
-  };
+  // group teams by their real group_name (A..L); ungrouped teams skipped
+  const teamsByGroup = {};
+  teams.forEach((t) => {
+    if (!t.group_name) return;
+    if (!teamsByGroup[t.group_name]) teamsByGroup[t.group_name] = [];
+    teamsByGroup[t.group_name].push(t);
+  });
+  const groupNames = Object.keys(teamsByGroup).sort();
 
   const toggleGroupPick = (group, teamId) => {
     if (isLocked) return;
@@ -73,8 +76,7 @@ export default function BonusPicks() {
         return { ...prev, [group]: current.filter((id) => id !== teamId) };
       }
       if (current.length >= 2) {
-        // replace the oldest pick
-        return { ...prev, [group]: [current[1], teamId] };
+        return { ...prev, [group]: [current[1], teamId] };  // replace oldest
       }
       return { ...prev, [group]: [...current, teamId] };
     });
@@ -86,10 +88,10 @@ export default function BonusPicks() {
     setChampionSaving(true);
     setSubmitError('');
     try {
-      await api.post('/bonus/champion', { champion_team_id: champion });
+      await saveChampion(champion);
       setChampionSaved(true);
     } catch (err) {
-      setSubmitError(err.response?.data?.detail || 'Nie udało się zapisać — endpoint może nie być jeszcze gotowy');
+      setSubmitError(err.response?.data?.detail || 'Nie udało się zapisać');
     } finally {
       setChampionSaving(false);
     }
@@ -100,17 +102,14 @@ export default function BonusPicks() {
     setGroupSaving(true);
     setSubmitError('');
     try {
-      // send all group advance picks
       const picks = [];
       Object.entries(groupPicks).forEach(([group, teamIds]) => {
-        teamIds.forEach((teamId) => {
-          picks.push({ group_name: group, team_id: teamId });
-        });
+        teamIds.forEach((teamId) => picks.push({ group_name: group, team_id: teamId }));
       });
-      await api.post('/bonus/group-advances', { picks });
+      await saveGroupAdvances(picks);
       setGroupSaved(true);
     } catch (err) {
-      setSubmitError(err.response?.data?.detail || 'Nie udało się zapisać — endpoint może nie być jeszcze gotowy');
+      setSubmitError(err.response?.data?.detail || 'Nie udało się zapisać');
     } finally {
       setGroupSaving(false);
     }
@@ -137,15 +136,24 @@ export default function BonusPicks() {
         <h1 className="page-title">Bonusy</h1>
         <div className="glass-card p-8 text-center">
           <p className="text-red-400 mb-4">{error}</p>
-          <button onClick={loadTeams} className="btn-secondary">
-            Spróbuj ponownie
-          </button>
+          <button onClick={loadData} className="btn-secondary">Spróbuj ponownie</button>
         </div>
       </div>
     );
   }
 
-  const teamsByGroup = getTeamsByGroup();
+  // no teams yet — guide the admin to bootstrap
+  if (teams.length === 0) {
+    return (
+      <div className="page-container">
+        <h1 className="page-title">⭐ Typowanie bonusowe</h1>
+        <div className="glass-card p-8 text-center text-gray-400">
+          Brak drużyn w bazie. Administrator musi najpierw pobrać dane turnieju
+          w panelu admina.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-container">
@@ -158,19 +166,14 @@ export default function BonusPicks() {
             <p className="text-sm text-gray-400">
               {isLocked ? 'Typowanie zamknięte' : 'Deadline typowania'}
             </p>
-            <p className="font-semibold text-gray-200">
-              11 czerwca 2026, 14:00 (CEST)
-            </p>
+            <p className="font-semibold text-gray-200">11 czerwca 2026, 14:00 (CEST)</p>
           </div>
-          {!isLocked && (
+          {!isLocked ? (
             <div className="text-right">
               <p className="text-sm text-gray-400">Pozostało</p>
-              <p className="text-xl font-bold text-mundial-gold">
-                {daysLeft}d {hoursLeft}h
-              </p>
+              <p className="text-xl font-bold text-mundial-gold score-num">{daysLeft}d {hoursLeft}h</p>
             </div>
-          )}
-          {isLocked && (
+          ) : (
             <span className="badge bg-red-500/20 text-red-400">🔒 Zamknięte</span>
           )}
         </div>
@@ -210,11 +213,7 @@ export default function BonusPicks() {
 
           {champion && !isLocked && (
             <div className="mt-4 flex items-center gap-3">
-              <button
-                onClick={handleChampionSave}
-                disabled={championSaving}
-                className="btn-primary text-sm"
-              >
+              <button onClick={handleChampionSave} disabled={championSaving} className="btn-primary text-sm">
                 {championSaving ? 'Zapisuję…' : championSaved ? '✅ Zapisano!' : '💾 Zapisz wybór mistrza'}
               </button>
               <span className="text-sm text-gray-400">
@@ -235,18 +234,15 @@ export default function BonusPicks() {
         </h2>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {GROUP_NAMES.map((group) => {
+          {groupNames.map((group) => {
             const groupTeams = teamsByGroup[group] || [];
             const picks = groupPicks[group] || [];
-            if (groupTeams.length === 0) return null;
 
             return (
               <div key={group} className="glass-card p-4">
                 <h3 className="font-semibold text-gray-300 mb-3">
                   Grupa {group}
-                  <span className="text-xs text-gray-500 ml-2">
-                    ({picks.length}/2 wybranych)
-                  </span>
+                  <span className="text-xs text-gray-500 ml-2">({picks.length}/2 wybranych)</span>
                 </h3>
                 <div className="space-y-1.5">
                   {groupTeams.map((team) => {
@@ -274,13 +270,9 @@ export default function BonusPicks() {
           })}
         </div>
 
-        {!isLocked && Object.keys(groupPicks).length > 0 && (
+        {!isLocked && groupNames.length > 0 && (
           <div className="mt-6">
-            <button
-              onClick={handleGroupSave}
-              disabled={groupSaving}
-              className="btn-primary"
-            >
+            <button onClick={handleGroupSave} disabled={groupSaving} className="btn-primary">
               {groupSaving ? 'Zapisuję…' : groupSaved ? '✅ Zapisano awanse!' : '💾 Zapisz awanse z grup'}
             </button>
           </div>

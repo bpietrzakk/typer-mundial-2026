@@ -3,11 +3,16 @@ import { AuthProvider, ProtectedRoute } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
+import VerifyPending from './pages/VerifyPending';
 import Matches from './pages/Matches';
 import MyPredictions from './pages/MyPredictions';
 import Ranking from './pages/Ranking';
 import League from './pages/League';
 import BonusPicks from './pages/BonusPicks';
+import Admin from './pages/Admin';
 
 // layout wrapper — navbar + page content for authenticated routes
 function AppLayout({ children }) {
@@ -27,6 +32,10 @@ export default function App() {
           {/* public routes — no navbar */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/verify-pending" element={<VerifyPending />} />
 
           {/* protected routes — with navbar */}
           <Route
@@ -74,6 +83,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AppLayout><BonusPicks /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AppLayout><Admin /></AppLayout>
               </ProtectedRoute>
             }
           />

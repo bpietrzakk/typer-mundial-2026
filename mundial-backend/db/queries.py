@@ -64,6 +64,18 @@ SQL_GET_MATCH_BY_EXTERNAL_ID = """
     SELECT id, status FROM matches WHERE external_id = %s
 """
 
+# set a team's group from bootstrap (matched by external_id)
+SQL_SET_TEAM_GROUP = """
+    UPDATE teams SET group_name = %s WHERE external_id = %s
+"""
+
+# all teams for the bonus picker — group_name may be null for knockout teams
+SQL_LIST_TEAMS = """
+    SELECT id, name, short_name, group_name
+    FROM teams
+    ORDER BY group_name NULLS LAST, name ASC
+"""
+
 
 # --- bootstrap functions ---
 
@@ -93,6 +105,29 @@ def upsert_match(
                     home_goals, away_goals, external_id,
                 ))
                 return dict(cur.fetchone())
+    finally:
+        release_conn(conn)
+
+
+def set_team_group(external_id: str, group_name: str) -> None:
+    # called by bootstrap to stamp each team's World Cup group
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(SQL_SET_TEAM_GROUP, (group_name, external_id))
+    finally:
+        release_conn(conn)
+
+
+def list_teams() -> list[dict]:
+    # all teams with their group — feeds the bonus picker
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_LIST_TEAMS)
+                return [dict(r) for r in cur.fetchall()]
     finally:
         release_conn(conn)
 
@@ -334,6 +369,18 @@ SQL_LIST_LEAGUE_MEMBERS = """
     ORDER BY plm.joined_at ASC
 """
 
+# every league the user belongs to, with a member count for the card.
+# newest first so a freshly created/joined league shows up on top
+SQL_LIST_USER_LEAGUES = """
+    SELECT pl.id, pl.name,
+           (SELECT COUNT(*) FROM private_league_members m
+            WHERE m.private_league_id = pl.id) AS member_count
+    FROM private_leagues pl
+    JOIN private_league_members plm ON plm.private_league_id = pl.id
+    WHERE plm.user_id = %s
+    ORDER BY pl.created_at DESC
+"""
+
 # bonus typing endpoints (champion + group advances)
 # bonuses are GLOBAL per user (decisions #009) — one set of picks counts in
 # every league the user belongs to, same as match predictions
@@ -428,6 +475,42 @@ SQL_LEAGUE_RANKING = """
 """
 
 
+# admin view: every user with email, verification status, points and how many
+# predictions they have made. ordered by points so the leaderboard is obvious
+SQL_ADMIN_LIST_USERS = """
+    SELECT
+        u.id,
+        u.nick,
+        u.email,
+        u.email_verified,
+        u.created_at,
+        COALESCE(pp.total, 0) + COALESCE(bp.total, 0) + COALESCE(gap.total, 0)
+            AS total_points,
+        COALESCE(pc.cnt, 0) AS prediction_count
+    FROM users u
+    LEFT JOIN (
+        SELECT p.user_id, SUM(p.points_awarded) AS total
+        FROM predictions p
+        JOIN matches m ON m.id = p.match_id AND m.status = 'finished'
+        GROUP BY p.user_id
+    ) pp ON pp.user_id = u.id
+    LEFT JOIN (
+        SELECT user_id, SUM(points_awarded) AS total
+        FROM bonus_predictions
+        GROUP BY user_id
+    ) bp ON bp.user_id = u.id
+    LEFT JOIN (
+        SELECT user_id, SUM(points_awarded) AS total
+        FROM group_advance_predictions
+        GROUP BY user_id
+    ) gap ON gap.user_id = u.id
+    LEFT JOIN (
+        SELECT user_id, COUNT(*) AS cnt FROM predictions GROUP BY user_id
+    ) pc ON pc.user_id = u.id
+    ORDER BY total_points DESC, u.nick ASC
+"""
+
+
 # --- user queries ---
 
 def create_user(nick: str, email: str, password_hash: str) -> dict:
@@ -441,6 +524,18 @@ def create_user(nick: str, email: str, password_hash: str) -> dict:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(SQL_INSERT_USER, (nick, email, password_hash))
                 return dict(cur.fetchone())
+    finally:
+        release_conn(conn)
+
+
+def list_all_users_for_admin() -> list[dict]:
+    # admin dashboard — every user with points and prediction count
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_ADMIN_LIST_USERS)
+                return [dict(r) for r in cur.fetchall()]
     finally:
         release_conn(conn)
 
@@ -720,6 +815,18 @@ def list_league_members(league_id: int) -> list[dict]:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(SQL_LIST_LEAGUE_MEMBERS, (league_id,))
+                return [dict(r) for r in cur.fetchall()]
+    finally:
+        release_conn(conn)
+
+
+def list_user_leagues(user_id: int) -> list[dict]:
+    # all leagues the user is a member of — feeds the leagues list page
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_LIST_USER_LEAGUES, (user_id,))
                 return [dict(r) for r in cur.fetchall()]
     finally:
         release_conn(conn)

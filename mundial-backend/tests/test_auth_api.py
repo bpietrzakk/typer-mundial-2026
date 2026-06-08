@@ -344,7 +344,8 @@ def test_reset_password_rejects_short_password():
 
 
 def test_successful_login_resets_attempt_counter(monkeypatch):
-    real_user = {**FAKE_USER, "password_hash": "argon2-hash-placeholder"}
+    # verified user so the login succeeds regardless of REQUIRE_VERIFIED_EMAIL
+    real_user = {**FAKE_USER, "email_verified": True, "password_hash": "argon2-hash-placeholder"}
 
     # 4 failed attempts (one below the threshold)
     monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: None)

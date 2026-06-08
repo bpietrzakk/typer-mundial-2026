@@ -76,7 +76,7 @@ export default function MatchCard({ match, prediction, onPredictionSaved }) {
         {/* score / vs */}
         <div className="flex-shrink-0 w-24 text-center">
           {isFinished || isLive ? (
-            <div className={`text-2xl font-extrabold ${isLive ? 'text-red-400 animate-pulse-slow' : 'text-white'}`}>
+            <div className={`text-2xl font-extrabold score-num ${isLive ? 'text-red-400 animate-pulse-slow' : 'text-white'}`}>
               {home_goals} : {away_goals}
             </div>
           ) : (
@@ -100,7 +100,7 @@ export default function MatchCard({ match, prediction, onPredictionSaved }) {
         <div className="mt-3 pt-3 border-t border-surface-500/20">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-400">Twój typ:</span>
-            <span className="font-semibold text-gray-200">
+            <span className="font-semibold text-gray-200 score-num">
               {prediction.pred_home} : {prediction.pred_away}
             </span>
             {prediction.points_awarded !== null && prediction.points_awarded !== undefined && (

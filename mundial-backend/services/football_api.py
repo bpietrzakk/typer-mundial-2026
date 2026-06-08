@@ -32,6 +32,13 @@ _STATUS_MAP = {
 }
 
 
+def _parse_group(raw: str | None) -> str | None:
+    # football-data.org sends groups like "GROUP_A" — we store just "A"
+    if not raw:
+        return None
+    return raw.replace("GROUP_", "").strip() or None
+
+
 def _client() -> httpx.Client:
     key = os.environ["FOOTBALL_API_KEY"]
     return httpx.Client(
@@ -91,6 +98,7 @@ def fetch_matches() -> list[dict]:
             "status": _STATUS_MAP.get(status_raw, "scheduled"),
             "home_goals": score.get("home"),
             "away_goals": score.get("away"),
+            "group": _parse_group(m.get("group")),
         })
 
     return result

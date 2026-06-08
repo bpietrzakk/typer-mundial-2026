@@ -45,6 +45,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     email_verified: bool
     created_at: datetime
+    is_admin: bool = False  # stamped from ADMIN_EMAILS, not stored in the DB
 
 
 # --- matches ---
@@ -53,6 +54,14 @@ class TeamSummary(BaseModel):
     id: int
     name: str
     short_name: str | None
+
+
+class TeamWithGroup(BaseModel):
+    # used by the bonus picker so groups (A..L) come from real data
+    id: int
+    name: str
+    short_name: str | None
+    group_name: str | None
 
 
 class MatchResponse(BaseModel):
@@ -108,6 +117,18 @@ class MatchResultRequest(BaseModel):
     away_goals: int = Field(ge=0, le=99)
 
 
+# --- admin: users overview ---
+
+class AdminUserEntry(BaseModel):
+    id: int
+    nick: str
+    email: EmailStr
+    email_verified: bool
+    created_at: datetime
+    total_points: int
+    prediction_count: int
+
+
 # --- ranking ---
 
 class RankingEntry(BaseModel):
@@ -126,6 +147,13 @@ class CreateLeagueRequest(BaseModel):
 class JoinLeagueRequest(BaseModel):
     # join codes are exactly 8 chars from a fixed alphabet (domain/leagues.py)
     join_code: str = Field(min_length=8, max_length=8)
+
+
+class LeagueSummary(BaseModel):
+    # lightweight entry for the "my leagues" list — no members, no join code
+    id: int
+    name: str
+    member_count: int
 
 
 class LeagueMember(BaseModel):

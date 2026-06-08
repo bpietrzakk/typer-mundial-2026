@@ -66,3 +66,15 @@ def test_get_match_non_integer_returns_422(monkeypatch):
     monkeypatch.setattr(matches_module, "get_match_full", lambda mid: MATCH)
     resp = client.get("/matches/abc", cookies=_cookie())
     assert resp.status_code == 422
+
+
+def test_get_teams_returns_teams_with_group(monkeypatch):
+    # /teams must resolve before /{match_id} — not treated as a match id
+    monkeypatch.setattr(
+        matches_module, "list_teams",
+        lambda: [{"id": 1, "name": "Polska", "short_name": "POL", "group_name": "A"}],
+    )
+    resp = client.get("/matches/teams", cookies=_cookie())
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body[0]["group_name"] == "A"

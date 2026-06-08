@@ -21,7 +21,7 @@ from domain.auth import (
     verify_password,
 )
 from domain.rate_limit import RateLimitState, is_locked, record_failure
-from routers.deps import get_current_user
+from routers.deps import get_current_user, is_admin_email
 from schemas.models import (
     ForgotPasswordRequest,
     LoginRequest,
@@ -124,6 +124,7 @@ def register(body: RegisterRequest, response: Response) -> dict:
             detail="Email lub nick jest już zajęty",
         )
 
+    user["is_admin"] = is_admin_email(user["email"])
     _issue_verification(user)
 
     # when verification is required we don't hand out a session yet — the user
@@ -220,6 +221,7 @@ def login(body: LoginRequest, request: Request, response: Response) -> dict:
             detail="Potwierdź swój adres email zanim się zalogujesz",
         )
 
+    user["is_admin"] = is_admin_email(user["email"])
     secret, days = _read_jwt_config()
     token = create_access_token(user["id"], user["nick"], secret, days)
     _set_auth_cookie(response, token, days)

@@ -153,9 +153,9 @@ export default function MyPredictions() {
                       <span className="text-gray-400">
                         Typ: <span className="text-gray-200 font-semibold">{pred.pred_home} : {pred.pred_away}</span>
                       </span>
-                      {pred.actual_home != null && (
+                      {pred.home_goals != null && (
                         <span className="text-gray-400">
-                          Wynik: <span className="text-gray-200 font-semibold">{pred.actual_home} : {pred.actual_away}</span>
+                          Wynik: <span className="text-gray-200 font-semibold">{pred.home_goals} : {pred.away_goals}</span>
                         </span>
                       )}
                     </div>

@@ -16,6 +16,11 @@ export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // admins get an extra link to the panel
+  const links = user?.is_admin
+    ? [...NAV_LINKS, { to: '/admin', label: 'Admin', icon: '🛠️' }]
+    : NAV_LINKS;
+
   const handleLogout = async () => {
     await logout();
     navigate('/login');
@@ -37,7 +42,7 @@ export default function Navbar() {
           {/* desktop nav links */}
           {isLoggedIn && (
             <div className="hidden md:flex items-center gap-1">
-              {NAV_LINKS.map(({ to, label, icon }) => {
+              {links.map(({ to, label, icon }) => {
                 const active = location.pathname.startsWith(to);
                 return (
                   <Link
@@ -109,7 +114,7 @@ export default function Navbar() {
       {isLoggedIn && mobileOpen && (
         <div className="md:hidden border-t border-surface-500/20 bg-surface-900/95 backdrop-blur-xl animate-slide-up">
           <div className="px-4 py-3 space-y-1">
-            {NAV_LINKS.map(({ to, label, icon }) => {
+            {links.map(({ to, label, icon }) => {
               const active = location.pathname.startsWith(to);
               return (
                 <Link

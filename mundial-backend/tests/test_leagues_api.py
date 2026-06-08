@@ -57,6 +57,35 @@ def _fake_members(extra: list[dict] | None = None) -> list[dict]:
     return base + (extra or [])
 
 
+# --- GET /leagues ---
+
+def test_list_my_leagues_returns_summaries(monkeypatch):
+    monkeypatch.setattr(deps_module, "get_user_by_id", lambda uid: USER)
+    monkeypatch.setattr(
+        leagues_module, "list_user_leagues",
+        lambda uid: [{"id": 10, "name": "Mundial znajomi", "member_count": 3}],
+    )
+
+    resp = client.get("/leagues", cookies=_cookie_for(USER))
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body == [{"id": 10, "name": "Mundial znajomi", "member_count": 3}]
+
+
+def test_list_my_leagues_empty(monkeypatch):
+    monkeypatch.setattr(deps_module, "get_user_by_id", lambda uid: USER)
+    monkeypatch.setattr(leagues_module, "list_user_leagues", lambda uid: [])
+
+    resp = client.get("/leagues", cookies=_cookie_for(USER))
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+def test_list_my_leagues_requires_auth():
+    resp = client.get("/leagues")
+    assert resp.status_code == 401
+
+
 # --- POST /leagues ---
 
 def test_create_league_returns_201_with_owner_as_first_member(monkeypatch):

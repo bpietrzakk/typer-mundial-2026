@@ -13,6 +13,12 @@ def _admin_emails() -> set[str]:
     return {e.strip().lower() for e in raw.split(",") if e.strip()}
 
 
+def is_admin_email(email: str) -> bool:
+    # single source of truth for "is this user an admin" — used by the deps
+    # below and by the auth router to stamp is_admin on register/login
+    return email.lower() in _admin_emails()
+
+
 def get_current_user(access_token: str | None = Cookie(default=None)) -> dict:
     # FastAPI binds the cookie named 'access_token' to this parameter
     # 401 across the board — frontend can route to /login uniformly on any failure
@@ -39,13 +45,15 @@ def get_current_user(access_token: str | None = Cookie(default=None)) -> dict:
             detail="Konto nie istnieje",
         )
 
+    # stamp admin flag so /auth/me and every protected route can expose it
+    user["is_admin"] = is_admin_email(user["email"])
     return user
 
 
 def get_admin_user(current_user: dict = Depends(get_current_user)) -> dict:
     # admin == email is on the ADMIN_EMAILS list in .env (case-insensitive)
     # see docs/decisions.md #005 for why we don't use a users.is_admin column
-    if current_user["email"].lower() not in _admin_emails():
+    if not is_admin_email(current_user["email"]):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Brak uprawnień",

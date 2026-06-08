@@ -26,6 +26,8 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        // Space Grotesk for headings / scores — sporty, characterful
+        display: ['Space Grotesk', 'Inter', 'system-ui', 'sans-serif'],
       },
       backgroundImage: {
         'gradient-mundial': 'linear-gradient(135deg, #00B4D8 0%, #E6007E 50%, #FF6B35 100%)',

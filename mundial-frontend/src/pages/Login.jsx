@@ -29,6 +29,11 @@ export default function Login() {
       await login(email, password);
       navigate(from, { replace: true });
     } catch (err) {
+      // 403 = correct password but email not confirmed yet
+      if (err.response?.status === 403) {
+        navigate('/verify-pending', { state: { email } });
+        return;
+      }
       let msg = 'Błąd logowania — spróbuj ponownie';
       if (!err.response || err.response.status === 504 || err.response.status === 502) {
         msg = 'Brak połączenia z serwerem. Czy backend jest włączony?';
@@ -109,8 +114,15 @@ export default function Login() {
           </button>
         </form>
 
+        {/* forgot password */}
+        <p className="text-center mt-4 text-sm">
+          <Link to="/forgot-password" className="text-gray-500 hover:text-mundial-teal transition-colors">
+            Nie pamiętasz hasła?
+          </Link>
+        </p>
+
         {/* register link */}
-        <p className="text-center mt-6 text-gray-500 text-sm">
+        <p className="text-center mt-2 text-gray-500 text-sm">
           Nie masz konta?{' '}
           <Link to="/register" className="text-mundial-teal hover:text-mundial-teal/80 font-medium transition-colors">
             Zarejestruj się

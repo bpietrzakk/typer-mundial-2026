@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routers import admin as admin_router
 from routers import admin_bonus as admin_bonus_router
+from routers import admin_users as admin_users_router
 from routers import auth as auth_router
 from routers import bonus as bonus_router
 from routers import leagues as leagues_router
@@ -56,6 +57,7 @@ app.include_router(matches_router.router)
 app.include_router(predictions_router.router)
 app.include_router(admin_router.router)
 app.include_router(admin_bonus_router.router)
+app.include_router(admin_users_router.router)
 app.include_router(ranking_router.router)
 app.include_router(leagues_router.router)
 app.include_router(bonus_router.router)

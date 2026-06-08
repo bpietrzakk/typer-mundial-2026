@@ -43,9 +43,18 @@ export function AuthProvider({ children }) {
   }, []);
 
   const register = useCallback(async (nick, email, password) => {
-    const u = await authApi.register(nick, email, password);
-    setUser(u);
-    return u;
+    await authApi.register(nick, email, password);
+    // register only sets an auth cookie when email verification is NOT
+    // required. probe /auth/me to find out which mode the backend is in:
+    // success -> we're logged in; 401 -> must verify the email first.
+    try {
+      const me = await authApi.getMe();
+      setUser(me);
+      return { verified: true };
+    } catch {
+      setUser(null);
+      return { verified: false };
+    }
   }, []);
 
   const logout = useCallback(async () => {

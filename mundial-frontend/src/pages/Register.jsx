@@ -37,8 +37,13 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await register(nick, email, password);
-      navigate('/matches', { replace: true });
+      const res = await register(nick, email, password);
+      if (res.verified) {
+        navigate('/matches', { replace: true });
+      } else {
+        // email confirmation required — show the "check your inbox" screen
+        navigate('/verify-pending', { state: { email } });
+      }
     } catch (err) {
       let msg = 'Błąd rejestracji — spróbuj ponownie';
       if (!err.response || err.response.status === 504 || err.response.status === 502) {
@@ -149,6 +154,10 @@ export default function Register() {
               'Zarejestruj się'
             )}
           </button>
+
+          <p className="text-xs text-gray-500 text-center">
+            Po rejestracji wyślemy link weryfikacyjny na Twój email.
+          </p>
         </form>
 
         {/* login link */}
