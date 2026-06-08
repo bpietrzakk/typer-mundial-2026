@@ -58,7 +58,7 @@ function GroupCard({ group, teams, matches, predictions, onPredictionSaved }) {
   const hasAnyResults = played > 0;
 
   return (
-    <div className="glass-card overflow-hidden">
+    <div className={`glass-card overflow-hidden ${expanded ? 'sm:col-span-2 xl:col-span-3' : ''}`}>
       {/* group header */}
       <div className="px-4 pt-4 pb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -138,19 +138,68 @@ function GroupCard({ group, teams, matches, predictions, onPredictionSaved }) {
         </svg>
       </button>
 
-      {/* group matches */}
+      {/* group matches — shown in a responsive grid when card spans full width */}
       {expanded && (
-        <div className="border-t border-surface-500/10 bg-surface-900/30 p-3 space-y-2">
-          {groupMatches.map((m) => (
-            <MatchCard
-              key={m.id}
-              match={m}
-              prediction={predictions[m.id]}
-              onPredictionSaved={onPredictionSaved}
-            />
-          ))}
+        <div className="border-t border-surface-500/10 bg-surface-900/30 p-3">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {groupMatches.map((m) => (
+              <MatchCard
+                key={m.id}
+                match={m}
+                prediction={predictions[m.id]}
+                onPredictionSaved={onPredictionSaved}
+              />
+            ))}
+          </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function UpcomingSection({ matches, predictions, onPredictionSaved }) {
+  const upcoming = [...matches]
+    .filter((m) => m.status !== 'finished')
+    .sort((a, b) => new Date(a.kickoff_at) - new Date(b.kickoff_at));
+
+  if (upcoming.length === 0) {
+    return (
+      <div className="glass-card p-8 text-center text-gray-500 text-sm">
+        Brak nadchodzących meczów
+      </div>
+    );
+  }
+
+  // group by calendar day
+  const byDate = {};
+  upcoming.forEach((m) => {
+    const d = new Date(m.kickoff_at);
+    const key = d.toLocaleDateString('pl-PL', {
+      weekday: 'long', day: 'numeric', month: 'long',
+    });
+    if (!byDate[key]) byDate[key] = [];
+    byDate[key].push(m);
+  });
+
+  return (
+    <div className="space-y-6">
+      {Object.entries(byDate).map(([date, dayMatches]) => (
+        <div key={date}>
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3 capitalize">
+            {date}
+          </p>
+          <div className="grid gap-3">
+            {dayMatches.map((m) => (
+              <MatchCard
+                key={m.id}
+                match={m}
+                prediction={predictions[m.id]}
+                onPredictionSaved={onPredictionSaved}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -187,7 +236,7 @@ export default function Matches() {
   const [predictions, setPredictions] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [mainTab, setMainTab] = useState('groups'); // 'groups' | 'playoff' | 'finished'
+  const [mainTab, setMainTab] = useState('upcoming'); // 'upcoming' | 'groups' | 'playoff' | 'finished'
   const [playoffStage, setPlayoffStage] = useState(null);
 
   useEffect(() => { loadData(); }, []);
@@ -284,13 +333,19 @@ export default function Matches() {
       {/* main tabs */}
       <div className="flex gap-2 mb-6 overflow-x-auto pb-1 scrollbar-hide">
         <button
+          onClick={() => setMainTab('upcoming')}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-200 ${mainTab === 'upcoming' ? TAB_STYLE_ACTIVE : TAB_STYLE_IDLE}`}
+        >
+          Nadchodzące
+          {upcomingGroupCount + upcomingPlayoffCount > 0 && (
+            <span className="ml-1.5 text-xs opacity-70">({upcomingGroupCount + upcomingPlayoffCount})</span>
+          )}
+        </button>
+        <button
           onClick={() => setMainTab('groups')}
           className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-200 ${mainTab === 'groups' ? TAB_STYLE_ACTIVE : TAB_STYLE_IDLE}`}
         >
           Grupy
-          {upcomingGroupCount > 0 && (
-            <span className="ml-1.5 text-xs opacity-70">({upcomingGroupCount})</span>
-          )}
         </button>
         <button
           onClick={() => setMainTab('playoff')}
@@ -311,6 +366,15 @@ export default function Matches() {
           </button>
         )}
       </div>
+
+      {/* upcoming tab */}
+      {mainTab === 'upcoming' && (
+        <UpcomingSection
+          matches={matches}
+          predictions={predictions}
+          onPredictionSaved={handlePredictionSaved}
+        />
+      )}
 
       {/* groups tab */}
       {mainTab === 'groups' && (
