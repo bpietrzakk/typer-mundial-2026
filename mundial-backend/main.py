@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,9 +18,19 @@ from routers import ranking as ranking_router
 logger = logging.getLogger(__name__)
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # start the result-polling background task on boot
+    task = asyncio.create_task(_poll_results())
+    yield
+    # cancel it cleanly on shutdown
+    task.cancel()
+
+
 app = FastAPI(
     title="Mundial Typer",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 
@@ -93,8 +104,3 @@ async def _poll_results() -> None:
             # log and continue — never crash the background task
             # we'll retry in the next poll cycle (5 min)
             logger.warning("result poll failed: %s", exc)
-
-
-@app.on_event("startup")
-async def startup() -> None:
-    asyncio.create_task(_poll_results())
