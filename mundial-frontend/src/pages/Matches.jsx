@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getMatches, getTeams } from '../api/matches';
 import { getMyPredictions } from '../api/predictions';
 import MatchCard from '../components/MatchCard';
@@ -158,6 +158,8 @@ function GroupCard({ group, teams, matches, predictions, onPredictionSaved }) {
 }
 
 function UpcomingSection({ matches, predictions, onPredictionSaved, teamsByGroup }) {
+  const todayRef = useRef(null);
+
   // build matchId → group name for group-stage matches
   const matchGroup = {};
   Object.entries(teamsByGroup || {}).forEach(([grp, teams]) => {
@@ -167,6 +169,14 @@ function UpcomingSection({ matches, predictions, onPredictionSaved, teamsByGroup
       }
     });
   });
+
+  // scroll to today's section after mount
+  useEffect(() => {
+    if (todayRef.current) {
+      const top = todayRef.current.getBoundingClientRect().top + window.scrollY - 80;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }
+  }, []);
   const upcoming = [...matches]
     .filter((m) => m.status !== 'finished')
     .sort((a, b) => new Date(a.kickoff_at) - new Date(b.kickoff_at));
@@ -180,6 +190,9 @@ function UpcomingSection({ matches, predictions, onPredictionSaved, teamsByGroup
   }
 
   // group by calendar day
+  const todayKey = new Date().toLocaleDateString('pl-PL', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
   const byDate = {};
   upcoming.forEach((m) => {
     const d = new Date(m.kickoff_at);
@@ -192,11 +205,18 @@ function UpcomingSection({ matches, predictions, onPredictionSaved, teamsByGroup
 
   return (
     <div className="space-y-6">
-      {Object.entries(byDate).map(([date, dayMatches]) => (
-        <div key={date}>
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3 capitalize">
-            {date}
-          </p>
+      {Object.entries(byDate).map(([date, dayMatches]) => {
+        const isToday = date === todayKey;
+        return (
+        <div key={date} ref={isToday ? todayRef : null}>
+          <div className="flex items-center gap-2 mb-3">
+            <p className={`text-xs font-semibold uppercase tracking-widest capitalize ${isToday ? 'text-mundial-teal' : 'text-gray-500'}`}>
+              {isToday ? 'Dzisiaj' : date}
+            </p>
+            {isToday && (
+              <span className="w-1.5 h-1.5 bg-mundial-teal rounded-full animate-pulse" />
+            )}
+          </div>
           <div className="grid gap-3">
             {dayMatches.map((m) => (
               <div key={m.id}>
@@ -214,7 +234,8 @@ function UpcomingSection({ matches, predictions, onPredictionSaved, teamsByGroup
             ))}
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -255,6 +276,24 @@ export default function Matches() {
   const [playoffStage, setPlayoffStage] = useState(null);
 
   useEffect(() => { loadData(); }, []);
+
+  // auto-refresh when there are live matches — poll every 60s silently
+  useEffect(() => {
+    const hasLive = matches.some((m) => m.status === 'live');
+    if (!hasLive) return;
+    const id = setInterval(async () => {
+      try {
+        const data = await getMatches();
+        setMatches(data);
+      } catch { /* fail silently, try again next tick */ }
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [matches]);
+
+  // scroll to top when switching main tabs
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [mainTab]);
 
   const loadData = async () => {
     setLoading(true);
@@ -341,9 +380,19 @@ export default function Matches() {
     );
   }
 
+  const hasLive = matches.some((m) => m.status === 'live');
+
   return (
     <div className="page-container">
-      <h1 className="page-title">Mecze</h1>
+      <div className="flex items-center gap-3 mb-8">
+        <h1 className="text-3xl sm:text-4xl font-bold font-display gradient-text">Mecze</h1>
+        {hasLive && (
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-mundial-red/15 border border-mundial-red/30 text-xs font-semibold text-mundial-red">
+            <span className="w-1.5 h-1.5 bg-mundial-red rounded-full animate-pulse" />
+            Na żywo
+          </span>
+        )}
+      </div>
 
       {/* main tabs */}
       <div className="flex gap-2 mb-6 overflow-x-auto pb-1 scrollbar-hide">

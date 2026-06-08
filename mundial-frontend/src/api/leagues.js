@@ -23,3 +23,7 @@ export const getMyLeagues = async () => {
   const res = await api.get('/leagues');
   return res.data;
 };
+
+// update league settings (prize pool) — owner only
+export const updateLeagueSettings = async (id, prizePoolPerPerson) =>
+  api.patch(`/leagues/${id}/settings`, { prize_pool_per_person: prizePoolPerPerson });

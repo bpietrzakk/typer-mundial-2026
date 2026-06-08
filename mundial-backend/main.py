@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -35,12 +36,17 @@ app = FastAPI(
 )
 
 
-# allow the React dev server to call the API
-# in prod we'll add the deployed frontend URL here too
+# FRONTEND_URL can be comma-separated for multiple origins (dev + prod)
+# example: FRONTEND_URL=http://localhost:5173,https://mundialtyper.vercel.app
+_allowed_origins = [
+    o.strip()
+    for o in os.getenv("FRONTEND_URL", "http://localhost:5173").split(",")
+    if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,           # needed for httpOnly auth cookies
+    allow_origins=_allowed_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

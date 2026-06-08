@@ -385,10 +385,16 @@ SQL_GET_LEAGUE_BY_CODE = """
 # a second round-trip
 SQL_GET_LEAGUE_WITH_OWNER = """
     SELECT pl.id, pl.name, pl.owner_user_id, owner.nick AS owner_nick,
-           pl.join_code, pl.created_at
+           pl.join_code, pl.created_at, pl.prize_pool_per_person
     FROM private_leagues pl
     JOIN users owner ON owner.id = pl.owner_user_id
     WHERE pl.id = %s
+"""
+
+SQL_UPDATE_PRIZE_POOL = """
+    UPDATE private_leagues
+    SET prize_pool_per_person = %s
+    WHERE id = %s AND owner_user_id = %s
 """
 
 SQL_IS_LEAGUE_MEMBER = """
@@ -1082,6 +1088,16 @@ def finalize_match(match_id: int, home_goals: int, away_goals: int) -> dict:
                 # 7 — return the joined match for the response
                 cur.execute(SQL_GET_MATCH_FULL, (match_id,))
                 return _row_to_match(dict(cur.fetchone()))
+    finally:
+        release_conn(conn)
+
+
+def update_prize_pool(league_id: int, owner_user_id: int, amount: int | None) -> None:
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(SQL_UPDATE_PRIZE_POOL, (amount, league_id, owner_user_id))
     finally:
         release_conn(conn)
 

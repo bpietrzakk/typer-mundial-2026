@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { getMyLeagues, getLeague, createLeague, joinLeague } from '../api/leagues';
+import { getMyLeagues, getLeague, createLeague, joinLeague, updateLeagueSettings } from '../api/leagues';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { getLeagueRanking } from '../api/ranking';
 import LeagueCard from '../components/LeagueCard';
 import RankingTable from '../components/RankingTable';
@@ -186,11 +188,18 @@ function LeagueList() {
 
 // --- league detail view (ranking + info) ---
 function LeagueDetail({ leagueId }) {
+  const { user } = useAuth();
+  const { addToast } = useToast();
   const [league, setLeague] = useState(null);
   const [ranking, setRanking] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+
+  // prize pool editing
+  const [editingPool, setEditingPool] = useState(false);
+  const [poolInput, setPoolInput] = useState('');
+  const [poolSaving, setPoolSaving] = useState(false);
 
   useEffect(() => {
     loadLeagueData();
@@ -222,6 +231,25 @@ function LeagueDetail({ leagueId }) {
       navigator.clipboard.writeText(league.join_code);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handlePoolSave = async () => {
+    const amount = poolInput === '' ? null : parseInt(poolInput, 10);
+    if (amount !== null && (isNaN(amount) || amount < 0 || amount > 10000)) {
+      addToast('Podaj kwotę 0–10 000 zł', 'error');
+      return;
+    }
+    setPoolSaving(true);
+    try {
+      await updateLeagueSettings(leagueId, amount);
+      setLeague((l) => ({ ...l, prize_pool_per_person: amount }));
+      setEditingPool(false);
+      addToast(amount ? `Pula ustawiona: ${amount} zł/os.` : 'Pula nagród usunięta');
+    } catch (err) {
+      addToast(err.response?.data?.detail || 'Nie udało się zapisać', 'error');
+    } finally {
+      setPoolSaving(false);
     }
   };
 
@@ -275,6 +303,71 @@ function LeagueDetail({ leagueId }) {
           </div>
         </div>
       </div>
+
+      {/* prize pool */}
+      {(league?.prize_pool_per_person || user?.id === league?.owner_user_id) && (
+        <div className="glass-card p-5 mb-6">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-sm font-semibold text-gray-200 mb-0.5">Pula nagród</p>
+              {league?.prize_pool_per_person ? (
+                <div className="space-y-0.5">
+                  <p className="text-xs text-gray-500">
+                    {league.prize_pool_per_person} zł/os · łącznie{' '}
+                    <span className="text-mundial-gold font-bold">
+                      {league.prize_pool_per_person * ranking.length} zł
+                    </span>
+                  </p>
+                  <div className="flex gap-3 text-xs text-gray-500 mt-2">
+                    <span>🥇 {Math.round(league.prize_pool_per_person * ranking.length * 0.5)} zł</span>
+                    <span>🥈 {Math.round(league.prize_pool_per_person * ranking.length * 0.3)} zł</span>
+                    <span>🥉 {Math.round(league.prize_pool_per_person * ranking.length * 0.2)} zł</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500">Nie ustawiona</p>
+              )}
+            </div>
+
+            {user?.id === league?.owner_user_id && (
+              editingPool ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={10000}
+                    value={poolInput}
+                    onChange={(e) => setPoolInput(e.target.value)}
+                    placeholder="np. 10"
+                    className="input-field !py-1.5 !px-3 w-28 text-sm"
+                  />
+                  <span className="text-sm text-gray-500">zł/os</span>
+                  <button
+                    onClick={handlePoolSave}
+                    disabled={poolSaving}
+                    className="btn-primary text-xs !px-3 !py-1.5"
+                  >
+                    {poolSaving ? '…' : 'Zapisz'}
+                  </button>
+                  <button
+                    onClick={() => setEditingPool(false)}
+                    className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    Anuluj
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setPoolInput(league?.prize_pool_per_person?.toString() || ''); setEditingPool(true); }}
+                  className="text-xs text-gray-500 hover:text-mundial-teal transition-colors"
+                >
+                  {league?.prize_pool_per_person ? 'Zmień' : 'Ustaw'}
+                </button>
+              )
+            )}
+          </div>
+        </div>
+      )}
 
       {/* league ranking */}
       <RankingTable entries={ranking} title="Ranking ligi" />

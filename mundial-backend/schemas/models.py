@@ -187,6 +187,11 @@ class LeagueDetailResponse(BaseModel):
     join_code: str  # only members ever see this — router gates access
     created_at: datetime
     members: list[LeagueMember]
+    prize_pool_per_person: int | None = None
+
+
+class UpdateLeagueSettingsRequest(BaseModel):
+    prize_pool_per_person: int | None = Field(default=None, ge=0, le=10000)
 
 
 # --- bonuses ---

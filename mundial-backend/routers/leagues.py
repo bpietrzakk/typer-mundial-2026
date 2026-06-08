@@ -9,6 +9,7 @@ from db.queries import (
     join_league,
     list_league_members,
     list_user_leagues,
+    update_prize_pool,
 )
 from routers.deps import get_current_user
 from schemas.models import (
@@ -16,6 +17,7 @@ from schemas.models import (
     JoinLeagueRequest,
     LeagueDetailResponse,
     LeagueSummary,
+    UpdateLeagueSettingsRequest,
 )
 
 
@@ -33,6 +35,7 @@ def _league_to_response(league: dict, members: list[dict]) -> dict:
         "join_code": league["join_code"],
         "created_at": league["created_at"],
         "members": members,
+        "prize_pool_per_person": league.get("prize_pool_per_person"),
     }
 
 
@@ -101,3 +104,17 @@ def get_league(
         )
     members = list_league_members(league_id)
     return _league_to_response(detail, members)
+
+
+@router.patch("/{league_id}/settings", status_code=status.HTTP_204_NO_CONTENT)
+def update_league_settings(
+    league_id: int,
+    body: UpdateLeagueSettingsRequest,
+    current_user: dict = Depends(get_current_user),
+) -> None:
+    detail = get_league_with_owner(league_id)
+    if detail is None or not is_league_member(league_id, current_user["id"]):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Liga nie istnieje")
+    if detail["owner_user_id"] != current_user["id"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tylko właściciel może edytować ligę")
+    update_prize_pool(league_id, current_user["id"], body.prize_pool_per_person)
