@@ -22,6 +22,16 @@ class VerifyEmailRequest(BaseModel):
     token: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    # raw token from the reset link + the new password to set
+    token: str
+    password: str = Field(min_length=8, max_length=128)
+
+
 # --- auth: response bodies ---
 
 class UserResponse(BaseModel):

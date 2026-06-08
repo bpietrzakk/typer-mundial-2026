@@ -7,8 +7,10 @@ from psycopg2.errors import UniqueViolation
 
 from db.queries import (
     create_email_verification_token,
+    create_password_reset_token,
     create_user,
     get_user_by_email,
+    reset_password_with_token,
     verify_email_token,
 )
 from domain.auth import (
@@ -21,12 +23,14 @@ from domain.auth import (
 from domain.rate_limit import RateLimitState, is_locked, record_failure
 from routers.deps import get_current_user
 from schemas.models import (
+    ForgotPasswordRequest,
     LoginRequest,
     RegisterRequest,
+    ResetPasswordRequest,
     UserResponse,
     VerifyEmailRequest,
 )
-from services.email import send_verification_email
+from services.email import send_password_reset_email, send_verification_email
 
 
 logger = logging.getLogger(__name__)
@@ -42,6 +46,9 @@ _COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
 
 # email verification links are valid for 24 hours
 _VERIFICATION_TTL = timedelta(hours=24)
+
+# password reset links are valid for 1 hour
+_RESET_TTL = timedelta(hours=1)
 
 
 # in-memory login rate-limit store, keyed by client IP.
@@ -125,6 +132,34 @@ def verify_email(body: VerifyEmailRequest) -> dict:
             detail="Link weryfikacyjny jest nieprawidłowy lub wygasł",
         )
     return user
+
+
+@router.post("/forgot-password", status_code=status.HTTP_204_NO_CONTENT)
+def forgot_password(body: ForgotPasswordRequest) -> None:
+    # always return 204 — never reveal whether the email exists (no enumeration)
+    user = get_user_by_email(body.email)
+    if user is None:
+        return
+
+    raw_token = generate_token()
+    expires_at = datetime.now(timezone.utc) + _RESET_TTL
+    create_password_reset_token(user["id"], hash_token(raw_token), expires_at)
+    try:
+        send_password_reset_email(user["email"], raw_token)
+    except Exception as exc:
+        logger.warning("reset email failed for %s: %s", user["email"], exc)
+
+
+@router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+def reset_password(body: ResetPasswordRequest) -> None:
+    # consumes the token from the email link and sets the new password
+    now = datetime.now(timezone.utc)
+    user = reset_password_with_token(hash_token(body.token), hash_password(body.password), now)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Link resetujący jest nieprawidłowy lub wygasł",
+        )
 
 
 @router.post("/login", response_model=UserResponse)

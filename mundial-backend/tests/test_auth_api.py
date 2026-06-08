@@ -184,6 +184,82 @@ def test_verify_email_with_bad_token_returns_400(monkeypatch):
     assert "nieprawidłowy" in resp.json()["detail"]
 
 
+# --- /auth/forgot-password (no user enumeration) ---
+
+def test_forgot_password_known_email_sends_reset(monkeypatch):
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: FAKE_USER)
+    stored = {}
+    monkeypatch.setattr(
+        auth_module, "create_password_reset_token",
+        lambda uid, th, exp: stored.update(user_id=uid),
+    )
+    sent = {}
+    monkeypatch.setattr(
+        auth_module, "send_password_reset_email",
+        lambda to, token: sent.update(to=to, token=token),
+    )
+
+    resp = client.post("/auth/forgot-password", json={"email": "b@example.com"})
+    assert resp.status_code == 204
+    assert stored["user_id"] == FAKE_USER["id"]
+    assert sent["to"] == FAKE_USER["email"]
+    assert sent["token"]
+
+
+def test_forgot_password_unknown_email_still_204(monkeypatch):
+    # unknown email must look identical to a known one — no token, no email
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: None)
+    calls = []
+    monkeypatch.setattr(
+        auth_module, "create_password_reset_token",
+        lambda *a: calls.append("token"),
+    )
+    monkeypatch.setattr(
+        auth_module, "send_password_reset_email",
+        lambda *a: calls.append("email"),
+    )
+
+    resp = client.post("/auth/forgot-password", json={"email": "nobody@example.com"})
+    assert resp.status_code == 204
+    assert calls == []
+
+
+# --- /auth/reset-password ---
+
+def test_reset_password_with_valid_token(monkeypatch):
+    monkeypatch.setattr(
+        auth_module, "reset_password_with_token", lambda th, ph, now: FAKE_USER,
+    )
+
+    resp = client.post(
+        "/auth/reset-password",
+        json={"token": "good-token", "password": "newpass12"},
+    )
+    assert resp.status_code == 204
+
+
+def test_reset_password_with_bad_token_returns_400(monkeypatch):
+    monkeypatch.setattr(
+        auth_module, "reset_password_with_token", lambda th, ph, now: None,
+    )
+
+    resp = client.post(
+        "/auth/reset-password",
+        json={"token": "expired", "password": "newpass12"},
+    )
+    assert resp.status_code == 400
+    assert "nieprawidłowy" in resp.json()["detail"]
+
+
+def test_reset_password_rejects_short_password():
+    # pydantic validation — below 8 chars never reaches the handler
+    resp = client.post(
+        "/auth/reset-password",
+        json={"token": "whatever", "password": "short"},
+    )
+    assert resp.status_code == 422
+
+
 def test_successful_login_resets_attempt_counter(monkeypatch):
     real_user = {**FAKE_USER, "password_hash": "argon2-hash-placeholder"}
 

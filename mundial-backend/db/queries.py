@@ -148,6 +148,26 @@ SQL_MARK_EMAIL_VERIFIED = """
     RETURNING id, nick, email, email_verified, created_at
 """
 
+SQL_INSERT_PASSWORD_RESET_TOKEN = """
+    INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+    VALUES (%s, %s, %s)
+"""
+
+# consume the reset token: usable only if still valid and unused
+SQL_CONSUME_PASSWORD_RESET_TOKEN = """
+    UPDATE password_reset_tokens
+    SET used_at = %s
+    WHERE token_hash = %s AND used_at IS NULL AND expires_at > %s
+    RETURNING user_id
+"""
+
+SQL_UPDATE_PASSWORD = """
+    UPDATE users
+    SET password_hash = %s
+    WHERE id = %s
+    RETURNING id, nick, email, email_verified, created_at
+"""
+
 SQL_LIST_MATCHES = """
     SELECT
         m.id, m.stage, m.kickoff_at, m.status, m.home_goals, m.away_goals,
@@ -482,6 +502,40 @@ def verify_email_token(token_hash: str, now) -> dict | None:
                 if row is None:
                     return None
                 cur.execute(SQL_MARK_EMAIL_VERIFIED, (row["user_id"],))
+                return dict(cur.fetchone())
+    finally:
+        release_conn(conn)
+
+
+def create_password_reset_token(user_id: int, token_hash: str, expires_at) -> None:
+    # called by /auth/forgot-password — stores only the hash of the emailed token
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    SQL_INSERT_PASSWORD_RESET_TOKEN,
+                    (user_id, token_hash, expires_at),
+                )
+    finally:
+        release_conn(conn)
+
+
+def reset_password_with_token(token_hash: str, new_password_hash: str, now) -> dict | None:
+    # consumes the token and sets the new password, all in one transaction.
+    # returns the updated user, or None if the token is invalid/expired/used
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    SQL_CONSUME_PASSWORD_RESET_TOKEN,
+                    (now, token_hash, now),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    return None
+                cur.execute(SQL_UPDATE_PASSWORD, (new_password_hash, row["user_id"]))
                 return dict(cur.fetchone())
     finally:
         release_conn(conn)
