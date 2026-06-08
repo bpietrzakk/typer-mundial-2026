@@ -62,6 +62,7 @@ def fetch_teams() -> list[dict]:
             "external_id": str(t["id"]),
             "name": translate_team_name(t["name"]),
             "short_name": t.get("tla") or t["shortName"][:3].upper(),
+            "crest_url": t.get("crest") or t.get("crestUrl"),
         }
         for t in data["teams"]
     ]

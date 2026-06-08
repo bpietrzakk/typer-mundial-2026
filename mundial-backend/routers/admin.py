@@ -25,7 +25,7 @@ def bootstrap_tournament(_admin: dict = Depends(get_admin_user)) -> dict:
     # run this once before the tournament starts.
     teams = fetch_teams()
     for t in teams:
-        upsert_team(t["name"], t["short_name"], t["external_id"])
+        upsert_team(t["name"], t["short_name"], t["external_id"], t.get("crest_url"))
 
     matches = fetch_matches()
     inserted = updated = 0

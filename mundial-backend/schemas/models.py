@@ -54,6 +54,7 @@ class TeamSummary(BaseModel):
     id: int
     name: str
     short_name: str | None
+    crest_url: str | None = None
 
 
 class TeamWithGroup(BaseModel):
@@ -62,6 +63,7 @@ class TeamWithGroup(BaseModel):
     name: str
     short_name: str | None
     group_name: str | None
+    crest_url: str | None = None
 
 
 class MatchResponse(BaseModel):

@@ -196,6 +196,14 @@ export default function BonusPicks() {
         {!isEditingChampion && champion ? (
           <div className="glass-card p-8 flex flex-col items-center text-center animate-fade-in">
             <p className="text-sm text-gray-400 mb-2">Twój wybór na mistrza:</p>
+            {selectedChampionTeam?.crest_url && (
+              <img
+                src={selectedChampionTeam.crest_url}
+                alt={selectedChampionTeam.name}
+                className="w-20 h-20 object-contain mb-4"
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+            )}
             <p className="text-4xl font-black text-mundial-gold mb-6 uppercase tracking-wider">
               {selectedChampionTeam?.name}
             </p>
@@ -217,13 +225,21 @@ export default function BonusPicks() {
                   key={team.id}
                   onClick={() => setChampion(team.id)}
                   disabled={isLocked}
-                  className={`p-3 rounded-xl text-sm font-medium transition-all duration-200
+                  className={`p-3 rounded-xl text-sm font-medium transition-all duration-200 flex flex-col items-center gap-1.5
                     ${champion === team.id
                       ? 'bg-mundial-gold/20 border-2 border-mundial-gold text-mundial-gold shadow-glow-orange'
                       : 'bg-surface-700/30 border border-surface-500/20 text-gray-300 hover:bg-surface-700/50 hover:border-surface-500/40'
                     }
                     ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
+                  {team.crest_url && (
+                    <img
+                      src={team.crest_url}
+                      alt={team.name}
+                      className="w-8 h-8 object-contain"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  )}
                   {team.name}
                 </button>
               ))}
@@ -279,13 +295,21 @@ export default function BonusPicks() {
                         key={team.id}
                         onClick={() => toggleGroupPick(group, team.id)}
                         disabled={isLocked}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200
                           ${picked
                             ? 'bg-mundial-teal/20 border border-mundial-teal/50 text-mundial-teal'
                             : 'bg-surface-700/20 border border-surface-500/10 text-gray-400 hover:bg-surface-700/40 hover:text-gray-200'
                           }
                           ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
+                        {team.crest_url && (
+                          <img
+                            src={team.crest_url}
+                            alt={team.name}
+                            className="w-5 h-5 object-contain flex-shrink-0"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                        )}
                         {team.name}
                       </button>
                     );

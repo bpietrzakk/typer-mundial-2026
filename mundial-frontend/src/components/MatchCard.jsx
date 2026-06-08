@@ -64,12 +64,22 @@ export default function MatchCard({ match, prediction, onPredictionSaved }) {
       {/* teams row */}
       <div className="flex items-center justify-between gap-3">
         {/* home team */}
-        <div className="flex-1 text-right">
-          <p className="font-semibold text-gray-100 text-sm sm:text-base">
-            {home_team.name}
-          </p>
-          {home_team.short_name && (
-            <p className="text-xs text-gray-500 mt-0.5">{home_team.short_name}</p>
+        <div className="flex-1 flex items-center justify-end gap-2">
+          <div className="text-right">
+            <p className="font-semibold text-gray-100 text-sm sm:text-base">
+              {home_team.name}
+            </p>
+            {home_team.short_name && (
+              <p className="text-xs text-gray-500 mt-0.5">{home_team.short_name}</p>
+            )}
+          </div>
+          {home_team.crest_url && (
+            <img
+              src={home_team.crest_url}
+              alt={home_team.name}
+              className="w-9 h-9 object-contain flex-shrink-0"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
           )}
         </div>
 
@@ -85,13 +95,23 @@ export default function MatchCard({ match, prediction, onPredictionSaved }) {
         </div>
 
         {/* away team */}
-        <div className="flex-1 text-left">
-          <p className="font-semibold text-gray-100 text-sm sm:text-base">
-            {away_team.name}
-          </p>
-          {away_team.short_name && (
-            <p className="text-xs text-gray-500 mt-0.5">{away_team.short_name}</p>
+        <div className="flex-1 flex items-center justify-start gap-2">
+          {away_team.crest_url && (
+            <img
+              src={away_team.crest_url}
+              alt={away_team.name}
+              className="w-9 h-9 object-contain flex-shrink-0"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
           )}
+          <div className="text-left">
+            <p className="font-semibold text-gray-100 text-sm sm:text-base">
+              {away_team.name}
+            </p>
+            {away_team.short_name && (
+              <p className="text-xs text-gray-500 mt-0.5">{away_team.short_name}</p>
+            )}
+          </div>
         </div>
       </div>
 

@@ -34,12 +34,13 @@ class AlreadyMember(Exception):
 # both use external_id as the natural key so re-running is idempotent
 
 SQL_UPSERT_TEAM = """
-    INSERT INTO teams (name, short_name, league_id, external_id)
-    VALUES (%s, %s, (SELECT id FROM leagues WHERE name = 'Mundial 2026'), %s)
+    INSERT INTO teams (name, short_name, league_id, external_id, crest_url)
+    VALUES (%s, %s, (SELECT id FROM leagues WHERE name = 'Mundial 2026'), %s, %s)
     ON CONFLICT (external_id) DO UPDATE
         SET name = EXCLUDED.name,
-            short_name = EXCLUDED.short_name
-    RETURNING id, name, short_name, external_id
+            short_name = EXCLUDED.short_name,
+            crest_url = EXCLUDED.crest_url
+    RETURNING id, name, short_name, external_id, crest_url
 """
 
 SQL_UPSERT_MATCH = """
@@ -71,7 +72,7 @@ SQL_SET_TEAM_GROUP = """
 
 # all teams for the bonus picker — group_name may be null for knockout teams
 SQL_LIST_TEAMS = """
-    SELECT id, name, short_name, group_name
+    SELECT id, name, short_name, group_name, crest_url
     FROM teams
     ORDER BY group_name NULLS LAST, name ASC
 """
@@ -79,12 +80,12 @@ SQL_LIST_TEAMS = """
 
 # --- bootstrap functions ---
 
-def upsert_team(name: str, short_name: str, external_id: str) -> dict:
+def upsert_team(name: str, short_name: str, external_id: str, crest_url: str | None = None) -> dict:
     conn = get_conn()
     try:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(SQL_UPSERT_TEAM, (name, short_name, external_id))
+                cur.execute(SQL_UPSERT_TEAM, (name, short_name, external_id, crest_url))
                 return dict(cur.fetchone())
     finally:
         release_conn(conn)
@@ -206,8 +207,8 @@ SQL_UPDATE_PASSWORD = """
 SQL_LIST_MATCHES = """
     SELECT
         m.id, m.stage, m.kickoff_at, m.status, m.home_goals, m.away_goals,
-        h.id AS home_id, h.name AS home_name, h.short_name AS home_short,
-        a.id AS away_id, a.name AS away_name, a.short_name AS away_short
+        h.id AS home_id, h.name AS home_name, h.short_name AS home_short, h.crest_url AS home_crest,
+        a.id AS away_id, a.name AS away_name, a.short_name AS away_short, a.crest_url AS away_crest
     FROM matches m
     JOIN teams h ON h.id = m.home_team_id
     JOIN teams a ON a.id = m.away_team_id
@@ -285,8 +286,8 @@ SQL_UPDATE_PREDICTION_POINTS = """
 SQL_GET_MATCH_FULL = """
     SELECT
         m.id, m.stage, m.kickoff_at, m.status, m.home_goals, m.away_goals,
-        h.id AS home_id, h.name AS home_name, h.short_name AS home_short,
-        a.id AS away_id, a.name AS away_name, a.short_name AS away_short
+        h.id AS home_id, h.name AS home_name, h.short_name AS home_short, h.crest_url AS home_crest,
+        a.id AS away_id, a.name AS away_name, a.short_name AS away_short, a.crest_url AS away_crest
     FROM matches m
     JOIN teams h ON h.id = m.home_team_id
     JOIN teams a ON a.id = m.away_team_id
@@ -648,8 +649,8 @@ def _row_to_match(r: dict) -> dict:
         "status": r["status"],
         "home_goals": r["home_goals"],
         "away_goals": r["away_goals"],
-        "home_team": {"id": r["home_id"], "name": r["home_name"], "short_name": r["home_short"]},
-        "away_team": {"id": r["away_id"], "name": r["away_name"], "short_name": r["away_short"]},
+        "home_team": {"id": r["home_id"], "name": r["home_name"], "short_name": r["home_short"], "crest_url": r.get("home_crest")},
+        "away_team": {"id": r["away_id"], "name": r["away_name"], "short_name": r["away_short"], "crest_url": r.get("away_crest")},
     }
 
 
