@@ -39,7 +39,7 @@
            hover:bg-right
            transition-all duration-500 ease-out
            shadow-lg hover:shadow-glow-teal
-           active:scale-[0.97]
+           active:scale-[0.97] cursor-pointer
            disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none;
   }
 
@@ -50,7 +50,7 @@
            hover:border-mundial-teal/50 hover:text-mundial-teal
            bg-surface-800/50 backdrop-blur-sm
            transition-all duration-300
-           active:scale-[0.97];
+           active:scale-[0.97] cursor-pointer;
   }
 
   /* form input */
@@ -126,5 +126,6 @@
   .animate-fade-in,
   .animate-slide-up,
   .animate-gradient-x,
-  .animate-pulse-slow { animation: none; }
+  .animate-pulse-slow,
+  .animate-pulse { animation: none; }
 }

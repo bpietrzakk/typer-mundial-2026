@@ -316,7 +316,7 @@ export default function Dashboard() {
                     <span className={`w-6 text-center font-bold text-sm tabular-nums ${
                       entry.rank === 1 ? 'text-mundial-gold' :
                       entry.rank === 2 ? 'text-gray-300' :
-                      entry.rank === 3 ? 'text-mundial-red' :
+                      entry.rank === 3 ? 'text-amber-600' :
                       'text-gray-600'
                     }`}>{entry.rank}</span>
                     <span className={`flex-1 text-sm font-medium truncate ${isMe ? 'text-mundial-teal' : 'text-gray-200'}`}>

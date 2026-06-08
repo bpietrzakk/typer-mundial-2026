@@ -333,7 +333,7 @@ export default function BonusPicks() {
                     {picks.length}/2
                   </span>
                 </h3>
-                <div className={`space-y-1.5 transition-opacity duration-200 ${viewMode ? 'opacity-50' : ''}`}>
+                <div className={`space-y-1.5 transition-opacity duration-200 ${groupSaved && !isLocked ? 'opacity-60' : ''}`}>
                   {groupTeams.map((team) => {
                     const picked = picks.includes(team.id);
                     return (
@@ -373,7 +373,7 @@ export default function BonusPicks() {
             {groupSaved ? (
               <button
                 onClick={() => setGroupSaved(false)}
-                className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
+                className="btn-secondary text-sm"
               >
                 Zmień awanse
               </button>

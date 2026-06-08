@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { getMyLeagues, getLeague, createLeague, joinLeague, updateLeagueSettings } from '../api/leagues';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -126,13 +126,16 @@ function LeagueList() {
         <form onSubmit={handleJoin} className="glass-card p-5 mb-6 animate-slide-up">
           <h3 className="font-semibold text-gray-200 mb-3">Dołącz do ligi</h3>
           <div className="flex gap-3">
+            <label htmlFor="join-code" className="sr-only">Kod zaproszenia</label>
             <input
+              id="join-code"
               type="text"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value)}
               placeholder="Wklej kod zaproszenia"
               className="input-field flex-1"
               maxLength={8}
+              autoComplete="off"
             />
             <button type="submit" disabled={joinLoading} className="btn-primary text-sm !py-2">
               {joinLoading ? '...' : 'Dołącz'}
@@ -147,7 +150,9 @@ function LeagueList() {
         <form onSubmit={handleCreate} className="glass-card p-5 mb-6 animate-slide-up">
           <h3 className="font-semibold text-gray-200 mb-3">Utwórz nową ligę</h3>
           <div className="flex gap-3">
+            <label htmlFor="league-name" className="sr-only">Nazwa ligi</label>
             <input
+              id="league-name"
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
@@ -278,6 +283,16 @@ function LeagueDetail({ leagueId }) {
 
   return (
     <div className="page-container">
+      <Link
+        to="/leagues"
+        aria-label="Wróć do lig"
+        className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-300 transition-colors mb-4 -ml-0.5"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+        Ligi
+      </Link>
       <h1 className="page-title">{league?.name}</h1>
 
       {/* league info card */}
@@ -319,9 +334,9 @@ function LeagueDetail({ leagueId }) {
                     </span>
                   </p>
                   <div className="flex gap-3 text-xs text-gray-500 mt-2">
-                    <span>🥇 {Math.round(league.prize_pool_per_person * ranking.length * 0.5)} zł</span>
-                    <span>🥈 {Math.round(league.prize_pool_per_person * ranking.length * 0.3)} zł</span>
-                    <span>🥉 {Math.round(league.prize_pool_per_person * ranking.length * 0.2)} zł</span>
+                    <span className="text-mundial-gold font-semibold">1. {Math.round(league.prize_pool_per_person * ranking.length * 0.5)} zł</span>
+                    <span className="text-gray-300 font-semibold">2. {Math.round(league.prize_pool_per_person * ranking.length * 0.3)} zł</span>
+                    <span className="text-amber-600 font-semibold">3. {Math.round(league.prize_pool_per_person * ranking.length * 0.2)} zł</span>
                   </div>
                 </div>
               ) : (

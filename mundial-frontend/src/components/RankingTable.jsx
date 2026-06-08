@@ -45,7 +45,7 @@ export default function RankingTable({ entries, title }) {
                     <span className={`font-bold tabular-nums text-sm ${
                       entry.rank === 1 ? 'text-mundial-gold text-base' :
                       entry.rank === 2 ? 'text-gray-300' :
-                      entry.rank === 3 ? 'text-mundial-red' :
+                      entry.rank === 3 ? 'text-amber-600' :
                       'text-gray-500 font-mono'
                     }`}>
                       {entry.rank}
@@ -63,7 +63,7 @@ export default function RankingTable({ entries, title }) {
                     <span className={`font-bold text-lg ${
                       entry.rank === 1 ? 'text-mundial-gold' :
                       entry.rank === 2 ? 'text-gray-300' :
-                      entry.rank === 3 ? 'text-mundial-red' :
+                      entry.rank === 3 ? 'text-amber-600' :
                       'text-gray-400'
                     }`}>
                       {entry.total_points}
