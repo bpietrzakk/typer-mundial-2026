@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/api/:path*", "destination": "https://mundial-backend-h3al.onrender.com/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
