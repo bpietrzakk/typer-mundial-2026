@@ -2,7 +2,6 @@
 
 Aplikacja do typowania wyników meczów Mundialu 2026 dla znajomych. Prywatne ligi z kodem zaproszenia, automatyczne pobieranie wyników, ranking z podium i bonusy za mistrza turnieju.
 
-**[▶ Otwórz aplikację](https://typer-mundial-2026-lyart.vercel.app)**
 
 > [English version below](#mundial-typer-2026-english)
 
