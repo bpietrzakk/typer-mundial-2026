@@ -106,7 +106,6 @@ Obraz Dockera backendu budowany automatycznie przez GitHub Actions i publikowany
 
 A World Cup 2026 prediction app for friends. Private leagues with invite codes, automatic results, leaderboard with podium and tournament bonuses.
 
-**[▶ Open app](https://typer-mundial-2026-lyart.vercel.app)**
 
 > [Wersja polska powyżej](#mundial-typer-2026)
 
