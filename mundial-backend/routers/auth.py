@@ -56,8 +56,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 # cookie name kept short and not framework-specific
 # secure=False in dev (HTTP); set COOKIE_SECURE=true in prod (HTTPS only)
+# samesite=none required for cross-origin (vercel + render); lax is fine for same-origin dev
 _COOKIE_NAME = "access_token"
 _COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+_COOKIE_SAMESITE = "none" if _COOKIE_SECURE else "lax"
 
 # email verification links are valid for 24 hours
 _VERIFICATION_TTL = timedelta(hours=24)
@@ -101,7 +103,7 @@ def _set_auth_cookie(response: Response, token: str, expires_days: int) -> None:
         max_age=expires_days * 24 * 3600,
         httponly=True,
         secure=_COOKIE_SECURE,
-        samesite="lax",
+        samesite=_COOKIE_SAMESITE,
     )
 
 
@@ -309,7 +311,7 @@ def logout(response: Response) -> None:
         key=_COOKIE_NAME,
         httponly=True,
         secure=_COOKIE_SECURE,
-        samesite="lax",
+        samesite=_COOKIE_SAMESITE,
     )
 
 
@@ -386,5 +388,5 @@ def delete_account(
         key=_COOKIE_NAME,
         httponly=True,
         secure=_COOKIE_SECURE,
-        samesite="lax",
+        samesite=_COOKIE_SAMESITE,
     )
