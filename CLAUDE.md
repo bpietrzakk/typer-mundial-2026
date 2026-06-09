@@ -446,17 +446,20 @@ FRONTEND_URL=http://localhost:5173
 
 ## Deploy (produkcja)
 
-**Stack:** Azure Static Web Apps + Azure Container Apps + Neon
-**Koszt:** ~$0 (kredyty studenckie Azure 100$ + Neon free tier)
-**Pojemność:** spokojnie obsługuje 5–50 userów w ramach free tierów
+**Stack:** Vercel + Render + Neon
+**Koszt:** ~$0 (wszystkie free tiery)
+**Pojemność:** spokojnie obsługuje 5–50 userów
 
 ### Architektura
 
 | Co | Gdzie | Tier |
 |----|-------|------|
-| Frontend | Azure Static Web Apps | Free |
-| Backend | Azure Container Apps | Free (180k vCPU-sec/mies) |
+| Frontend | Vercel | Free (Hobby) |
+| Backend | Render.com | Free (Web Service) |
 | Baza | Neon | Free (0.5 GB) |
+| Keep-alive | cron-job.org | Free (ping co 10 min) |
+
+> Render free tier zasypia po 15 min bezczynności — cron-job.org pinguje `/health` co 10 minut żeby backend był zawsze aktywny.
 
 ### Krok 1 — Neon (baza)
 
@@ -467,74 +470,36 @@ FRONTEND_URL=http://localhost:5173
 5. Dodaj `POSTGRES_SSL=require` (Neon wymaga SSL)
 6. Uruchom migracje przez SQL editor: `001_init.sql`, potem `002_seed_mundial_2026.sql`
 
-### Krok 2 — Azure Container Apps (backend)
+### Krok 2 — Render.com (backend)
 
-```bash
-# zaloguj się do Azure
-az login
+1. render.com → New → Web Service → **Existing Image**
+2. Image URL: `ghcr.io/bpietrzakk/mundial-backend:latest` (upublicznij pakiet na GitHub → Packages)
+3. Name: `mundial-backend`, Region: Frankfurt, Instance: **Free**
+4. **Add from .env** — wklej zmienne środowiskowe (patrz lista niżej)
+5. Health Check Path: `/health`
+6. Deploy
 
-# zbuduj i wypchnij do Azure Container Registry
-az group create --name mundial-rg --location westeurope
-az acr create --name mundialtyper --resource-group mundial-rg --sku Basic
-az acr login --name mundialtyper
-az acr build --registry mundialtyper --image backend:latest ./mundial-backend
+### Krok 3 — Vercel (frontend)
 
-# stwórz Container Apps environment
-az containerapp env create --name mundial-env --resource-group mundial-rg --location westeurope
+1. vercel.com → New Project → Import repo
+2. Root Directory: `mundial-frontend`
+3. Framework: Vite
+4. Environment Variables: `VITE_API_URL=https://<backend-url>.onrender.com`
+5. Deploy
 
-# deploy backendu
-az containerapp create \
-  --name mundial-backend \
-  --resource-group mundial-rg \
-  --environment mundial-env \
-  --image mundialtyper.azurecr.io/backend:latest \
-  --registry-server mundialtyper.azurecr.io \
-  --min-replicas 0 --max-replicas 3 \
-  --target-port 8000 \
-  --ingress external \
-  --env-vars \
-    POSTGRES_HOST=<supabase-host> \
-    POSTGRES_PORT=5432 \
-    POSTGRES_USER=postgres \
-    POSTGRES_PASSWORD=<supabase-password> \
-    POSTGRES_DB=postgres \
-    JWT_SECRET=<min-32-znaki> \
-    JWT_EXPIRE_DAYS=7 \
-    FOOTBALL_API_KEY=<klucz> \
-    RESEND_API_KEY=<klucz> \
-    EMAIL_FROM="Mundial Typer <noreply@twojadomena.pl>" \
-    REQUIRE_VERIFIED_EMAIL=true \
-    ADMIN_EMAILS=twoj@email.com \
-    FRONTEND_URL=https://<app>.azurestaticapps.net \
-    DEV_SEED=false
-```
+### Krok 4 — Keep-alive (żeby Render nie zasypiał)
 
-Po deploymencie pobierz URL backendu:
-```bash
-az containerapp show --name mundial-backend --resource-group mundial-rg --query properties.configuration.ingress.fqdn -o tsv
-```
+1. cron-job.org → Create cronjob
+2. URL: `https://<backend-url>.onrender.com/health`
+3. Schedule: Every 10 minutes
 
-### Krok 3 — Azure Static Web Apps (frontend)
+### Krok 5 — Po deploy (OBOWIĄZKOWE)
 
-1. Azure Portal → Create → Static Web App
-2. Połącz z GitHub repo
-3. Build settings:
-   - **App location:** `/mundial-frontend`
-   - **Api location:** *(puste)*
-   - **Output location:** `dist`
-4. W ustawieniach aplikacji dodaj zmienną:
-   ```
-   VITE_API_URL=https://<backend-url>.azurecontainerapps.io
-   ```
-5. Zaktualizuj `FRONTEND_URL` na backendu na finalny URL frontu
-
-### Krok 4 — Po deploy (OBOWIĄZKOWE)
-
-1. Wejdź na `https://<front>/admin`
+1. Wejdź na `https://<front>.vercel.app/admin`
 2. Kliknij **"Pobierz dane z API"** → bootstrapuje drużyny + mecze
 3. Sprawdź czy mecze się wyświetlają
 
-### Zmienne środowiskowe — kompletna lista
+### Zmienne środowiskowe — kompletna lista (Render)
 
 ```env
 POSTGRES_HOST=         # Neon host (ep-xxx.eu-central-1.aws.neon.tech)
@@ -547,10 +512,11 @@ JWT_SECRET=            # min 32 losowych znaków
 JWT_EXPIRE_DAYS=7
 FOOTBALL_API_KEY=      # football-data.org
 RESEND_API_KEY=        # resend.com
-EMAIL_FROM=Mundial Typer <noreply@twojadomena.pl>
-REQUIRE_VERIFIED_EMAIL=true
+EMAIL_FROM=Mundial Typer <onboarding@resend.dev>
+REQUIRE_VERIFIED_EMAIL=false
+COOKIE_SECURE=true
 ADMIN_EMAILS=          # twoj@email.com (przecinek = wielu adminów)
-FRONTEND_URL=          # https://twoj-app.azurestaticapps.net
+FRONTEND_URL=          # https://twoj-app.vercel.app
 DEV_SEED=false
 ```
 
