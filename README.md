@@ -2,66 +2,34 @@
 
 Aplikacja do typowania wyników meczów Mundialu 2026 dla znajomych. Prywatne ligi z kodem zaproszenia, automatyczne pobieranie wyników, ranking z podium i bonusy za mistrza turnieju.
 
+**[▶ Otwórz aplikację](https://typer-mundial-2026-lyart.vercel.app)**
+
 > [English version below](#mundial-typer-2026-english)
 
 ---
 
 ## Screenshoty
 
-<!-- Dodaj screenshoty do folderu docs/screenshots/ i odkomentuj poniższe linie -->
-
-<!--
 | Dashboard | Mecze | Ranking |
 |-----------|-------|---------|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Mecze](docs/screenshots/matches.png) | ![Ranking](docs/screenshots/ranking.png) |
+| ![Dashboard](docs/screenshots/homepage.png) | ![Mecze](docs/screenshots/mecze-grupy.png) | ![Ranking](docs/screenshots/ranking_globalny.png) |
 
-| Moje Typy | Bonusy | Liga |
-|-----------|--------|------|
-| ![Typy](docs/screenshots/predictions.png) | ![Bonusy](docs/screenshots/bonus.png) | ![Liga](docs/screenshots/league.png) |
--->
-
-> Screenshoty pojawią się po pierwszym deploy.
+| Moje Typy | Bonusy | Ligi prywatne |
+|-----------|--------|---------------|
+| ![Typy](docs/screenshots/moje_typy.png) | ![Bonusy](docs/screenshots/bonusy.png) | ![Ligi](docs/screenshots/ligi_prywatne.png) |
 
 ---
 
 ## Funkcje
 
-**Typowanie:**
 - Typowanie wyników wszystkich 64 meczów Mundialu 2026
-- Zmiana typu przed startem meczu
-- Bonusy przed turniejem: mistrz i awanse z grup (deadline: 3. mecz turnieju)
-- Odliczanie do końca typowania bonusowego
-
-**Ranking i statystyki:**
+- Bonusy przed turniejem: mistrz i awanse z grup
 - Ranking globalny z podium (złoto/srebro/brąz)
-- Ranking w obrębie prywatnej ligi
-- Moje typy ze statystykami (skuteczność, rozkład, forma, passa)
-- Postęp turnieju na Dashboardzie
-
-**Prywatne ligi:**
-- Tworzenie ligi i dołączanie kodem zaproszenia
-- Link zaproszenia (`/join/:code`) — dołącza automatycznie po kliknięciu
-- Reset kodu zaproszenia przez właściciela
-- Pula nagród z automatycznym podziałem 50/30/20%
-- Usunięcie ligi (właściciel) / wyjście z ligi (członek)
-
-**Konto:**
-- Rejestracja email + hasło, weryfikacja emaila
-- Reset hasła przez email (jednorazowy link, ważny 1h)
-- Zmiana nicku i hasła w ustawieniach
-
-**Aplikacja:**
-- Interfejs responsywny — dark mode, glassmorphism
-- Działa na telefonie jak natywna apka (PWA, ikona na ekranie głównym)
-- Udostępnianie wyniku (native share API)
-- Automatyczne pobieranie wyników z football-data.org (co 5 min)
-
-**Panel admina:**
-- Wpisywanie wyników meczów z UI
-- Bootstrap danych turnieju z API
-- Zarządzanie użytkownikami (weryfikacja emaila, usuwanie kont)
-- Podgląd wszystkich prywatnych lig z listą członków
-- Reset kodu ligi, kick z ligi
+- Prywatne ligi — dołączanie kodem lub linkiem zaproszenia
+- Dashboard z postępem turnieju, pozycją w lidze i passą
+- Automatyczne pobieranie wyników z football-data.org co 5 minut
+- PWA — instalacja na ekranie głównym telefonu
+- Udostępnianie pozycji w rankingu (native share API)
 
 ---
 
@@ -90,80 +58,16 @@ Aplikacja do typowania wyników meczów Mundialu 2026 dla znajomych. Prywatne li
 |---------|-------------|
 | Frontend | React 18 + Vite (JavaScript) |
 | Stylowanie | Tailwind CSS, glassmorphism |
-| Czcionki | Bebas Neue (display) + Inter (body) |
-| Backend | Python 3.12, FastAPI, uvicorn |
-| Baza danych | PostgreSQL 16 |
+| Backend | Python 3.12, FastAPI |
+| Baza danych | PostgreSQL 16 (Neon) |
 | Auth | JWT (httpOnly cookie) + Argon2id |
 | Email | Resend |
 | Dane meczów | football-data.org API |
-| Hosting frontend | Vercel |
-| Hosting backend | Render.com |
-| Hosting bazy | Neon (PostgreSQL) |
-| Mobile | PWA (Progressive Web App) |
-
----
-
-## Schemat bazy
-
-```
-users                     — konta graczy
-leagues                   — ligi (Mundial 2026)
-teams                     — drużyny z herbami
-matches                   — mecze z fazą i statusem
-predictions               — typy wyników meczów
-bonus_predictions         — typ mistrza turnieju
-group_advance_predictions — typy awansów z grup
-scoring_rules             — punkty per faza (konfigurowalnie)
-private_leagues           — prywatne ligi znajomych
-private_league_members    — przynależność do ligi
-password_reset_tokens     — tokeny resetu hasła
-```
-
----
-
-## Struktura projektu
-
-```
-mundial_typer_2026/
-├── mundial-backend/      ← FastAPI (Python)
-└── mundial-frontend/     ← React + Vite
-```
-
----
-
-## Endpointy API
-
-| Metoda | Ścieżka | Opis | Auth |
-|--------|---------|------|------|
-| POST | `/auth/register` | Rejestracja | — |
-| POST | `/auth/login` | Logowanie | — |
-| POST | `/auth/logout` | Wylogowanie | ✅ |
-| GET | `/auth/me` | Dane zalogowanego | ✅ |
-| POST | `/auth/forgot-password` | Link do resetu hasła | — |
-| POST | `/auth/reset-password` | Ustaw nowe hasło | — |
-| GET | `/matches` | Lista meczów | ✅ |
-| POST | `/predictions` | Dodaj/zmień typ | ✅ |
-| GET | `/predictions/mine` | Moje typy | ✅ |
-| POST | `/bonus/champion` | Typuj mistrza | ✅ |
-| POST | `/bonus/group-advances` | Typuj awanse | ✅ |
-| GET | `/ranking` | Ranking globalny | ✅ |
-| GET | `/ranking/{league_id}` | Ranking ligi | ✅ |
-| POST | `/leagues` | Utwórz ligę | ✅ |
-| POST | `/leagues/join` | Dołącz kodem | ✅ |
-| GET | `/leagues/{id}` | Szczegóły ligi | ✅ |
-| POST | `/leagues/{id}/leave` | Opuść ligę | ✅ |
-| DELETE | `/leagues/{id}` | Usuń ligę (właściciel) | ✅ |
-| POST | `/leagues/{id}/reset-code` | Reset kodu | ✅ |
-| POST | `/matches/bootstrap` | Pobierz dane z API | ✅ admin |
-| POST | `/matches/{id}/result` | Wpisz wynik | ✅ admin |
-
-Pełna dokumentacja: `http://localhost:8000/docs`
+| Hosting | Vercel + Render.com |
 
 ---
 
 ## Uruchomienie lokalnie
-
-### Docker (najszybciej)
 
 ```bash
 git clone <repo>
@@ -176,119 +80,24 @@ docker compose up --build
 ```
 
 - Aplikacja: http://localhost:8080
-- Swagger: http://localhost:8000/docs
+- Swagger UI: http://localhost:8000/docs
 
-### Dewelopka z hot-reload
-
-**Backend:**
-```bash
-cd mundial-backend
-cp .env.example .env        # uzupełnij JWT_SECRET, FOOTBALL_API_KEY, ADMIN_EMAILS
-docker compose up -d        # tylko baza
-uv sync
-./scripts/migrate.sh
-uv run uvicorn main:app --reload
-```
-
-**Frontend:**
-```bash
-cd mundial-frontend
-npm install
-npm run dev
-```
-
-> Wygeneruj `JWT_SECRET`: `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`
+Szczegóły dewelopki z hot-reload w `CLAUDE.md`.
 
 ---
 
-## Zmienne środowiskowe
+## Deploy
 
-```env
-# baza danych
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_USER=mundial
-POSTGRES_PASSWORD=mundial
-POSTGRES_DB=mundial
+**Vercel + Render + Neon — $0/mies.**
 
-# auth
-JWT_SECRET=          # min 32 losowe znaki
-JWT_EXPIRE_DAYS=7
-
-# maile
-RESEND_API_KEY=      # resend.com
-EMAIL_FROM=Mundial Typer <noreply@twojadomena.pl>
-REQUIRE_VERIFIED_EMAIL=true   # false na dev
-
-# dane meczów
-FOOTBALL_API_KEY=    # football-data.org (wymaga weryfikacji konta)
-
-# dostęp admina
-ADMIN_EMAILS=        # przecinek = wielu adminów
-
-# CORS
-FRONTEND_URL=http://localhost:5173
+```
+Frontend  → Vercel (darmowy)
+Backend   → Render.com (darmowy, Web Service z obrazu Docker)
+Baza      → Neon (darmowy, PostgreSQL 16)
+Keep-alive → cron-job.org (ping /health co 10 min)
 ```
 
----
-
-## Deploy (produkcja)
-
-**Vercel + Render + Neon ≈ $0/mies.**
-
-### 1. Neon (baza)
-- Nowy projekt na [neon.tech](https://neon.tech), region: `eu-central-1`
-- Uruchom migracje przez SQL editor: `001_init.sql` → `002_seed_mundial_2026.sql`
-- Skopiuj dane połączenia i dodaj `POSTGRES_SSL=require`
-
-### 2. Render.com (backend)
-- New → Web Service → Existing Image → `ghcr.io/bpietrzakk/mundial-backend:latest`
-- Region: Frankfurt, Instance: Free, Health Check: `/health`
-- Ustaw zmienne środowiskowe (patrz CLAUDE.md)
-- Dodaj `COOKIE_SECURE=true`
-
-### 3. Vercel (frontend)
-- New Project → Import repo → Root Directory: `mundial-frontend`
-- Env: `VITE_API_URL=https://<backend>.onrender.com`
-
-### 4. Keep-alive
-- cron-job.org → ping `https://<backend>.onrender.com/health` co 10 min
-
-### 5. Po deploy — obowiązkowe
-- Wejdź na `/admin` → **"Pobierz dane z API"** (bootstrap drużyn i meczów)
-
-### Koszt
-
-| Serwis | Plan | Koszt |
-|--------|------|-------|
-| Vercel | Free (Hobby) | $0 |
-| Render.com | Free (Web Service) | $0 |
-| Neon | Free (0.5 GB) | $0 |
-| football-data.org | Free | $0 |
-| Resend | Free (3000 maili/mies.) | $0 |
-| cron-job.org | Free | $0 |
-| **Razem** | | **$0/mies.** |
-
----
-
-## Bezpieczeństwo
-
-- Hasła: **Argon2id** (pwdlib) — nieodwracalne
-- Sesja: **JWT w httpOnly cookie** — nie localStorage
-- SQL: wyłącznie **parametryzowane zapytania** — zero f-stringów z danymi usera
-- Rate limiting: max 5 prób logowania/minutę
-- Email weryfikacyjny przy rejestracji
-- Reset hasła przez jednorazowy token ważny 1h
-- HTTPS automatycznie na Azure + Cloudflare
-
----
-
-## Testy
-
-```bash
-cd mundial-backend
-uv run pytest
-```
+Obraz Dockera backendu budowany automatycznie przez GitHub Actions i publikowany na `ghcr.io`.
 
 ---
 
@@ -298,15 +107,21 @@ uv run pytest
 
 A World Cup 2026 prediction app for friends. Private leagues with invite codes, automatic results, leaderboard with podium and tournament bonuses.
 
+**[▶ Open app](https://typer-mundial-2026-lyart.vercel.app)**
+
 > [Wersja polska powyżej](#mundial-typer-2026)
 
 ---
 
 ## Screenshots
 
-<!-- Add screenshots to docs/screenshots/ and uncomment below -->
+| Dashboard | Matches | Ranking |
+|-----------|---------|---------|
+| ![Dashboard](docs/screenshots/homepage.png) | ![Matches](docs/screenshots/mecze-grupy.png) | ![Ranking](docs/screenshots/ranking_globalny.png) |
 
-> Screenshots will appear after the first deploy.
+| My Picks | Bonuses | Private Leagues |
+|----------|---------|-----------------|
+| ![Picks](docs/screenshots/moje_typy.png) | ![Bonuses](docs/screenshots/bonusy.png) | ![Leagues](docs/screenshots/ligi_prywatne.png) |
 
 ---
 
@@ -315,12 +130,11 @@ A World Cup 2026 prediction app for friends. Private leagues with invite codes, 
 - Predict all 64 World Cup 2026 matches, change picks before kickoff
 - Pre-tournament bonuses: champion pick and group stage advances
 - Global leaderboard with gold/silver/bronze podium
-- Private leagues — invite by code or shareable link (`/join/:code`)
+- Private leagues — invite by code or shareable link
 - Dashboard with tournament progress, league position and streak tracker
 - Automatic result fetching from football-data.org every 5 minutes
 - PWA — installable on mobile home screen
 - Share your ranking position (native share API)
-- Admin panel: bootstrap data, set results, manage users and leagues
 
 ---
 
@@ -349,15 +163,12 @@ A World Cup 2026 prediction app for friends. Private leagues with invite codes, 
 |-------|------------|
 | Frontend | React 18 + Vite |
 | Styling | Tailwind CSS |
-| Fonts | Bebas Neue + Inter |
 | Backend | Python 3.12, FastAPI |
-| Database | PostgreSQL 16 |
+| Database | PostgreSQL 16 (Neon) |
 | Auth | JWT (httpOnly cookie) + Argon2id |
 | Email | Resend |
 | Match data | football-data.org API |
 | Hosting | Vercel + Render.com |
-| Database hosting | Neon |
-| Mobile | PWA |
 
 ---
 
@@ -374,22 +185,3 @@ docker compose up --build
 # App: http://localhost:8080
 # Swagger: http://localhost:8000/docs
 ```
-
----
-
-## Deploy
-
-**Vercel + Render + Neon ≈ $0/month**
-
-See the Polish section above for full step-by-step instructions.
-
-Key environment variables for production:
-```
-REQUIRE_VERIFIED_EMAIL=true
-ADMIN_EMAILS=your@email.com
-FOOTBALL_API_KEY=...
-RESEND_API_KEY=...
-FRONTEND_URL=https://your-app.azurestaticapps.net
-```
-
-After deploy: go to `/admin` → **"Pobierz dane z API"** to bootstrap teams and fixtures.
