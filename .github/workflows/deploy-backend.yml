@@ -33,5 +33,5 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/mundial-backend:latest
             ghcr.io/${{ github.repository_owner }}/mundial-backend:${{ github.sha }}
 
-      # azure deploy is manual: az containerapp update --name mundial-backend
-      # --resource-group mundial-rg --image ghcr.io/OWNER/mundial-backend:latest
+      - name: Trigger Render deploy
+        run: curl "${{ secrets.RENDER_DEPLOY_HOOK }}"
