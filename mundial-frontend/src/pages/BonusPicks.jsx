@@ -137,6 +137,11 @@ export default function BonusPicks() {
       Object.entries(groupPicks).forEach(([group, teamIds]) => {
         teamIds.forEach((teamId) => picks.push({ group_name: group, team_id: teamId }));
       });
+      if (picks.length === 0) {
+        setSubmitError('Wybierz co najmniej jedną drużynę do awansu');
+        setGroupSaving(false);
+        return;
+      }
       await saveGroupAdvances(picks);
       setGroupSaved(true);
     } catch (err) {
