@@ -55,8 +55,7 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   const desktopLinks = user?.is_admin ? [...NAV_LINKS, ADMIN_LINK] : NAV_LINKS;
-  // mobile bottom nav: Dom + 4 core links (Bonusy accessible from Dashboard)
-  const bottomNavLinks = NAV_LINKS.filter((l) => l.to !== '/leagues');
+  const bottomNavLinks = NAV_LINKS;
 
   const handleLogout = async () => {
     await logout();
