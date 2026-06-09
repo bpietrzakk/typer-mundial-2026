@@ -1,7 +1,7 @@
 // Mundial Typer 2026 — Service Worker
 // cache-first for static assets, network-first for API calls
 
-const CACHE_NAME = 'mundial-typer-v5';
+const CACHE_NAME = 'mundial-typer-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -39,14 +39,16 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
   // API calls — network-only (always fresh data, no HTTP cache)
-  const isApiCall = 
+  // cross-origin requests (to the backend) are always network-only
+  const isApiCall =
+    url.origin !== self.location.origin ||
     url.pathname.startsWith('/api/') ||
-    url.pathname.startsWith('/auth/') ||
-    url.pathname.startsWith('/matches/') ||
-    url.pathname.startsWith('/predictions/') ||
-    url.pathname.startsWith('/ranking/') ||
-    url.pathname.startsWith('/leagues/') ||
-    url.pathname.startsWith('/bonus/') ||
+    url.pathname.startsWith('/auth') ||
+    url.pathname.startsWith('/matches') ||
+    url.pathname.startsWith('/predictions') ||
+    url.pathname.startsWith('/ranking') ||
+    url.pathname.startsWith('/leagues') ||
+    url.pathname.startsWith('/bonus') ||
     url.pathname.startsWith('/health');
 
   if (isApiCall) {
