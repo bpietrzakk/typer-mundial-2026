@@ -67,7 +67,7 @@ Punkty są przechowywane w tabeli `scoring_rules` (osobny wiersz per faza). Funk
 
 **Remisy:** trafiony remis który nie jest dokładny zawsze dostaje punkty za różnicę bramek (0 = 0), nigdy za wynik. Zamierzone.
 
-### Bonusy (typowane przed startem turnieju, deadline = 11 czerwca 2026 12:00 UTC)
+### Bonusy (typowane przed startem turnieju, deadline = 13 czerwca 2026 21:59:59 UTC = koniec dnia czasu PL)
 
 | Typ bonusu | Punkty | Kiedy przyznawane |
 |-----------|--------|------------------|
@@ -92,7 +92,7 @@ Punkty są przechowywane w tabeli `scoring_rules` (osobny wiersz per faza). Funk
 ## Reguły biznesowe — Deadline typowania
 
 - Typ meczu można dodać tylko jeśli `kickoff_at > NOW()`. Walidacja w `domain/predictions.py` (czysta funkcja). Router zwraca HTTP 409 jeśli po terminie.
-- Bonusy (mistrz, awanse) można typować tylko przed startem turnieju (`2026-06-11 12:00 UTC`). Stała `TOURNAMENT_START` w `domain/bonuses.py`.
+- Bonusy (mistrz, awanse) można typować do `2026-06-13 21:59:59 UTC` (koniec dnia 13.06 czasu PL). Stała `TOURNAMENT_START` w `domain/bonuses.py`, zsynchronizowana ze stałą `BONUS_DEADLINE` we froncie (`pages/BonusPicks.jsx`).
 - Po wpisaniu wyniku meczu system automatycznie przelicza punkty dla wszystkich typów tego meczu. Jedyne miejsce gdzie powstaje `points_awarded` to `domain/match_results.py`.
 
 ---

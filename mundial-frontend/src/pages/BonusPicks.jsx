@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { getTeams, getMatches } from '../api/matches';
+import { getTeams } from '../api/matches';
 import {
   getChampion, setChampion as saveChampion,
   getGroupAdvances, setGroupAdvances as saveGroupAdvances,
 } from '../api/bonus';
+
+// must match TOURNAMENT_START in mundial-backend/domain/bonuses.py
+const BONUS_DEADLINE = new Date('2026-06-13T21:59:59Z');
 
 function TeamCrest({ team, size = 'w-8 h-8' }) {
   const [err, setErr] = useState(false);
@@ -27,7 +30,6 @@ function TeamCrest({ team, size = 'w-8 h-8' }) {
 
 export default function BonusPicks() {
   const [teams, setTeams] = useState([]);
-  const [bonusDeadline, setBonusDeadline] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -44,8 +46,7 @@ export default function BonusPicks() {
   const [submitError, setSubmitError] = useState('');
   const [now, setNow] = useState(new Date());
 
-  // deadline = kickoff of the 3rd match (chronologically)
-  const isLocked = bonusDeadline ? now >= bonusDeadline : false;
+  const isLocked = now >= BONUS_DEADLINE;
 
   useEffect(() => {
     loadData();
@@ -57,17 +58,12 @@ export default function BonusPicks() {
     setLoading(true);
     setError('');
     try {
-      const [teamData, matchData, championData, advanceData] = await Promise.all([
+      const [teamData, championData, advanceData] = await Promise.all([
         getTeams(),
-        getMatches(),
         getChampion(),
         getGroupAdvances(),
       ]);
       setTeams(teamData);
-
-      // deadline = kickoff of the 3rd match chronologically
-      const sorted = [...matchData].sort((a, b) => new Date(a.kickoff_at) - new Date(b.kickoff_at));
-      if (sorted.length >= 3) setBonusDeadline(new Date(sorted[2].kickoff_at));
 
       if (championData) {
         setChampion(championData.champion_team_id);
@@ -151,7 +147,7 @@ export default function BonusPicks() {
     }
   };
 
-  const timeLeft = bonusDeadline ? bonusDeadline - now : 0;
+  const timeLeft = BONUS_DEADLINE - now;
   const daysLeft    = Math.max(0, Math.floor(timeLeft / (1000 * 60 * 60 * 24)));
   const hoursLeft   = Math.max(0, Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
   const minutesLeft = Math.max(0, Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60)));
@@ -204,12 +200,10 @@ export default function BonusPicks() {
               {isLocked ? 'Typowanie zamknięte' : 'Deadline typowania'}
             </p>
             <p className="font-semibold text-gray-200">
-              {bonusDeadline
-                ? bonusDeadline.toLocaleString('pl-PL', {
-                    day: 'numeric', month: 'long', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit',
-                  })
-                : '—'}
+              {BONUS_DEADLINE.toLocaleString('pl-PL', {
+                day: 'numeric', month: 'long', year: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+              })}
             </p>
           </div>
           {!isLocked ? (

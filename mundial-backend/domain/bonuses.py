@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 
 
-# kickoff of Mundial 2026 (Mexico City opening match) — hard deadline for
-# bonus picks per CLAUDE.md "Reguły biznesowe — Deadline typowania"
-TOURNAMENT_START = datetime(2026, 6, 11, 12, 0, 0, tzinfo=timezone.utc)
+# hard deadline for bonus picks per CLAUDE.md "Reguły biznesowe — Deadline typowania"
+# = end of day 2026-06-13 in Poland (23:59:59 CEST)
+TOURNAMENT_START = datetime(2026, 6, 13, 21, 59, 59, tzinfo=timezone.utc)
 
 
 # scoring values from CLAUDE.md "Reguły biznesowe — Bonusy"

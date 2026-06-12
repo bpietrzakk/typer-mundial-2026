@@ -23,7 +23,7 @@ router = APIRouter(prefix="/bonus", tags=["bonus"])
 
 
 def _check_deadline() -> None:
-    # window closes at TOURNAMENT_START (2026-06-11 12:00 UTC)
+    # window closes at TOURNAMENT_START (2026-06-13 21:59:59 UTC = end of day in PL)
     # check at request time so we don't need to restart the app on the deadline
     if not is_bonus_allowed(datetime.now(timezone.utc)):
         raise HTTPException(

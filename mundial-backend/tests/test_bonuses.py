@@ -25,10 +25,10 @@ def test_after_deadline_is_not_allowed():
     assert is_bonus_allowed(one_second_after) is False
 
 
-def test_tournament_start_is_2026_06_11_noon_utc():
+def test_tournament_start_is_2026_06_13_end_of_day_cest():
     # the deadline value is part of the contract — guard against accidental
     # edits to the constant by asserting the exact moment
-    assert TOURNAMENT_START == datetime(2026, 6, 11, 12, 0, 0, tzinfo=timezone.utc)
+    assert TOURNAMENT_START == datetime(2026, 6, 13, 21, 59, 59, tzinfo=timezone.utc)
 
 
 # --- scoring values are part of the contract too ---

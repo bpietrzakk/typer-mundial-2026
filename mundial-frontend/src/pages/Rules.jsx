@@ -110,7 +110,7 @@ export default function Rules() {
           </li>
           <li className="flex items-start gap-2">
             <span className="text-mundial-gold mt-0.5">•</span>
-            <span>Bonusy (mistrz, awanse) tylko przed startem 3. meczu turnieju.</span>
+            <span>Bonusy (mistrz, awanse) tylko do 13 czerwca 2026, 23:59 (czasu PL).</span>
           </li>
         </ul>
       </div>
