@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { getLeagueRanking } from '../api/ranking';
 import LeagueCard from '../components/LeagueCard';
 import RankingTable from '../components/RankingTable';
+import UserPredictionsModal from '../components/UserPredictionsModal';
 
 export default function League() {
   const { id } = useParams();
@@ -209,6 +210,7 @@ function LeagueDetail({ leagueId }) {
   const [ranking, setRanking] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedUser, setSelectedUser] = useState(null);
   const [copied, setCopied] = useState(false);
 
   // prize pool editing
@@ -473,7 +475,15 @@ function LeagueDetail({ leagueId }) {
       )}
 
       {/* league ranking */}
-      <RankingTable entries={ranking} title="Ranking ligi" />
+      <RankingTable entries={ranking} title="Ranking ligi" onSelectUser={setSelectedUser} />
+
+      {selectedUser && (
+        <UserPredictionsModal
+          userId={selectedUser.user_id}
+          nick={selectedUser.nick}
+          onClose={() => setSelectedUser(null)}
+        />
+      )}
 
       {/* danger zone */}
       <div className="mt-8 pt-6 border-t border-surface-500/20">

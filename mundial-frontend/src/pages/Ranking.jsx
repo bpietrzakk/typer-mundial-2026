@@ -3,8 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { getRanking } from '../api/ranking';
 import RankingTable from '../components/RankingTable';
+import UserPredictionsModal from '../components/UserPredictionsModal';
 
-function PodiumCard({ entry, platformHeight, isCurrentUser }) {
+function PodiumCard({ entry, platformHeight, isCurrentUser, onSelect }) {
   const colors = {
     1: { ring: 'border-mundial-gold/60', glow: 'shadow-[0_0_20px_rgba(200,164,40,0.4)]', label: 'text-mundial-gold', bg: 'bg-mundial-gold/10' },
     2: { ring: 'border-gray-400/40', glow: '', label: 'text-gray-300', bg: 'bg-gray-400/10' },
@@ -12,7 +13,7 @@ function PodiumCard({ entry, platformHeight, isCurrentUser }) {
   }[entry.rank] || {};
 
   return (
-    <div className="flex flex-col items-center gap-1.5">
+    <div className="flex flex-col items-center gap-1.5 cursor-pointer" onClick={onSelect}>
       {/* rank number */}
       <span className={`text-xs font-black uppercase tracking-widest ${colors.label}`}>
         #{entry.rank}
@@ -48,6 +49,7 @@ export default function Ranking() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedUser, setSelectedUser] = useState(null);
 
   const handleShare = async (entry) => {
     const text = `Jestem #${entry.rank} z ${entry.total_points} pkt na Mundial Typer 2026! ⚽`;
@@ -143,6 +145,7 @@ export default function Ranking() {
                   entry={entry}
                   platformHeight={platformHeights[entry.rank]}
                   isCurrentUser={entry.user_id === user?.id}
+                  onSelect={() => setSelectedUser(entry)}
                 />
               </div>
             ))}
@@ -169,8 +172,16 @@ export default function Ranking() {
       )}
 
       {/* full table (from #4) */}
-      {rest.length > 0 && <RankingTable entries={rest} />}
-      {rest.length === 0 && entries.length > 0 && <RankingTable entries={entries} />}
+      {rest.length > 0 && <RankingTable entries={rest} onSelectUser={setSelectedUser} />}
+      {rest.length === 0 && entries.length > 0 && <RankingTable entries={entries} onSelectUser={setSelectedUser} />}
+
+      {selectedUser && (
+        <UserPredictionsModal
+          userId={selectedUser.user_id}
+          nick={selectedUser.nick}
+          onClose={() => setSelectedUser(null)}
+        />
+      )}
     </div>
   );
 }

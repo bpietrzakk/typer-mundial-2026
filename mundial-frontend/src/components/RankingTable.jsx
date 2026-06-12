@@ -1,6 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 
-export default function RankingTable({ entries, title }) {
+export default function RankingTable({ entries, title, onSelectUser }) {
   const { user } = useAuth();
 
   if (!entries || entries.length === 0) {
@@ -35,7 +35,9 @@ export default function RankingTable({ entries, title }) {
               return (
                 <tr
                   key={entry.user_id}
+                  onClick={() => onSelectUser?.(entry)}
                   className={`border-b border-surface-500/10 transition-colors
+                    ${onSelectUser ? 'cursor-pointer' : ''}
                     ${isCurrentUser
                       ? 'bg-mundial-teal/10 hover:bg-mundial-teal/15'
                       : 'hover:bg-surface-700/30'

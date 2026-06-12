@@ -1,6 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from db.queries import get_match_by_id, list_user_predictions, upsert_prediction
+from db.queries import (
+    get_match_by_id,
+    list_finished_predictions_for_user,
+    list_user_predictions,
+    upsert_prediction,
+)
 from domain.predictions import is_prediction_allowed
 from routers.deps import get_current_user
 from schemas.models import (
@@ -18,6 +23,16 @@ def my_predictions(current_user: dict = Depends(get_current_user)) -> list[dict]
     # all of the current user's predictions with match + team info,
     # ordered by kickoff — empty list if they haven't predicted anything yet
     return list_user_predictions(current_user["id"])
+
+
+@router.get("/user/{user_id}", response_model=list[MyPredictionEntry])
+def user_predictions(
+    user_id: int,
+    _current_user: dict = Depends(get_current_user),
+) -> list[dict]:
+    # another user's predictions, but only for already-played matches —
+    # powers "click a player in the ranking" to see how they typed
+    return list_finished_predictions_for_user(user_id)
 
 
 @router.post("", response_model=PredictionResponse)

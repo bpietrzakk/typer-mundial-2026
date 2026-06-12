@@ -15,3 +15,9 @@ export const getMyPredictions = async () => {
   const res = await api.get('/predictions/mine');
   return res.data;
 };
+
+// another user's predictions for already-finished matches — ranking drill-down
+export const getUserPredictions = async (userId) => {
+  const res = await api.get(`/predictions/user/${userId}`);
+  return res.data;
+};

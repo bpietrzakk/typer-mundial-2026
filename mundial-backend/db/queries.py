@@ -288,6 +288,24 @@ SQL_LIST_USER_PREDICTIONS = """
     ORDER BY m.kickoff_at ASC
 """
 
+# GET /predictions/user/{id} — same shape as SQL_LIST_USER_PREDICTIONS but
+# only finished matches, so the ranking "click a user" view doesn't leak
+# other people's picks for matches that haven't been played yet
+SQL_LIST_USER_PREDICTIONS_FINISHED = """
+    SELECT
+        p.id, p.match_id, p.pred_home, p.pred_away, p.points_awarded,
+        m.stage AS match_stage, m.kickoff_at, m.status,
+        m.home_goals, m.away_goals,
+        h.name AS home_team_name, h.short_name AS home_team_short,
+        a.name AS away_team_name, a.short_name AS away_team_short
+    FROM predictions p
+    JOIN matches m ON m.id = p.match_id
+    JOIN teams h ON h.id = m.home_team_id
+    JOIN teams a ON a.id = m.away_team_id
+    WHERE p.user_id = %s AND m.status = 'finished'
+    ORDER BY m.kickoff_at ASC
+"""
+
 # admin endpoint — runs all inside a single transaction in finalize_match()
 
 SQL_LOCK_MATCH_FOR_UPDATE = """
@@ -834,6 +852,19 @@ def list_user_predictions(user_id: int) -> list[dict]:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(SQL_LIST_USER_PREDICTIONS, (user_id,))
+                return [dict(r) for r in cur.fetchall()]
+    finally:
+        release_conn(conn)
+
+
+def list_finished_predictions_for_user(user_id: int) -> list[dict]:
+    # another user's predictions for already-played matches only —
+    # drives the "click a user in the ranking" view
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_LIST_USER_PREDICTIONS_FINISHED, (user_id,))
                 return [dict(r) for r in cur.fetchall()]
     finally:
         release_conn(conn)

@@ -188,3 +188,41 @@ def test_my_predictions_empty_when_none(monkeypatch):
 def test_my_predictions_without_auth_returns_401():
     resp = client.get("/predictions/mine")
     assert resp.status_code == 401
+
+
+# --- GET /predictions/user/{user_id} ---
+
+def test_user_predictions_returns_finished_only(monkeypatch):
+    captured = {}
+    def fake_list(uid):
+        captured["user_id"] = uid
+        return [
+            {
+                "id": 1, "match_id": 10, "pred_home": 2, "pred_away": 1,
+                "points_awarded": 5, "match_stage": "group",
+                "kickoff_at": "2026-06-11T18:00:00+00:00", "status": "finished",
+                "home_goals": 2, "away_goals": 1,
+                "home_team_name": "Argentina", "away_team_name": "France",
+                "home_team_short": "ARG",
+            },
+        ]
+    monkeypatch.setattr(predictions_module, "list_finished_predictions_for_user", fake_list)
+
+    resp = client.get("/predictions/user/99", cookies=_auth_cookie())
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) == 1
+    assert body[0]["points_awarded"] == 5
+    assert captured == {"user_id": 99}
+
+
+def test_user_predictions_empty_when_none(monkeypatch):
+    monkeypatch.setattr(predictions_module, "list_finished_predictions_for_user", lambda uid: [])
+    resp = client.get("/predictions/user/99", cookies=_auth_cookie())
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+def test_user_predictions_without_auth_returns_401():
+    resp = client.get("/predictions/user/99")
+    assert resp.status_code == 401
