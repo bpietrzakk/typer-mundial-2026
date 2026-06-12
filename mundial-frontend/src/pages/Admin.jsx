@@ -206,8 +206,13 @@ function UsersTab({ addToast, currentUserId }) {
           const data = expandData[u.id];
           return (
             <div key={u.id} className="glass-card overflow-hidden">
-              <button onClick={() => toggleUser(u.id)}
-                className="w-full flex items-center justify-between p-4 text-left hover:bg-surface-700/30 transition-colors">
+              {/* div not button — row contains nested buttons (Weryfikuj, usuń) */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => toggleUser(u.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleUser(u.id); }}
+                className="w-full flex items-center justify-between p-4 text-left hover:bg-surface-700/30 transition-colors cursor-pointer">
                 <div className="flex items-center gap-3">
                   <span className="text-gray-500 w-6 text-center text-sm tabular-nums">{i + 1}</span>
                   <div>
@@ -250,7 +255,7 @@ function UsersTab({ addToast, currentUserId }) {
                   )}
                   <span className="text-gray-600 text-xs">{expanded === u.id ? '▲' : '▼'}</span>
                 </div>
-              </button>
+              </div>
 
               {expanded === u.id && (
                 <div className="border-t border-surface-500/20 p-4 bg-surface-900/40 space-y-4">
@@ -375,8 +380,13 @@ function LeaguesTab({ addToast }) {
       <div className="grid gap-2">
         {leagues.map((l) => (
           <div key={l.id} className="glass-card overflow-hidden">
-            <button onClick={() => toggleLeague(l.id)}
-              className="w-full flex items-center gap-4 p-4 text-left hover:bg-surface-700/30 transition-colors flex-wrap">
+            {/* div not button — row contains a nested Reset button */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => toggleLeague(l.id)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleLeague(l.id); }}
+              className="w-full flex items-center gap-4 p-4 text-left hover:bg-surface-700/30 transition-colors flex-wrap cursor-pointer">
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-200 truncate">{l.name}</p>
                 <p className="text-xs text-gray-500">
@@ -402,7 +412,7 @@ function LeaguesTab({ addToast }) {
                 </button>
                 <span className="text-gray-600 text-xs">{expanded === l.id ? '▲' : '▼'}</span>
               </div>
-            </button>
+            </div>
 
             {expanded === l.id && (
               <div className="border-t border-surface-500/20 p-4 bg-surface-900/40">
