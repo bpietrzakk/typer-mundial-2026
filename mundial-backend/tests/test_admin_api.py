@@ -158,6 +158,73 @@ def test_set_result_negative_score_returns_422(monkeypatch):
     assert resp.status_code == 422
 
 
+# --- recalculate (recovery tool) ---
+
+def test_recalculate_without_cookie_returns_401():
+    resp = client.post("/matches/1/recalculate")
+    assert resp.status_code == 401
+
+
+def test_recalculate_as_non_admin_returns_403(monkeypatch):
+    monkeypatch.setattr(deps_module, "get_user_by_id", lambda uid: REGULAR_USER)
+    resp = client.post(
+        "/matches/1/recalculate",
+        cookies=_cookie_for(REGULAR_USER["id"], REGULAR_USER["nick"]),
+    )
+    assert resp.status_code == 403
+
+
+def test_recalculate_returns_updated_match(monkeypatch):
+    monkeypatch.setattr(deps_module, "get_user_by_id", lambda uid: ADMIN_USER)
+
+    captured = {}
+    def fake_recalc(mid):
+        captured["match_id"] = mid
+        return FINALIZED_MATCH
+    import routers.admin as admin_module
+    monkeypatch.setattr(admin_module, "recalculate_points", fake_recalc)
+
+    resp = client.post(
+        "/matches/1/recalculate",
+        cookies=_cookie_for(ADMIN_USER["id"], ADMIN_USER["nick"]),
+    )
+
+    assert resp.status_code == 200
+    assert captured == {"match_id": 1}
+
+
+def test_recalculate_for_unknown_match_returns_404(monkeypatch):
+    from db.queries import MatchNotFound
+    import routers.admin as admin_module
+
+    monkeypatch.setattr(deps_module, "get_user_by_id", lambda uid: ADMIN_USER)
+    def boom(*a):
+        raise MatchNotFound()
+    monkeypatch.setattr(admin_module, "recalculate_points", boom)
+
+    resp = client.post(
+        "/matches/9999/recalculate",
+        cookies=_cookie_for(ADMIN_USER["id"], ADMIN_USER["nick"]),
+    )
+    assert resp.status_code == 404
+
+
+def test_recalculate_for_unfinished_match_returns_409(monkeypatch):
+    from db.queries import MatchNotFinished
+    import routers.admin as admin_module
+
+    monkeypatch.setattr(deps_module, "get_user_by_id", lambda uid: ADMIN_USER)
+    def boom(*a):
+        raise MatchNotFinished()
+    monkeypatch.setattr(admin_module, "recalculate_points", boom)
+
+    resp = client.post(
+        "/matches/1/recalculate",
+        cookies=_cookie_for(ADMIN_USER["id"], ADMIN_USER["nick"]),
+    )
+    assert resp.status_code == 409
+
+
 # --- domain unit test for the core: scoring after finalize ---
 
 def test_finalize_scores_predictions_correctly():

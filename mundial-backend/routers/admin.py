@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from db.queries import (
     MatchAlreadyFinished,
+    MatchNotFinished,
     MatchNotFound,
     finalize_match,
     get_match_by_external_id,
+    recalculate_points,
     set_team_group,
     upsert_match,
     upsert_team,
@@ -33,6 +35,27 @@ def bootstrap_tournament(_admin: dict = Depends(get_admin_user)) -> dict:
     team_groups: dict[str, str] = {}
     for m in matches:
         existing = get_match_by_external_id(m["external_id"])
+
+        # match just finished and isn't scored yet — finalize so points get
+        # calculated too (plain upsert_match would mark it 'finished' without
+        # scoring, then the poll job would skip it forever, see decisions)
+        if (
+            m["status"] == "finished"
+            and m["home_goals"] is not None
+            and m["away_goals"] is not None
+            and existing is not None
+            and existing["status"] != "finished"
+        ):
+            try:
+                finalize_match(existing["id"], m["home_goals"], m["away_goals"])
+            except MatchAlreadyFinished:
+                pass
+            updated += 1
+            if m["stage"] == "group" and m.get("group"):
+                team_groups[m["home_team_external_id"]] = m["group"]
+                team_groups[m["away_team_external_id"]] = m["group"]
+            continue
+
         upsert_match(
             m["home_team_external_id"], m["away_team_external_id"],
             m["kickoff_at"], m["stage"], m["status"],
@@ -78,4 +101,26 @@ def set_match_result(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Wynik tego meczu już został wpisany",
+        )
+
+
+@router.post("/{match_id}/recalculate", response_model=MatchResponse)
+def recalculate_match_points(
+    match_id: int,
+    _admin: dict = Depends(get_admin_user),
+) -> dict:
+    # recovery tool: re-scores predictions for a match that's already
+    # finished with a result but whose points were never computed
+    # (e.g. a bootstrap run before this bugfix). does not change the score.
+    try:
+        return recalculate_points(match_id)
+    except MatchNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Mecz nie istnieje",
+        )
+    except MatchNotFinished:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Mecz nie ma jeszcze wpisanego wyniku",
         )

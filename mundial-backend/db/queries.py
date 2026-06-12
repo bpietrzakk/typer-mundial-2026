@@ -18,6 +18,10 @@ class MatchAlreadyFinished(Exception):
     pass
 
 
+class MatchNotFinished(Exception):
+    pass
+
+
 class LeagueNotFound(Exception):
     pass
 
@@ -303,6 +307,13 @@ SQL_LIST_PREDICTIONS_FOR_MATCH = """
     SELECT id, pred_home, pred_away
     FROM predictions
     WHERE match_id = %s
+"""
+
+# used by recalculate_points() — match must already be finished with a score
+SQL_GET_MATCH_FOR_RECALC = """
+    SELECT status, stage, home_goals, away_goals
+    FROM matches
+    WHERE id = %s
 """
 
 SQL_GET_SCORING_RULE = """
@@ -1148,6 +1159,40 @@ def finalize_match(match_id: int, home_goals: int, away_goals: int) -> dict:
                     cur.execute(SQL_UPDATE_PREDICTION_POINTS, (pts, pred["id"]))
 
                 # 7 — return the joined match for the response
+                cur.execute(SQL_GET_MATCH_FULL, (match_id,))
+                return _row_to_match(dict(cur.fetchone()))
+    finally:
+        release_conn(conn)
+
+
+def recalculate_points(match_id: int) -> dict:
+    # recovery tool: re-scores predictions for a match that's already
+    # finished with a result but whose points were never computed (e.g.
+    # bootstrap wrote status='finished' without going through finalize_match).
+    # does not touch matches.status or the score, only predictions.points_awarded
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_GET_MATCH_FOR_RECALC, (match_id,))
+                row = cur.fetchone()
+                if row is None:
+                    raise MatchNotFound()
+                if row["status"] != "finished" or row["home_goals"] is None or row["away_goals"] is None:
+                    raise MatchNotFinished()
+
+                cur.execute(SQL_LIST_PREDICTIONS_FOR_MATCH, (match_id,))
+                predictions = cur.fetchall()
+                cur.execute(SQL_GET_SCORING_RULE, (row["stage"],))
+                rules = dict(cur.fetchone())
+
+                for pred in predictions:
+                    pts = calculate_points(
+                        pred["pred_home"], pred["pred_away"],
+                        row["home_goals"], row["away_goals"], rules,
+                    )
+                    cur.execute(SQL_UPDATE_PREDICTION_POINTS, (pts, pred["id"]))
+
                 cur.execute(SQL_GET_MATCH_FULL, (match_id,))
                 return _row_to_match(dict(cur.fetchone()))
     finally:
