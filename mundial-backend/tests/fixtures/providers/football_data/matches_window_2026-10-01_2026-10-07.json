@@ -1,0 +1,12 @@
+{
+ "filters": {
+  "dateFrom": "2026-10-01",
+  "dateTo": "2026-10-07",
+  "permission": "TIER_ONE",
+  "competitions": "CL,PL,PD,SA,BL1,FL1"
+ },
+ "resultSet": {
+  "count": 0
+ },
+ "matches": []
+}

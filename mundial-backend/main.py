@@ -1,10 +1,8 @@
 import asyncio
 import logging
 import os
-import re
 import time
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,52 +37,10 @@ def _wait_for_db(max_attempts: int = 30) -> None:
 
 
 def run_migrations() -> None:
-    """Apply any SQL migrations in db/migrations/ that haven't run yet.
+    """Apply pending SQL migrations — logic lives in db/migrate.py."""
+    from db.migrate import run_migrations as apply_pending
 
-    Uses a schema_migrations table as a tracking ledger — safe to call on
-    every startup; already-applied files are skipped.
-    """
-    from db.connection import get_conn, release_conn
-
-    migrations_dir = Path(__file__).parent / "db" / "migrations"
-
-    conn = get_conn()
-    try:
-        # create the ledger table if this is the very first boot
-        with conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS schema_migrations (
-                        filename   TEXT        PRIMARY KEY,
-                        applied_at TIMESTAMPTZ DEFAULT NOW()
-                    )
-                """)
-
-        for sql_file in sorted(migrations_dir.glob("*.sql")):
-            with conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "SELECT 1 FROM schema_migrations WHERE filename = %s",
-                        (sql_file.name,),
-                    )
-                    if cur.fetchone():
-                        continue  # already applied
-
-                    logger.info("applying migration %s", sql_file.name)
-                    # strip comments BEFORE splitting so semicolons inside
-                    # comments don't produce broken statement fragments
-                    sql_text = re.sub(r"--[^\n]*", "", sql_file.read_text())
-                    for stmt in sql_text.split(";"):
-                        clean = stmt.strip()
-                        if clean:
-                            cur.execute(clean)
-                    cur.execute(
-                        "INSERT INTO schema_migrations (filename) VALUES (%s)",
-                        (sql_file.name,),
-                    )
-                    logger.info("migration %s applied", sql_file.name)
-    finally:
-        release_conn(conn)
+    apply_pending()
 
 
 @asynccontextmanager

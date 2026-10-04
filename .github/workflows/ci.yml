@@ -1,0 +1,84 @@
+name: CI
+
+# runs on every PR and push, and is reused by deploy-backend.yml
+# so nothing gets deployed without green tests
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]   # main is covered by deploy-backend.yml calling this file
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mundial-backend
+
+    # real postgres for integration tests (migrations + SQL)
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      RUN_DB_TESTS: "1"
+      TEST_POSTGRES_HOST: localhost
+      TEST_POSTGRES_PORT: "55432"
+      TEST_POSTGRES_USER: test
+      TEST_POSTGRES_PASSWORD: test
+      TEST_POSTGRES_DB: test
+      # unit tests build JWTs, any value works here
+      JWT_SECRET: ci-only-secret-at-least-32-characters-long
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run tests
+        run: uv run pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mundial-frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mundial-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # lint has old errors from the mundial version — report only for now,
+      # make it blocking once the frontend stage cleans them up
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Build
+        run: npm run build
