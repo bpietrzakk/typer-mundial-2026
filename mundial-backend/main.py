@@ -103,19 +103,24 @@ async def _poll_results() -> None:
     from db.queries import finalize_match, get_match_by_external_id, MatchAlreadyFinished, MatchNotFound
     from services.football_api import fetch_finished_matches
 
+    def poll_once() -> None:
+        # blocking http + sql, runs in a worker thread
+        for m in fetch_finished_matches():
+            row = get_match_by_external_id(m["external_id"])
+            if row is None or row["status"] == "finished":
+                continue
+            if m["home_goals"] is None or m["away_goals"] is None:
+                continue
+            try:
+                finalize_match(row["id"], m["home_goals"], m["away_goals"])
+                logger.info("auto-finalized %s %s:%s", m["external_id"], m["home_goals"], m["away_goals"])
+            except (MatchAlreadyFinished, MatchNotFound):
+                pass
+
     while True:
         await asyncio.sleep(_POLL_INTERVAL)
         try:
-            for m in fetch_finished_matches():
-                row = get_match_by_external_id(m["external_id"])
-                if row is None or row["status"] == "finished":
-                    continue
-                if m["home_goals"] is None or m["away_goals"] is None:
-                    continue
-                try:
-                    finalize_match(row["id"], m["home_goals"], m["away_goals"])
-                    logger.info("auto-finalized %s %s:%s", m["external_id"], m["home_goals"], m["away_goals"])
-                except (MatchAlreadyFinished, MatchNotFound):
-                    pass
+            # to_thread so a slow API call doesn't freeze every other request
+            await asyncio.to_thread(poll_once)
         except Exception as exc:
             logger.warning("result poll failed: %s", exc)

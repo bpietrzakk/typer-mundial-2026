@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from db.migrate import run_migrations
+from domain.scoring import calculate_points
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
@@ -43,16 +44,36 @@ def _insert(cur, query: str, params: tuple):
     return cur.fetchone()[0]
 
 
+def _legacy_finalize(cur, match_id: int, home: int, away: int) -> None:
+    # pre-005 finalize_match: goals + status, points from scoring_rules by stage
+    # (today's finalize_match needs the 005 schema, so the 004 dataset can't use it)
+    cur.execute(
+        "UPDATE matches SET home_goals = %s, away_goals = %s, status = 'finished' "
+        "WHERE id = %s RETURNING stage",
+        (home, away, match_id),
+    )
+    stage = cur.fetchone()[0]
+    cur.execute(
+        "SELECT exact_pts, diff_pts, tendency_pts FROM scoring_rules WHERE stage = %s",
+        (stage,),
+    )
+    exact_pts, diff_pts, tendency_pts = cur.fetchone()
+    rules = {"exact_pts": exact_pts, "diff_pts": diff_pts, "tendency_pts": tendency_pts}
+    cur.execute("SELECT id, pred_home, pred_away FROM predictions WHERE match_id = %s", (match_id,))
+    for pred_id, pred_home, pred_away in cur.fetchall():
+        points = calculate_points(pred_home, pred_away, home, away, rules)
+        cur.execute("UPDATE predictions SET points_awarded = %s WHERE id = %s", (points, pred_id))
+
+
 def build_world_cup(conn) -> dict:
     """Fill a 001–004 database with Mundial-like data, scored the real way.
 
     needs the app pool pointed at the same db (fixture app_pool) because
-    scoring goes through db.queries.finalize_match and friends.
+    bonuses + leagues go through db.queries (match points use _legacy_finalize).
     returns ids that tests may want to look at.
     """
     from db.queries import (
         create_league,
-        finalize_match,
         join_league,
         score_all_champion_bonuses,
         score_all_group_advances,
@@ -135,10 +156,12 @@ def build_world_cup(conn) -> dict:
                         (ids["users"][nick], group, t[short]),
                     )
 
-    # finish + score through the real app path (all but the last two matches)
+    # finish + score the way the 001–004 code did (all but the last two matches)
     matches = ids["matches"]
-    for m in matches[:-2]:
-        finalize_match(m["id"], rng.randint(0, 4), rng.randint(0, 4))
+    with conn:
+        with conn.cursor() as cur:
+            for m in matches[:-2]:
+                _legacy_finalize(cur, m["id"], rng.randint(0, 4), rng.randint(0, 4))
 
     # last-but-one: finished by the old bootstrap bug, predictions never scored
     # last: still scheduled (e.g. never played) — both must stay untouched

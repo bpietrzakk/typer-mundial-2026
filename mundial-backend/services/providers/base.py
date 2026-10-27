@@ -31,7 +31,7 @@ class ProviderMatch:
     external_id: str
     competition_ref: str
     season_ref: str | None
-    kickoff_at: datetime        # aware UTC
+    kickoff_at: datetime | None # aware UTC, None if provider sends no date
     kickoff_confirmed: bool
     status: str                 # our vocabulary: scheduled/live/finished/postponed/...
     phase: str                  # our vocabulary: regular/league_phase/group/.../other

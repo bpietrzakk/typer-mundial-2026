@@ -46,7 +46,7 @@ Mecz (`matches`) należy do sezonu i rundy, ma datę rozpoczęcia w UTC (`kickof
 
 Wynik jest rozbity na części, bo punktujemy **wynik po 90 minutach** (z doliczonym czasem), a dogrywka i karne nie mają znaczenia dla typu. `home_goals`/`away_goals` to wynik po 90 minutach dla zakończonego meczu (a w trakcie meczu — bieżący wynik). Osobno trzymamy wynik po dogrywce (`home_goals_et`/`away_goals_et`), rzuty karne (`home_pens`/`away_pens`) i sposób rozstrzygnięcia (`decided_by`: `regular`, `extra_time`, `penalties`). Przykład: finał 0:0 po 90 minutach, 1:0 po dogrywce zapisuje się jako `home_goals=0, away_goals=0, home_goals_et=1, away_goals_et=0, decided_by='extra_time'` — kto typował 0:0, trafił dokładny wynik.
 
-`scored_at` to moment naliczenia punktów, a `last_synced_at` — ostatnia aktualizacja z API.
+`scored_at` to moment naliczenia punktów, a `last_synced_at` — ostatnia aktualizacja z API. Dla archiwalnych sezonów `scored_at` = `kickoff_at` (migracja 006), więc ich wyniki nie są już ponownie przeliczane.
 
 ## Typy i punkty
 

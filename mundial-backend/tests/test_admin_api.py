@@ -8,7 +8,6 @@ os.environ.setdefault("ADMIN_EMAILS", "admin@example.com")
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from db import queries as queries_module  # noqa: E402
 from domain.auth import create_access_token  # noqa: E402
 from main import app  # noqa: E402
 from routers import deps as deps_module  # noqa: E402

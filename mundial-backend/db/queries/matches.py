@@ -43,7 +43,7 @@ SQL_UPSERT_MATCH = """
     INSERT INTO matches (
         league_id, season_id, round_id, provider,
         home_team_id, away_team_id,
-        kickoff_at, stage, status, home_goals, away_goals, external_id
+        kickoff_at, stage, status, home_goals, away_goals, external_id, scored_at
     )
     SELECT
         (SELECT id FROM leagues WHERE name = 'Mundial 2026'),
@@ -53,7 +53,9 @@ SQL_UPSERT_MATCH = """
         'football-data',
         (SELECT id FROM teams WHERE provider = 'football-data' AND external_id = v.home_ext),
         (SELECT id FROM teams WHERE provider = 'football-data' AND external_id = v.away_ext),
-        v.kickoff_at, v.stage, v.status, v.home_goals, v.away_goals, v.external_id
+        v.kickoff_at, v.stage, v.status, v.home_goals, v.away_goals, v.external_id,
+        -- inserted already finished = nothing to score, stamp it right away
+        CASE WHEN v.status = 'finished' THEN NOW() END
     FROM (VALUES (
         %s::text, %s::text, %s::timestamptz, %s::text, %s::text, %s::int, %s::int, %s::text
     )) AS v (home_ext, away_ext, kickoff_at, stage, status, home_goals, away_goals, external_id)
@@ -62,11 +64,14 @@ SQL_UPSERT_MATCH = """
         SET status     = EXCLUDED.status,
             home_goals = EXCLUDED.home_goals,
             away_goals = EXCLUDED.away_goals
+        -- scored_at left alone on update: an existing match may have
+        -- predictions, only finalize_match may mark it scored
     RETURNING id, external_id, status, home_goals, away_goals
 """
 
+# legacy Mundial code only talks to football-data, external_id is unique per provider
 SQL_GET_MATCH_BY_EXTERNAL_ID = """
-    SELECT id, status FROM matches WHERE external_id = %s
+    SELECT id, status FROM matches WHERE provider = 'football-data' AND external_id = %s
 """
 
 # set a team's group from bootstrap (matched by external_id)

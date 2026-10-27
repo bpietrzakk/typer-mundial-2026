@@ -37,14 +37,14 @@ def test_runner_is_idempotent(conn):
 
 
 def test_runner_respects_existing_ledger(conn):
-    # prod already has 001..004 in the ledger — only 005 must run
+    # prod already has 001..004 in the ledger — only 005+ must run
     assert migrate_to(conn, until="004") == [
         "001_init.sql",
         "002_seed_mundial_2026.sql",
         "003_add_crest_url.sql",
         "004_add_prize_pool.sql",
     ]
-    assert migrate_to(conn) == ["005_multi_competition.sql"]
+    assert migrate_to(conn) == ["005_multi_competition.sql", "006_archived_scored_at.sql"]
 
 
 def test_rollback_restores_schema_and_data(conn, app_pool):
@@ -104,6 +104,9 @@ def test_rollback_restores_schema_and_data(conn, app_pool):
             )
             cur.execute("INSERT INTO sync_runs (kind, status) VALUES ('window', 'ok')")
 
+    # newest first: 006 then 005
+    assert run_rollback(conn, "006") == "006_archived_scored_at.down.sql"
+    assert "006_archived_scored_at.sql" not in _ledger(conn)
     assert run_rollback(conn, "005") == "005_multi_competition.down.sql"
 
     assert schema_signature(conn) == schema_before
@@ -111,4 +114,4 @@ def test_rollback_restores_schema_and_data(conn, app_pool):
     assert "005_multi_competition.sql" not in _ledger(conn)
 
     # and it can go forward again
-    assert migrate_to(conn) == ["005_multi_competition.sql"]
+    assert migrate_to(conn) == ["005_multi_competition.sql", "006_archived_scored_at.sql"]

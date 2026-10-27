@@ -19,6 +19,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
+    "ruff>=0.17.3",
 ]
 
 [tool.pytest.ini_options]
@@ -26,3 +27,11 @@ pythonpath = ["."]
 markers = [
     "integration: real Postgres tests, run with RUN_DB_TESTS=1 (see tests/integration/conftest.py)",
 ]
+
+# same lint rules for everyone (and CI), ignores personal ruff configs
+[tool.ruff]
+line-length = 120
+exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

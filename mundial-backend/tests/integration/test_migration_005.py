@@ -45,7 +45,7 @@ def test_snapshot_identical_after_005(conn, wc_db):
     assert before["counts"]["scored_predictions"] > 50
     assert any(r["total_points"] > 0 for r in before["global_ranking"])
 
-    assert migrate_to(conn) == ["005_multi_competition.sql"]
+    assert migrate_to(conn) == ["005_multi_competition.sql", "006_archived_scored_at.sql"]
 
     after = verify.take_snapshot(conn)
     assert verify.compare_snapshots(before, after) == []

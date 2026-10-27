@@ -26,9 +26,11 @@ Duże zmiany schematu robimy w dwóch krokach. Najpierw migracja **expand** tylk
 
 Przykład: `005_multi_competition.sql` dodała rozgrywki, sezony i rundy oraz przepisała do nich dane Mundialu, ale `matches.stage` i tabela `scoring_rules` nadal istnieją ([data-model.md](data-model.md) ma pełną listę).
 
+`006_archived_scored_at.sql` ustawia `scored_at` meczów z archiwalnych sezonów na godzinę rozpoczęcia meczu (005 wpisała tam `NOW()`), żeby 24-godzinne okno ponownego przeliczania nie objęło zakończonego Mundialu.
+
 ## Cofanie (rollback)
 
-Do każdej migracji, która zmienia istniejące tabele, jest plik cofający w `db/migrations/rollback/NNN_nazwa.down.sql`. Runner nigdy nie wykonuje go sam — tylko przez `--down NNN`. Plik cofający 005 usuwa dane spoza Mundialu, odtwarza dokładnie schemat sprzed 005 i kasuje wpis z `schema_migrations`.
+Do każdej migracji, która zmienia istniejące tabele, jest plik cofający w `db/migrations/rollback/NNN_nazwa.down.sql`. Runner nigdy nie wykonuje go sam — tylko przez `--down NNN`. Plik cofający 005 usuwa dane spoza Mundialu, odtwarza dokładnie schemat sprzed 005 i kasuje wpis z `schema_migrations`. Cofamy od najnowszej: najpierw `--down 006`, potem `--down 005`.
 
 Na produkcji pierwszą linią obrony nie jest jednak plik cofający, tylko kopia bazy zrobiona tuż przed migracją. Neon pozwala zrobić gałąź bazy (branch) w kilka sekund — jeśli po migracji coś jest nie tak, przełącza się aplikację z powrotem na gałąź sprzed migracji.
 

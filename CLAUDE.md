@@ -148,6 +148,9 @@ Serwisy zewnętrzne (`services/`) są wywoływane z routerów, nie z domeny:
 
 ## Model danych
 
+> Poniżej model z MVP Mundialu. Od migracji 005 (multi-competition) aktualny opis tabel
+> (competitions, seasons, rounds, scoring_profiles, ...) jest w `docs/data-model.md`.
+
 ```sql
 users
     id, nick, email, password_hash, email_verified, created_at
