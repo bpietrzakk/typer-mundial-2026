@@ -65,6 +65,14 @@ SQL_UPDATE_PREDICTION_SCORE = """
 """
 
 
+# cancelled / awarded match: predictions don't count, so points and hit_type go back to NULL
+SQL_VOID_MATCH_PREDICTIONS = """
+    UPDATE predictions
+    SET points_awarded = NULL, hit_type = NULL
+    WHERE match_id = %s
+"""
+
+
 def _score_predictions(cur, match_id: int, home_goals: int, away_goals: int) -> None:
     # load rules for this match, score every prediction in domain, save points + hit_type
     cur.execute(SQL_GET_MATCH_SCORING_RULES, (match_id,))
@@ -87,6 +95,20 @@ def _score_predictions(cur, match_id: int, home_goals: int, away_goals: int) -> 
             SQL_UPDATE_PREDICTION_SCORE,
             (result["points"], result["hit_type"], result["prediction_id"]),
         )
+
+
+def score_match(cur, match_id: int, home_goals: int, away_goals: int) -> None:
+    # THE scoring step, shared by finalize_match, recalculate_points and the provider sync.
+    # runs inside the caller's transaction: points + hit_type for every prediction,
+    # then stamps scored_at (an existing value is kept, so a re-score never extends the rescore window)
+    _score_predictions(cur, match_id, home_goals, away_goals)
+    cur.execute(SQL_MARK_MATCH_SCORED, (match_id,))
+
+
+def void_match_predictions(cur, match_id: int) -> int:
+    # for cancelled / awarded matches, returns how many predictions were cleared
+    cur.execute(SQL_VOID_MATCH_PREDICTIONS, (match_id,))
+    return cur.rowcount
 
 
 def finalize_match(match_id: int, home_goals: int, away_goals: int) -> dict:
@@ -120,7 +142,7 @@ def finalize_match(match_id: int, home_goals: int, away_goals: int) -> dict:
                 )
 
                 # 4, 5 & 6 — score each prediction and persist
-                _score_predictions(cur, match_id, home_goals, away_goals)
+                score_match(cur, match_id, home_goals, away_goals)
 
                 # 7 — return the joined match for the response
                 cur.execute(SQL_GET_MATCH_FULL, (match_id,))
@@ -145,8 +167,7 @@ def recalculate_points(match_id: int) -> dict:
                 if row["status"] != "finished" or row["home_goals"] is None or row["away_goals"] is None:
                     raise MatchNotFinished()
 
-                _score_predictions(cur, match_id, row["home_goals"], row["away_goals"])
-                cur.execute(SQL_MARK_MATCH_SCORED, (match_id,))
+                score_match(cur, match_id, row["home_goals"], row["away_goals"])
 
                 cur.execute(SQL_GET_MATCH_FULL, (match_id,))
                 return _row_to_match(dict(cur.fetchone()))

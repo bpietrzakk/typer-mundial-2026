@@ -2,6 +2,10 @@ from datetime import datetime, timedelta
 
 from domain.match_status import as_utc
 
+# how long after scoring a provider correction still changes points
+# (also used by the sync job to pick matches worth re-checking)
+RESCORE_WINDOW_HOURS = 24
+
 
 def should_rescore(
     scored_at: datetime | None,
@@ -10,7 +14,7 @@ def should_rescore(
     old_away: int | None,
     new_home: int | None,
     new_away: int | None,
-    window_hours: int = 24,
+    window_hours: int = RESCORE_WINDOW_HOURS,
 ) -> bool:
     # never scored yet -> this is first scoring, not a rescore
     if scored_at is None:

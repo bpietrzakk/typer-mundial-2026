@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import date, datetime
+from typing import Annotated
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -267,3 +268,251 @@ class GroupResultRequest(BaseModel):
 class ScoringImpactResponse(BaseModel):
     # how many rows the admin's action just touched
     updated: int
+
+
+# --- league bonus (agent D) ---
+# own copies of the shared Team / CompetitionRef shapes, prefixed so they never
+# clash with the same shapes defined in other sections
+
+class LeagueBonusTeam(BaseModel):
+    id: int
+    name: str
+    short_name: str | None = None
+    crest_url: str | None = None
+
+
+class LeagueBonusCompetitionRef(BaseModel):
+    id: int
+    code: str
+    name: str
+
+
+class LeagueBonusSeason(BaseModel):
+    id: int
+    label: str
+    competition: LeagueBonusCompetitionRef
+
+
+class LeagueBonusMyAnswer(BaseModel):
+    team: LeagueBonusTeam
+    # None until the question is resolved
+    points_awarded: int | None = None
+
+
+class LeagueBonusAnswerEntry(BaseModel):
+    user_id: int
+    nick: str
+    team: LeagueBonusTeam
+    points_awarded: int | None = None
+
+
+class LeagueBonusQuestionResponse(BaseModel):
+    id: int
+    season: LeagueBonusSeason
+    kind: str
+    points: int
+    deadline_at: datetime
+    is_open: bool
+    resolved_team: LeagueBonusTeam | None = None
+    resolved_at: datetime | None = None
+    my_answer: LeagueBonusMyAnswer | None = None
+    # empty before the deadline, everybody's answers after it
+    answers: list[LeagueBonusAnswerEntry]
+
+
+class LeagueBonusQuestionRequest(BaseModel):
+    # strict ints: JSON true / 20.0 / "20" are rejected (422) instead of coerced
+    season_id: int = Field(strict=True)
+    # only "champion" for now, checked in the router (Polish error message)
+    kind: str = Field(min_length=1, max_length=32)
+    # range 1..100 is checked in domain.league_bonus
+    points: int = Field(strict=True)
+    deadline_at: datetime
+
+
+class LeagueBonusAnswerRequest(BaseModel):
+    team_id: int = Field(strict=True)
+
+
+class LeagueBonusResolveRequest(BaseModel):
+    # the real winner of the season
+    team_id: int = Field(strict=True)
+
+
+class LeagueBonusResolveResponse(BaseModel):
+    questions_resolved: int
+    answers_scored: int
+
+
+# --- competitions (agent B) ---
+# shapes from docs/api-contract.md (competitions, seasons, rounds, matches,
+# predictions, rankings, league scope). Team = TeamSummary, team + group = TeamWithGroup
+
+class CompetitionRef(BaseModel):
+    id: int
+    code: str
+    name: str
+
+
+class SeasonRef(BaseModel):
+    id: int
+    label: str
+    status: str  # upcoming | active | archived
+
+
+class CompetitionListEntry(BaseModel):
+    id: int
+    code: str
+    name: str
+    country: str | None = None
+    kind: str  # league | cup | national_cup
+    logo_url: str | None = None
+    is_active: bool
+    is_followed: bool
+    # active season, or the newest one when none is active
+    current_season: SeasonRef | None = None
+
+
+class SeasonDetail(BaseModel):
+    id: int
+    label: str
+    status: str
+    starts_on: date | None = None
+    ends_on: date | None = None
+    competition: CompetitionRef
+
+
+class RoundSummary(BaseModel):
+    id: int
+    phase: str
+    matchday: int | None = None
+    name: str
+    sort_order: int
+    match_count: int
+    finished_count: int
+    first_kickoff: datetime | None = None
+    last_kickoff: datetime | None = None
+    is_current: bool  # exactly one round per season
+
+
+class MatchRound(BaseModel):
+    id: int
+    phase: str
+    matchday: int | None = None
+    name: str
+
+
+class MyPrediction(BaseModel):
+    pred_home: int
+    pred_away: int
+    points_awarded: int | None = None  # null until the match is scored
+    hit_type: str | None = None  # exact | diff | tendency | miss
+
+
+class CompetitionMatch(BaseModel):
+    id: int
+    competition: CompetitionRef
+    season_id: int
+    round: MatchRound
+    kickoff_at: datetime
+    kickoff_confirmed: bool
+    status: str  # scheduled | live | finished | postponed | suspended | cancelled | awarded
+    home_team: TeamSummary
+    away_team: TeamSummary
+    # finished = score after 90 minutes, live = current score
+    home_goals: int | None = None
+    away_goals: int | None = None
+    home_goals_et: int | None = None
+    away_goals_et: int | None = None
+    home_pens: int | None = None
+    away_pens: int | None = None
+    decided_by: str | None = None  # regular | extra_time | penalties
+    can_predict: bool
+    my_prediction: MyPrediction | None = None
+
+
+class SeasonRankingEntry(BaseModel):
+    # used by the season ranking and the private league ranking
+    rank: int
+    user_id: int
+    nick: str
+    total_points: int
+    exact_hits: int
+    diff_hits: int
+    scored_predictions: int
+
+
+class PredictionResult(PredictionResponse):
+    # POST /predictions: the old fields + which tier was hit
+    hit_type: str | None = None
+
+
+class MyPredictionDetail(MyPredictionEntry):
+    # GET /predictions/mine and /predictions/user/{id}: the old fields + context
+    hit_type: str | None = None
+    season_id: int | None = None
+    competition_code: str | None = None
+    round_name: str | None = None
+
+
+class LeagueScopeResponse(BaseModel):
+    # all=true means "no restriction", the list is empty then
+    all: bool
+    competitions: list[CompetitionRef]
+
+
+# ids are bigint in the database: anything outside that range is a 422 here,
+# not a database error later
+CompetitionId = Annotated[int, Field(ge=1, le=2**63 - 1)]
+
+
+class LeagueScopeRequest(BaseModel):
+    # empty list = every competition
+    competition_ids: list[CompetitionId] = Field(max_length=100)
+
+
+# --- sync (agent A) ---
+
+class SyncRunRequest(BaseModel):
+    # season = whole current season, window = matches around today, rescore = lately scored matches
+    kind: str = Field(pattern="^(season|window|rescore)$")
+    competition_code: str | None = Field(default=None, max_length=16)
+
+
+class SyncRunResponse(BaseModel):
+    id: int
+    kind: str
+    competition_code: str | None
+    status: str
+    started_at: datetime
+    finished_at: datetime | None
+    requests_used: int
+    matches_upserted: int
+    matches_scored: int
+    error: str | None
+
+
+class AdminSeasonRef(BaseModel):
+    id: int
+    label: str
+    status: str
+
+
+class AdminCompetitionResponse(BaseModel):
+    id: int
+    code: str
+    name: str
+    country: str | None
+    kind: str
+    logo_url: str | None
+    is_active: bool
+    is_followed: bool
+    current_season: AdminSeasonRef | None
+    provider: str | None
+    provider_ref: str | None
+    last_sync_at: datetime | None
+    last_sync_status: str | None
+
+
+class AdminCompetitionUpdateRequest(BaseModel):
+    is_active: bool

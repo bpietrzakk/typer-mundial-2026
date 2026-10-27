@@ -155,7 +155,7 @@ def test_submit_absurd_score_returns_422(monkeypatch):
 def test_my_predictions_returns_enriched_list(monkeypatch):
     monkeypatch.setattr(
         predictions_module, "list_user_predictions",
-        lambda uid: [
+        lambda uid, season_id=None: [
             {
                 "id": 1, "match_id": 10, "pred_home": 2, "pred_away": 1,
                 "points_awarded": 5, "match_stage": "group",
@@ -179,7 +179,7 @@ def test_my_predictions_returns_enriched_list(monkeypatch):
 
 
 def test_my_predictions_empty_when_none(monkeypatch):
-    monkeypatch.setattr(predictions_module, "list_user_predictions", lambda uid: [])
+    monkeypatch.setattr(predictions_module, "list_user_predictions", lambda uid, season_id=None: [])
     resp = client.get("/predictions/mine", cookies=_auth_cookie())
     assert resp.status_code == 200
     assert resp.json() == []
@@ -226,3 +226,130 @@ def test_user_predictions_empty_when_none(monkeypatch):
 def test_user_predictions_without_auth_returns_401():
     resp = client.get("/predictions/user/99")
     assert resp.status_code == 401
+
+
+# --- lock by match status (multi-competition) ---
+
+def _match_with(status: str, kickoff_in: timedelta) -> dict:
+    m = _future_match(1)
+    m["status"] = status
+    m["kickoff_at"] = datetime.now(timezone.utc) + kickoff_in
+    return m
+
+
+@pytest.mark.parametrize("status,kickoff_in,word", [
+    # postponed / suspended stay locked even with a future kickoff
+    ("postponed", timedelta(days=3), "przełożony"),
+    ("suspended", timedelta(days=3), "przełożony"),
+    ("suspended", -timedelta(hours=1), "przełożony"),
+    ("live", -timedelta(minutes=20), "rozpoczął"),
+    # status not synced yet but the clock says the match started
+    ("scheduled", -timedelta(minutes=1), "rozpoczął"),
+    ("finished", -timedelta(days=1), "zakończył"),
+    ("awarded", -timedelta(days=1), "zakończył"),
+    ("cancelled", timedelta(days=3), "odwołany"),
+])
+def test_closed_matches_return_409(monkeypatch, status, kickoff_in, word):
+    monkeypatch.setattr(
+        predictions_module, "get_match_by_id", lambda mid: _match_with(status, kickoff_in),
+    )
+    saved = []
+    monkeypatch.setattr(predictions_module, "upsert_prediction", lambda *a: saved.append(a))
+    resp = client.post(
+        "/predictions",
+        json={"match_id": 1, "pred_home": 1, "pred_away": 0},
+        cookies=_auth_cookie(),
+    )
+    assert resp.status_code == 409
+    assert word in resp.json()["detail"]
+    assert saved == []
+
+
+def test_scheduled_future_match_is_still_accepted(monkeypatch):
+    monkeypatch.setattr(
+        predictions_module, "get_match_by_id", lambda mid: _match_with("scheduled", timedelta(hours=2)),
+    )
+    monkeypatch.setattr(predictions_module, "upsert_prediction", lambda uid, mid, ph, pa: {
+        "id": 1, "user_id": uid, "match_id": mid, "pred_home": ph, "pred_away": pa,
+        "points_awarded": None, "hit_type": None, "created_at": "2026-06-02T10:00:00+00:00",
+    })
+    resp = client.post(
+        "/predictions",
+        json={"match_id": 1, "pred_home": 0, "pred_away": 0},
+        cookies=_auth_cookie(),
+    )
+    assert resp.status_code == 200
+
+
+def test_response_has_hit_type_and_keeps_old_fields(monkeypatch):
+    monkeypatch.setattr(predictions_module, "get_match_by_id", lambda mid: _future_match(42))
+    monkeypatch.setattr(predictions_module, "upsert_prediction", lambda uid, mid, ph, pa: {
+        "id": 1, "user_id": uid, "match_id": mid, "pred_home": ph, "pred_away": pa,
+        "points_awarded": None, "hit_type": None, "created_at": "2026-06-02T10:00:00+00:00",
+    })
+    body = client.post(
+        "/predictions",
+        json={"match_id": 42, "pred_home": 2, "pred_away": 1},
+        cookies=_auth_cookie(),
+    ).json()
+    assert set(body) == {
+        "id", "user_id", "match_id", "pred_home", "pred_away", "points_awarded", "hit_type", "created_at",
+    }
+    assert body["hit_type"] is None
+
+
+# --- GET /predictions/mine?season_id= ---
+
+MINE_ROW = {
+    "id": 1, "match_id": 10, "pred_home": 2, "pred_away": 1,
+    "points_awarded": 3, "hit_type": "diff", "match_stage": "regular",
+    "kickoff_at": "2026-10-31T15:00:00+00:00", "status": "finished",
+    "home_goals": 3, "away_goals": 2,
+    "home_team_name": "Arsenal", "away_team_name": "Chelsea",
+    "season_id": 5, "competition_code": "EPL", "round_name": "Kolejka 9",
+}
+
+
+def test_mine_exposes_the_extra_fields(monkeypatch):
+    monkeypatch.setattr(predictions_module, "list_user_predictions", lambda uid, season_id=None: [MINE_ROW])
+    body = client.get("/predictions/mine", cookies=_auth_cookie()).json()
+    assert body[0]["season_id"] == 5
+    assert body[0]["competition_code"] == "EPL"
+    assert body[0]["round_name"] == "Kolejka 9"
+    assert body[0]["hit_type"] == "diff"
+    # old fields are still there
+    assert body[0]["match_stage"] == "regular"
+    assert body[0]["home_team_name"] == "Arsenal"
+
+
+def test_mine_passes_season_id_to_the_query(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(predictions_module, "get_season", lambda sid: {"id": sid})
+    monkeypatch.setattr(
+        predictions_module, "list_user_predictions",
+        lambda uid, season_id=None: seen.update(uid=uid, season_id=season_id) or [MINE_ROW],
+    )
+    resp = client.get("/predictions/mine?season_id=5", cookies=_auth_cookie())
+    assert resp.status_code == 200
+    assert seen == {"uid": FAKE_USER["id"], "season_id": 5}
+
+
+def test_mine_without_season_id_asks_for_everything(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(
+        predictions_module, "list_user_predictions",
+        lambda uid, season_id=None: seen.update(season_id=season_id) or [],
+    )
+    assert client.get("/predictions/mine", cookies=_auth_cookie()).status_code == 200
+    assert seen == {"season_id": None}
+
+
+def test_mine_unknown_season_returns_404(monkeypatch):
+    monkeypatch.setattr(predictions_module, "get_season", lambda sid: None)
+    resp = client.get("/predictions/mine?season_id=999", cookies=_auth_cookie())
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Sezon nie istnieje"
+
+
+def test_mine_season_id_must_be_a_number():
+    assert client.get("/predictions/mine?season_id=abc", cookies=_auth_cookie()).status_code == 422

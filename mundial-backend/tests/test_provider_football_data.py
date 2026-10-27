@@ -146,6 +146,31 @@ def test_normalize_current_season_cl():
     assert s.label == "2026/27"
 
 
+def test_season_without_winner_has_no_winner_id():
+    s = normalize_season(load("competition_PL")["currentSeason"], is_current=True)
+    assert s.winner_external_id is None
+
+
+def test_season_winner_is_the_team_id():
+    raw = {**load("competition_PL")["currentSeason"], "winner": {"id": 65, "name": "Manchester City FC", "tla": "MCI"}}
+    s = normalize_season(raw, is_current=True)
+    assert s.winner_external_id == "65"
+
+
+def test_season_winner_without_id_is_ignored():
+    raw = {**load("competition_PL")["currentSeason"], "winner": {"name": "Somebody"}}
+    assert normalize_season(raw, is_current=True).winner_external_id is None
+
+
+def test_get_current_season_returns_the_winner():
+    payload = {"currentSeason": {
+        "startDate": "2025-08-15", "endDate": "2026-05-24",
+        "winner": {"id": 57, "name": "Arsenal FC"},
+    }}
+    provider, _ = make_provider(lambda request: ok(payload))
+    assert provider.get_current_season("PL").winner_external_id == "57"
+
+
 # ---------- matches from recorded fixtures ----------
 
 def test_cl_league_phase_matches():

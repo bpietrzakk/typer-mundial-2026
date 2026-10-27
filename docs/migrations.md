@@ -28,9 +28,11 @@ Przykład: `005_multi_competition.sql` dodała rozgrywki, sezony i rundy oraz pr
 
 `006_archived_scored_at.sql` ustawia `scored_at` meczów z archiwalnych sezonów na godzinę rozpoczęcia meczu (005 wpisała tam `NOW()`), żeby 24-godzinne okno ponownego przeliczania nie objęło zakończonego Mundialu.
 
+`007_sync_run_lock.sql` dodaje tylko indeks: unikalny indeks częściowy `uq_sync_runs_one_running` na `sync_runs (status) WHERE status = 'running'`. Dopuszcza co najwyżej jeden wiersz „trwającego” przebiegu synchronizacji, więc dwa procesy nie synchronizują naraz (blokada doradcza odpada, bo Neon za pulerem transakcji nie trzyma blokad sesyjnych; szczegóły w [data-source.md](data-source.md#jeden-przebieg-naraz)). Zanim indeks powstanie, migracja oznacza ewentualne wiersze `running` jako błąd — inaczej indeks by się nie zbudował.
+
 ## Cofanie (rollback)
 
-Do każdej migracji, która zmienia istniejące tabele, jest plik cofający w `db/migrations/rollback/NNN_nazwa.down.sql`. Runner nigdy nie wykonuje go sam — tylko przez `--down NNN`. Plik cofający 005 usuwa dane spoza Mundialu, odtwarza dokładnie schemat sprzed 005 i kasuje wpis z `schema_migrations`. Cofamy od najnowszej: najpierw `--down 006`, potem `--down 005`.
+Do każdej migracji, która zmienia istniejące tabele, jest plik cofający w `db/migrations/rollback/NNN_nazwa.down.sql`. Runner nigdy nie wykonuje go sam — tylko przez `--down NNN`. Plik cofający 005 usuwa dane spoza Mundialu, odtwarza dokładnie schemat sprzed 005 i kasuje wpis z `schema_migrations`. Cofamy od najnowszej: najpierw `--down 007` (usuwa indeks blokady synchronizacji, wiersze `sync_runs` zostają), potem `--down 006`, potem `--down 005`.
 
 Na produkcji pierwszą linią obrony nie jest jednak plik cofający, tylko kopia bazy zrobiona tuż przed migracją. Neon pozwala zrobić gałąź bazy (branch) w kilka sekund — jeśli po migracji coś jest nie tak, przełącza się aplikację z powrotem na gałąź sprzed migracji.
 

@@ -90,22 +90,34 @@ SQL_SET_TEAM_GROUP = """
       AND c.code = 'WC' AND s.label = '2026'
 """
 
-# all teams for the bonus picker — group_name may be null for knockout teams
+# teams of the Mundial 2026 season for the bonus picker (legacy endpoint)
+# group_name may be null for knockout teams. new competitions never show up here
 SQL_LIST_TEAMS = """
-    SELECT id, name, short_name, group_name, crest_url
-    FROM teams
-    ORDER BY group_name NULLS LAST, name ASC
+    SELECT t.id, t.name, t.short_name, st.group_name, t.crest_url
+    FROM season_teams st
+    JOIN teams t ON t.id = st.team_id
+    JOIN seasons s ON s.id = st.season_id
+    JOIN competitions c ON c.id = s.competition_id
+    WHERE c.code = 'WC' AND s.label = '2026'
+    ORDER BY st.group_name NULLS LAST, t.name ASC
 """
 
 
+# legacy list = the Mundial 2026 archive only (stage is the old field, matches of
+# new competitions have none). the season is found by join, not by id
 SQL_LIST_MATCHES = """
     SELECT
-        m.id, m.stage, m.kickoff_at, m.status, m.home_goals, m.away_goals,
+        m.id, COALESCE(m.stage, r.phase) AS stage,
+        m.kickoff_at, m.status, m.home_goals, m.away_goals,
         h.id AS home_id, h.name AS home_name, h.short_name AS home_short, h.crest_url AS home_crest,
         a.id AS away_id, a.name AS away_name, a.short_name AS away_short, a.crest_url AS away_crest
     FROM matches m
+    JOIN rounds r ON r.id = m.round_id
+    JOIN seasons s ON s.id = m.season_id
+    JOIN competitions c ON c.id = s.competition_id
     JOIN teams h ON h.id = m.home_team_id
     JOIN teams a ON a.id = m.away_team_id
+    WHERE c.code = 'WC' AND s.label = '2026'
     ORDER BY m.kickoff_at ASC, m.id ASC
 """
 
@@ -117,12 +129,15 @@ SQL_GET_MATCH_BY_ID = """
 """
 
 
+# works for any match: new competitions have no legacy stage, the round phase stands in
 SQL_GET_MATCH_FULL = """
     SELECT
-        m.id, m.stage, m.kickoff_at, m.status, m.home_goals, m.away_goals,
+        m.id, COALESCE(m.stage, r.phase) AS stage,
+        m.kickoff_at, m.status, m.home_goals, m.away_goals,
         h.id AS home_id, h.name AS home_name, h.short_name AS home_short, h.crest_url AS home_crest,
         a.id AS away_id, a.name AS away_name, a.short_name AS away_short, a.crest_url AS away_crest
     FROM matches m
+    JOIN rounds r ON r.id = m.round_id
     JOIN teams h ON h.id = m.home_team_id
     JOIN teams a ON a.id = m.away_team_id
     WHERE m.id = %s
@@ -173,7 +188,7 @@ def set_team_group(external_id: str, group_name: str) -> None:
 
 
 def list_teams() -> list[dict]:
-    # all teams with their group — feeds the bonus picker
+    # Mundial 2026 teams with their group — feeds the bonus picker
     conn = get_conn()
     try:
         with conn:
@@ -214,7 +229,7 @@ def _row_to_match(r: dict) -> dict:
 
 
 def list_matches() -> list[dict]:
-    # full list ordered by kickoff — frontend groups by stage client-side
+    # Mundial 2026 matches ordered by kickoff — frontend groups by stage client-side
     conn = get_conn()
     try:
         with conn:

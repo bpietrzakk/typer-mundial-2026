@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from db.queries import (
     AlreadyMember,
@@ -14,13 +14,26 @@ from db.queries import (
     reset_join_code,
     update_prize_pool,
 )
+from db.queries.competitions import get_season
+from db.queries.leagues import (
+    is_season_in_league_scope,
+    list_active_season_ids_in_league_scope,
+    list_existing_competition_ids,
+    list_league_competitions,
+    replace_league_competitions,
+)
+from db.queries.ranking import get_league_season_ranking
+from domain.ranking import sort_ranking
 from routers.deps import get_current_user
 from schemas.models import (
     CreateLeagueRequest,
     JoinLeagueRequest,
     LeagueDetailResponse,
+    LeagueScopeRequest,
+    LeagueScopeResponse,
     LeagueSummary,
     ResetCodeResponse,
+    SeasonRankingEntry,
     UpdateLeagueSettingsRequest,
 )
 
@@ -165,3 +178,89 @@ def update_league_settings(
     if detail["owner_user_id"] != current_user["id"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tylko właściciel może edytować ligę")
     update_prize_pool(league_id, current_user["id"], body.prize_pool_per_person)
+
+
+# --- league scope and ranking (multi-competition) ---
+# unknown league -> 404, existing league but wrong person -> 403
+
+def _require_league(league_id: int) -> dict:
+    detail = get_league_with_owner(league_id)
+    if detail is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Liga nie istnieje")
+    return detail
+
+
+def _require_member(league_id: int, user_id: int) -> dict:
+    detail = _require_league(league_id)
+    if not is_league_member(league_id, user_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Nie należysz do tej ligi")
+    return detail
+
+
+def _scope_response(league_id: int) -> dict:
+    # no rows = the league counts every competition
+    competitions = list_league_competitions(league_id)
+    return {"all": not competitions, "competitions": competitions}
+
+
+@router.get("/{league_id}/competitions", response_model=LeagueScopeResponse)
+def get_league_scope(
+    league_id: int,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    # which competitions the league counts — members only
+    _require_member(league_id, current_user["id"])
+    return _scope_response(league_id)
+
+
+@router.put("/{league_id}/competitions", response_model=LeagueScopeResponse)
+def set_league_scope(
+    league_id: int,
+    body: LeagueScopeRequest,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    # owner narrows the league to chosen competitions, empty list = all of them
+    detail = _require_league(league_id)
+    if detail["owner_user_id"] != current_user["id"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tylko właściciel może zmienić zakres ligi",
+        )
+
+    # drop duplicates, keep the order the client sent
+    competition_ids = list(dict.fromkeys(body.competition_ids))
+    unknown = set(competition_ids) - list_existing_competition_ids(competition_ids)
+    if unknown:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Nieznane rozgrywki: " + ", ".join(str(i) for i in sorted(unknown)),
+        )
+
+    replace_league_competitions(league_id, competition_ids)
+    return _scope_response(league_id)
+
+
+@router.get("/{league_id}/ranking", response_model=list[SeasonRankingEntry])
+def get_league_scoped_ranking(
+    league_id: int,
+    season_id: int | None = Query(default=None),
+    current_user: dict = Depends(get_current_user),
+) -> list[dict]:
+    # members only. with season_id: that season (must be in the league scope),
+    # without it: every active season in the scope added up.
+    # league bonus answers of the chosen seasons are included either way
+    _require_member(league_id, current_user["id"])
+
+    if season_id is not None:
+        if get_season(season_id) is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sezon nie istnieje")
+        if not is_season_in_league_scope(league_id, season_id):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Ten sezon nie należy do rozgrywek tej ligi",
+            )
+        season_ids = [season_id]
+    else:
+        season_ids = list_active_season_ids_in_league_scope(league_id)
+
+    return sort_ranking(get_league_season_ranking(league_id, season_ids))

@@ -24,6 +24,7 @@ class ProviderSeason:
     starts_on: date | None
     ends_on: date | None
     is_current: bool
+    winner_external_id: str | None = None   # team id of the season winner, once decided
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,7 @@ class ProviderMatch:
 
 class FootballProvider(Protocol):
     name: str
+    requests_made: int          # counter of http requests, the sync log reads its delta
 
     def get_current_season(self, competition_ref: str) -> ProviderSeason: ...
 

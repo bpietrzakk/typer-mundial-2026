@@ -7,16 +7,25 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from domain.sync_plan import is_sync_enabled
 from routers import admin as admin_router
 from routers import admin_bonus as admin_bonus_router
+from routers import admin_sync as admin_sync_router
 from routers import admin_users as admin_users_router
 from routers import auth as auth_router
 from routers import bonus as bonus_router
+from routers import competitions as competitions_router
+from routers import league_bonus as league_bonus_router
 from routers import leagues as leagues_router
 from routers import matches as matches_router
 from routers import predictions as predictions_router
 from routers import ranking as ranking_router
+from services.sync import run_scheduler
 
+# without this our info logs (sync runs) never show up, uvicorn only configures its own loggers
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# httpx logs every request at info level, that is noise for the sync job
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +57,14 @@ async def lifespan(app: FastAPI):
     _wait_for_db()
     run_migrations()
 
-    task = asyncio.create_task(_poll_results())
+    task = None
+    if is_sync_enabled(os.getenv("SYNC_ENABLED"), os.getenv("FOOTBALL_API_KEY")):
+        task = asyncio.create_task(run_scheduler())
+    else:
+        logger.info("provider sync is off (SYNC_ENABLED=false or no FOOTBALL_API_KEY)")
     yield
-    task.cancel()
+    if task is not None:
+        task.cancel()
 
 
 app = FastAPI(
@@ -86,41 +100,10 @@ app.include_router(matches_router.router)
 app.include_router(predictions_router.router)
 app.include_router(admin_router.router)
 app.include_router(admin_bonus_router.router)
+app.include_router(admin_sync_router.router)
 app.include_router(admin_users_router.router)
 app.include_router(ranking_router.router)
 app.include_router(leagues_router.router)
 app.include_router(bonus_router.router)
-
-
-_POLL_INTERVAL = 5 * 60  # seconds
-
-
-async def _poll_results() -> None:
-    if not os.getenv("FOOTBALL_API_KEY"):
-        logger.info("FOOTBALL_API_KEY not set — skipping background job")
-        return
-
-    from db.queries import finalize_match, get_match_by_external_id, MatchAlreadyFinished, MatchNotFound
-    from services.football_api import fetch_finished_matches
-
-    def poll_once() -> None:
-        # blocking http + sql, runs in a worker thread
-        for m in fetch_finished_matches():
-            row = get_match_by_external_id(m["external_id"])
-            if row is None or row["status"] == "finished":
-                continue
-            if m["home_goals"] is None or m["away_goals"] is None:
-                continue
-            try:
-                finalize_match(row["id"], m["home_goals"], m["away_goals"])
-                logger.info("auto-finalized %s %s:%s", m["external_id"], m["home_goals"], m["away_goals"])
-            except (MatchAlreadyFinished, MatchNotFound):
-                pass
-
-    while True:
-        await asyncio.sleep(_POLL_INTERVAL)
-        try:
-            # to_thread so a slow API call doesn't freeze every other request
-            await asyncio.to_thread(poll_once)
-        except Exception as exc:
-            logger.warning("result poll failed: %s", exc)
+app.include_router(league_bonus_router.router)
+app.include_router(competitions_router.router)

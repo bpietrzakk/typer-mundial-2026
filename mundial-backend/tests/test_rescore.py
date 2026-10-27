@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from domain.rescore import should_rescore
+from domain.rescore import RESCORE_WINDOW_HOURS, should_rescore
 
 SCORED = datetime(2026, 10, 4, 20, 0, 0, tzinfo=timezone.utc)
 
@@ -52,3 +52,11 @@ def test_missing_new_result_does_not_rescore():
 def test_only_one_side_changed_rescores():
     now = SCORED + timedelta(minutes=10)
     assert should_rescore(SCORED, now, 3, 2, 3, 1) is True
+
+
+def test_default_window_is_the_shared_constant():
+    # services.sync picks rescore candidates with the same number
+    assert RESCORE_WINDOW_HOURS == 24
+    just_inside = SCORED + timedelta(hours=RESCORE_WINDOW_HOURS) - timedelta(seconds=1)
+    assert should_rescore(SCORED, just_inside, 1, 0, 1, 1) is True
+    assert should_rescore(SCORED, SCORED + timedelta(hours=RESCORE_WINDOW_HOURS), 1, 0, 1, 1) is False

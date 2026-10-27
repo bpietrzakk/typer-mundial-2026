@@ -237,12 +237,15 @@ def _parse_dt(raw: str | None) -> datetime | None:
 def normalize_season(raw: dict, is_current: bool = False) -> ProviderSeason:
     starts = _parse_date(raw.get("startDate"))
     ends = _parse_date(raw.get("endDate"))
+    # 'winner' is null until the season is decided
+    winner_id = (raw.get("winner") or {}).get("id")
     return ProviderSeason(
         provider_ref=str(starts.year) if starts else "",
         label=season_label(starts, ends),
         starts_on=starts,
         ends_on=ends,
         is_current=is_current,
+        winner_external_id=str(winner_id) if winner_id is not None else None,
     )
 
 

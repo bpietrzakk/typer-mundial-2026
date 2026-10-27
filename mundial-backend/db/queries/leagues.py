@@ -276,3 +276,123 @@ def leave_league(league_id: int, user_id: int) -> bool:
                 return cur.rowcount > 0
     finally:
         release_conn(conn)
+
+
+# --- league scope (which competitions a private league counts) ---
+# no rows in private_league_competitions = the league counts every competition
+
+SQL_LIST_LEAGUE_COMPETITIONS = """
+    SELECT c.id, c.code, c.name
+    FROM private_league_competitions plc
+    JOIN competitions c ON c.id = plc.competition_id
+    WHERE plc.private_league_id = %s
+    ORDER BY c.sort_order ASC, c.id ASC
+"""
+
+SQL_LIST_EXISTING_COMPETITION_IDS = """
+    SELECT id FROM competitions WHERE id = ANY(%s::bigint[])
+"""
+
+SQL_DELETE_LEAGUE_COMPETITIONS = """
+    DELETE FROM private_league_competitions WHERE private_league_id = %s
+"""
+
+SQL_INSERT_LEAGUE_COMPETITIONS = """
+    INSERT INTO private_league_competitions (private_league_id, competition_id)
+    SELECT %s, UNNEST(%s::bigint[])
+    ON CONFLICT DO NOTHING
+"""
+
+# is the season's competition inside the league scope? (params: season, league, league)
+SQL_IS_SEASON_IN_LEAGUE_SCOPE = """
+    SELECT 1
+    FROM seasons s
+    WHERE s.id = %s
+      AND (
+          NOT EXISTS (
+              SELECT 1 FROM private_league_competitions plc WHERE plc.private_league_id = %s
+          )
+          OR s.competition_id IN (
+              SELECT plc.competition_id FROM private_league_competitions plc
+              WHERE plc.private_league_id = %s
+          )
+      )
+"""
+
+# active seasons inside the league scope (params: league, league)
+SQL_LIST_ACTIVE_SEASON_IDS_IN_LEAGUE_SCOPE = """
+    SELECT s.id
+    FROM seasons s
+    WHERE s.status = 'active'
+      AND (
+          NOT EXISTS (
+              SELECT 1 FROM private_league_competitions plc WHERE plc.private_league_id = %s
+          )
+          OR s.competition_id IN (
+              SELECT plc.competition_id FROM private_league_competitions plc
+              WHERE plc.private_league_id = %s
+          )
+      )
+    ORDER BY s.id ASC
+"""
+
+
+def list_league_competitions(league_id: int) -> list[dict]:
+    # empty list = no restriction (the router turns that into all=true)
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_LIST_LEAGUE_COMPETITIONS, (league_id,))
+                return [dict(r) for r in cur.fetchall()]
+    finally:
+        release_conn(conn)
+
+
+def list_existing_competition_ids(competition_ids: list[int]) -> set[int]:
+    # which of the given ids are real competitions — router rejects the rest
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(SQL_LIST_EXISTING_COMPETITION_IDS, (competition_ids,))
+                return {row[0] for row in cur.fetchall()}
+    finally:
+        release_conn(conn)
+
+
+def replace_league_competitions(league_id: int, competition_ids: list[int]) -> None:
+    # delete + insert in one transaction, so a failure keeps the old scope
+    # empty list just clears the scope
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(SQL_DELETE_LEAGUE_COMPETITIONS, (league_id,))
+                if competition_ids:
+                    cur.execute(SQL_INSERT_LEAGUE_COMPETITIONS, (league_id, competition_ids))
+    finally:
+        release_conn(conn)
+
+
+def is_season_in_league_scope(league_id: int, season_id: int) -> bool:
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(SQL_IS_SEASON_IN_LEAGUE_SCOPE, (season_id, league_id, league_id))
+                return cur.fetchone() is not None
+    finally:
+        release_conn(conn)
+
+
+def list_active_season_ids_in_league_scope(league_id: int) -> list[int]:
+    # seasons the combined league ranking adds up
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(SQL_LIST_ACTIVE_SEASON_IDS_IN_LEAGUE_SCOPE, (league_id, league_id))
+                return [row[0] for row in cur.fetchall()]
+    finally:
+        release_conn(conn)
