@@ -9,11 +9,16 @@
 services:
   db:
     image: postgres:16
-    env_file: ./mundial-backend/.env
+    # fixed local credentials on purpose — .env may hold the production
+    # (Neon) login, and the local stack must never use it
+    environment:
+      POSTGRES_USER: mundial
+      POSTGRES_PASSWORD: mundial
+      POSTGRES_DB: mundial
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-mundial}"]
+      test: ["CMD-SHELL", "pg_isready -U mundial -d mundial"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -22,9 +27,15 @@ services:
     build: ./mundial-backend
     env_file: ./mundial-backend/.env
     environment:
-      # override POSTGRES_HOST — inside the compose network the db is 'db',
-      # not 'localhost' as in the .env used for local dev
+      # always talk to the local 'db' container, whatever .env says —
+      # otherwise a .env with the Neon login would point local docker at
+      # production and run migrations there on startup
       POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: mundial
+      POSTGRES_PASSWORD: mundial
+      POSTGRES_DB: mundial
+      POSTGRES_SSL: ""
     ports:
       - "8000:8000"   # exposed for direct Swagger access at :8000/docs
     depends_on:
