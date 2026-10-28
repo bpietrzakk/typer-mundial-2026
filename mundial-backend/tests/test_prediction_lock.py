@@ -41,3 +41,10 @@ def test_postponed_and_suspended_stay_locked_even_with_future_kickoff(status):
 
 def test_naive_kickoff_is_treated_as_utc():
     assert prediction_block_reason("scheduled", datetime(2026, 10, 28, 18, 0), NOW) is None
+
+
+def test_archived_season_has_its_own_reason():
+    # archive wins over every other reason
+    assert prediction_block_reason("scheduled", FUTURE, NOW, season_status="archived") == "archived"
+    assert prediction_block_reason("finished", PAST, NOW, season_status="archived") == "archived"
+    assert prediction_block_reason("scheduled", FUTURE, NOW, season_status="active") is None

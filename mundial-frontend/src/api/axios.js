@@ -3,7 +3,8 @@ import axios from 'axios';
 // single axios instance for the whole app
 // withCredentials sends the httpOnly auth cookie automatically
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '',
+  // '/api' = vite dev proxy / vercel rewrite / nginx, all strip the prefix
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',

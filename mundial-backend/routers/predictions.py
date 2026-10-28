@@ -26,6 +26,7 @@ _BLOCK_MESSAGES = {
     "finished": "Mecz już się zakończył, nie można już typować",
     "postponed": "Mecz jest przełożony lub przerwany, typowanie jest zamknięte",
     "cancelled": "Mecz został odwołany, nie można go typować",
+    "archived": "Ten sezon jest już w archiwum, nie można typować",
 }
 
 
@@ -75,6 +76,7 @@ def submit_prediction(
     # finished or cancelled — not only by the clock
     reason = prediction_block_reason(
         match["status"], match["kickoff_at"], datetime.now(timezone.utc),
+        season_status=match.get("season_status"),
     )
     if reason is not None:
         raise HTTPException(

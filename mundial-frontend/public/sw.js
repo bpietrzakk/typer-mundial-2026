@@ -1,7 +1,8 @@
-// Mundial Typer 2026 — Service Worker
+// czutka — Service Worker
 // cache-first for static assets, network-first for API calls
 
-const CACHE_NAME = 'mundial-typer-v6';
+// new name after the rebrand — the activate step drops the old Mundial caches
+const CACHE_NAME = 'czutka-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -37,6 +38,26 @@ self.addEventListener('activate', (event) => {
 // fetch — different strategies for API vs static
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
+  // page navigations — network-first, so a deploy never leaves a stale
+  // index.html. the app shell is the same for every route, keep one copy
+  // under /index.html and use it only when the network is down
+  if (event.request.mode === 'navigate' && url.origin === self.location.origin) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // only cache real HTML pages (not e.g. a JSON api url opened by hand)
+          const isHtml = (response.headers.get('content-type') || '').includes('text/html');
+          if (response.ok && isHtml) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match('/index.html').then((cached) => cached || caches.match('/')))
+    );
+    return;
+  }
 
   // API calls — network-only (always fresh data, no HTTP cache)
   // cross-origin requests (to the backend) are always network-only

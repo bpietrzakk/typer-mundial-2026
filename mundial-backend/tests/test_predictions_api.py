@@ -353,3 +353,17 @@ def test_mine_unknown_season_returns_404(monkeypatch):
 
 def test_mine_season_id_must_be_a_number():
     assert client.get("/predictions/mine?season_id=abc", cookies=_auth_cookie()).status_code == 422
+
+
+def test_submit_in_archived_season_returns_409(monkeypatch):
+    monkeypatch.setattr(
+        predictions_module, "get_match_by_id",
+        lambda mid: {**_future_match(1), "season_status": "archived"},
+    )
+    resp = client.post(
+        "/predictions",
+        json={"match_id": 1, "pred_home": 1, "pred_away": 0},
+        cookies=_auth_cookie(),
+    )
+    assert resp.status_code == 409
+    assert "archiwum" in resp.json()["detail"]

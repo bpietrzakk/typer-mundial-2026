@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, ProtectedRoute } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import Navbar from './components/Navbar';
@@ -17,6 +17,7 @@ import BonusPicks from './pages/BonusPicks';
 import Admin from './pages/Admin';
 import Settings from './pages/Settings';
 import Dashboard from './pages/Dashboard';
+import Competitions from './pages/Competitions';
 import Rules from './pages/Rules';
 import JoinByLink from './pages/JoinByLink';
 import NotFound from './pages/NotFound';
@@ -80,6 +81,14 @@ export default function App() {
             }
           />
           <Route
+            path="/competitions"
+            element={
+              <ProtectedRoute>
+                <AppLayout><Competitions /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/leagues"
             element={
               <ProtectedRoute>
@@ -95,6 +104,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          {/* old Mundial bonus picks — read-only archive page */}
           <Route
             path="/bonus"
             element={
@@ -112,7 +122,6 @@ export default function App() {
             }
           />
 
-          {/* catch-all — redirect to matches */}
           <Route
             path="/settings"
             element={
@@ -137,6 +146,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          {/* anything else */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </ToastProvider>

@@ -46,3 +46,11 @@ def test_postponed_then_rescheduled_opens_again():
 def test_missing_kickoff_is_closed():
     # no valid kickoff -> locked
     assert is_open_for_predictions("scheduled", None, NOW) is False
+
+
+def test_archived_season_is_never_open():
+    # an archived season is read-only even if some match still looks scheduled
+    future = NOW + timedelta(days=1)
+    assert is_open_for_predictions("scheduled", future, NOW, season_status="archived") is False
+    assert is_open_for_predictions("scheduled", future, NOW, season_status="active") is True
+    assert is_open_for_predictions("scheduled", future, NOW) is True

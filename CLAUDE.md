@@ -277,7 +277,7 @@ mundial-backend/
 
 ```
 mundial-frontend/
-├── .env.example                    # VITE_API_URL=http://localhost:8000
+├── vite.config.js                  # dev proxy /api → VITE_PROXY_TARGET (domyślnie localhost:8000)
 ├── vite.config.js
 ├── package.json
 ├── tailwind.config.js
@@ -380,11 +380,10 @@ Backend: http://localhost:8000 | Swagger UI: http://localhost:8000/docs
 ```bash
 cd mundial-frontend
 
-cp .env.example .env
-# ustaw VITE_API_URL=http://localhost:8000
-
 npm install
 npm run dev
+# front woła /api/*, vite proxy-uje to na backend (domyślnie http://localhost:8000)
+# inny backend: VITE_PROXY_TARGET=http://localhost:8001 npm run dev
 ```
 
 Frontend: http://localhost:5173

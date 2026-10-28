@@ -57,7 +57,9 @@ def _require_season(season_id: int) -> dict:
 def _with_can_predict(matches: list[dict], now: datetime) -> list[dict]:
     # the lock rule lives in the domain, not in SQL
     return [
-        {**m, "can_predict": is_open_for_predictions(m["status"], m["kickoff_at"], now)}
+        {**m, "can_predict": is_open_for_predictions(
+            m["status"], m["kickoff_at"], now, season_status=m.get("season_status"),
+        )}
         for m in matches
     ]
 

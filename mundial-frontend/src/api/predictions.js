@@ -11,8 +11,10 @@ export const addPrediction = async (matchId, predHome, predAway) => {
 };
 
 // all predictions for current user (not yet in backend — will be GET /predictions/mine)
-export const getMyPredictions = async () => {
-  const res = await api.get('/predictions/mine');
+// seasonId optional — filter to one season
+export const getMyPredictions = async (seasonId) => {
+  const params = seasonId ? { season_id: seasonId } : {};
+  const res = await api.get('/predictions/mine', { params });
   return res.data;
 };
 

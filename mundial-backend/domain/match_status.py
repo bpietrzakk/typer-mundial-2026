@@ -21,9 +21,14 @@ def voids_predictions(status: str) -> bool:
     return status in VOID_STATUSES
 
 
-def is_open_for_predictions(status: str, kickoff_at: datetime | None, now: datetime) -> bool:
+def is_open_for_predictions(
+    status: str, kickoff_at: datetime | None, now: datetime, season_status: str | None = None
+) -> bool:
     # open only for scheduled matches with a kickoff still in the future
     # postponed / suspended are locked until provider moves them back to scheduled
+    # an archived season is read-only, whatever its matches say
+    if season_status == "archived":
+        return False
     if status != "scheduled" or kickoff_at is None:
         return False
     return as_utc(kickoff_at) > as_utc(now)

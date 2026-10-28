@@ -1,127 +1,103 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { addPrediction } from '../api/predictions';
+import { useToast } from '../context/ToastContext';
+import { errorMessage } from '../utils/matchUi';
+import ScoreInput from './ScoreInput';
 
-export default function PredictionForm({ matchId, initialHome, initialAway, onSaved, onCancel }) {
-  const [home, setHome] = useState(initialHome ?? 0);
-  const [away, setAway] = useState(initialAway ?? 0);
+// inline prediction row: [home] : [away] [save]
+// initialHome / initialAway = the saved prediction (undefined when none)
+export default function PredictionForm({ matchId, initialHome, initialAway, onSaved, onLocked }) {
+  const { addToast } = useToast();
+  const [home, setHome] = useState(initialHome != null ? String(initialHome) : '');
+  const [away, setAway] = useState(initialAway != null ? String(initialAway) : '');
   const [submitting, setSubmitting] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const [error, setError] = useState('');
+  const flashTimer = useRef(null);
+
+  // clear the "saved" flash timer when the card goes away
+  useEffect(() => () => clearTimeout(flashTimer.current), []);
+
+  const hasSaved = initialHome != null && initialAway != null;
+  const filled = home !== '' && away !== '';
+  const dirty = !hasSaved || home !== String(initialHome) || away !== String(initialAway);
+
+  // picking one side fills an empty other side with 0, so 2:0 needs no extra clicks
+  const changeHome = (value) => {
+    setHome(value);
+    if (value !== '' && away === '') setAway('0');
+  };
+
+  const changeAway = (value) => {
+    setAway(value);
+    if (value !== '' && home === '') setHome('0');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!filled || submitting) return;
     setSubmitting(true);
     setError('');
-
     try {
-      const pred = await addPrediction(matchId, home, away);
-      setSaved(true);
-      setTimeout(() => onSaved(pred), 600);
+      const pred = await addPrediction(matchId, Number(home), Number(away));
+      onSaved({
+        pred_home: pred.pred_home,
+        pred_away: pred.pred_away,
+        points_awarded: pred.points_awarded ?? null,
+        hit_type: pred.hit_type ?? null,
+      });
+      setJustSaved(true);
+      clearTimeout(flashTimer.current);
+      flashTimer.current = setTimeout(() => setJustSaved(false), 1800);
     } catch (err) {
-      const msg = err.response?.data?.detail || 'Nie udało się zapisać typu';
+      const msg = errorMessage(err, 'Nie udało się zapisać typu');
       setError(msg);
+      addToast(msg, 'error');
+      // 409 = match is closed now, let the card lock itself
+      if (err.response?.status === 409) onLocked?.();
     } finally {
       setSubmitting(false);
     }
   };
 
-  // stepper: increment or decrement a score value (min 0, max 99)
-  const step = (setter, current, delta) => {
-    const next = current + delta;
-    if (next >= 0 && next <= 99) setter(next);
-  };
+  let buttonLabel = 'Zapisz';
+  if (submitting) buttonLabel = 'Zapisuję…';
+  else if (justSaved || (hasSaved && !dirty)) buttonLabel = 'Zapisano';
+  else if (hasSaved) buttonLabel = 'Zmień';
+
+  const saved = !submitting && (justSaved || (hasSaved && !dirty));
 
   return (
-    <form onSubmit={handleSubmit} className="animate-slide-up">
-      <div className="flex items-center justify-center gap-6 mb-3">
-        {/* home score stepper */}
-        <div className="flex items-center gap-2">
+    <form onSubmit={handleSubmit}>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+          Twój typ
+        </span>
+        <div className="flex items-center gap-2 ml-auto">
+          <ScoreInput value={home} onChange={changeHome} label="Gole gospodarzy" />
+          <span className="text-gray-500 font-bold">:</span>
+          <ScoreInput value={away} onChange={changeAway} label="Gole gości" />
           <button
-            type="button"
-            onClick={() => step(setHome, home, -1)}
-            className="w-11 h-11 rounded-lg bg-surface-600/50 text-gray-400 hover:text-white hover:bg-surface-600 transition-colors text-lg font-bold"
+            type="submit"
+            disabled={!filled || submitting || !dirty}
+            className={`h-10 px-3 min-w-[92px] rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer
+              disabled:cursor-not-allowed
+              ${saved
+                ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-400'
+                : 'btn-primary !px-3 !py-0'}`}
           >
-            −
-          </button>
-          <input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            max={99}
-            value={home}
-            onChange={(e) => setHome(Math.max(0, Math.min(99, parseInt(e.target.value) || 0)))}
-            className="w-14 h-11 text-center text-xl font-bold rounded-lg bg-surface-600/50 border border-surface-500/30 text-white focus:outline-none focus:border-mundial-teal/50"
-          />
-          <button
-            type="button"
-            onClick={() => step(setHome, home, 1)}
-            className="w-11 h-11 rounded-lg bg-surface-600/50 text-gray-400 hover:text-white hover:bg-surface-600 transition-colors text-lg font-bold"
-          >
-            +
-          </button>
-        </div>
-
-        <span className="text-gray-500 font-bold text-lg">:</span>
-
-        {/* away score stepper */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => step(setAway, away, -1)}
-            className="w-11 h-11 rounded-lg bg-surface-600/50 text-gray-400 hover:text-white hover:bg-surface-600 transition-colors text-lg font-bold"
-          >
-            −
-          </button>
-          <input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            max={99}
-            value={away}
-            onChange={(e) => setAway(Math.max(0, Math.min(99, parseInt(e.target.value) || 0)))}
-            className="w-14 h-11 text-center text-xl font-bold rounded-lg bg-surface-600/50 border border-surface-500/30 text-white focus:outline-none focus:border-mundial-teal/50"
-          />
-          <button
-            type="button"
-            onClick={() => step(setAway, away, 1)}
-            className="w-11 h-11 rounded-lg bg-surface-600/50 text-gray-400 hover:text-white hover:bg-surface-600 transition-colors text-lg font-bold"
-          >
-            +
+            {saved ? (
+              <span className="flex items-center justify-center gap-1.5">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+                {buttonLabel}
+              </span>
+            ) : buttonLabel}
           </button>
         </div>
       </div>
-
-      {error && (
-        <p className="text-red-400 text-sm text-center mb-2">{error}</p>
-      )}
-
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={submitting || saved}
-          className={`flex-1 text-sm !py-2 transition-all duration-300 ${
-            saved
-              ? 'btn-secondary !border-emerald-500/60 !text-emerald-400 !shadow-[0_0_20px_rgba(52,211,153,0.3)] scale-[1.02]'
-              : 'btn-primary'
-          }`}
-        >
-          {saved ? (
-            <span className="flex items-center justify-center gap-1.5 animate-slide-up">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-              </svg>
-              Zapisano!
-            </span>
-          ) : submitting ? 'Zapisuję…' : 'Zapisz typ'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 rounded-xl text-sm text-gray-400 hover:text-white bg-surface-700/50 hover:bg-surface-700 transition-colors"
-        >
-          Anuluj
-        </button>
-      </div>
+      {error && <p className="text-red-400 text-xs text-right mt-2" role="alert">{error}</p>}
     </form>
   );
 }

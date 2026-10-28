@@ -191,3 +191,10 @@ def test_bootstrap_insert_of_finished_match_sets_scored_at(conn, wc_db):
                 (row["id"],),
             )
     assert get_match_by_external_id("888889")["id"] == row["id"]
+
+
+def test_get_match_by_id_reports_archived_season(conn, wc_db):
+    # POST /predictions uses this to refuse matches of archived seasons
+    from db.queries import get_match_by_id
+
+    assert get_match_by_id(wc_db["scheduled_match"])["season_status"] == "archived"

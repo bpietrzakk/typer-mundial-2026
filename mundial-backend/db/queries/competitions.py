@@ -88,7 +88,7 @@ SQL_ROUND_IN_SEASON = """
 # prediction. the first parameter is always the viewer's user id (LEFT JOIN)
 _SQL_MATCH_SELECT = """
     SELECT
-        m.id, m.season_id, m.kickoff_at, m.kickoff_confirmed, m.status,
+        m.id, m.season_id, s.status AS season_status, m.kickoff_at, m.kickoff_confirmed, m.status,
         m.home_goals, m.away_goals, m.home_goals_et, m.away_goals_et,
         m.home_pens, m.away_pens, m.decided_by,
         c.id AS competition_id, c.code AS competition_code, c.name AS competition_name,
@@ -174,6 +174,8 @@ def _row_to_competition_match(r: dict) -> dict:
             "name": r["competition_name"],
         },
         "season_id": r["season_id"],
+        # only for the can_predict rule, the response model drops it
+        "season_status": r["season_status"],
         "round": {
             "id": r["round_id"],
             "phase": r["round_phase"],

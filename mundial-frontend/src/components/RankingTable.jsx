@@ -1,6 +1,8 @@
 import { useAuth } from '../context/AuthContext';
+import { TIPS, countOf } from '../utils/plural';
 
-export default function RankingTable({ entries, title, onSelectUser }) {
+// showStats (optional) adds exact / diff / scored columns from RankingEntry
+export default function RankingTable({ entries, title, onSelectUser, showStats = false }) {
   const { user } = useAuth();
 
   if (!entries || entries.length === 0) {
@@ -10,6 +12,8 @@ export default function RankingTable({ entries, title, onSelectUser }) {
       </div>
     );
   }
+
+  const statCell = 'px-3 py-3.5 text-right tabular-nums text-sm text-gray-400 hidden sm:table-cell';
 
   return (
     <div className="glass-card overflow-hidden">
@@ -23,9 +27,16 @@ export default function RankingTable({ entries, title, onSelectUser }) {
         <table className="w-full">
           <thead>
             <tr className="text-left text-xs uppercase tracking-wider text-gray-500 border-b border-surface-500/20">
-              <th className="px-5 py-3 w-16">#</th>
-              <th className="px-5 py-3">Gracz</th>
-              <th className="px-5 py-3 text-right">Punkty</th>
+              <th className="px-4 sm:px-5 py-3 w-14 sm:w-16">#</th>
+              <th className="px-3 sm:px-5 py-3">Gracz</th>
+              {showStats && (
+                <>
+                  <th className="px-3 py-3 text-right hidden sm:table-cell" title="Dokładne wyniki">Dokł.</th>
+                  <th className="px-3 py-3 text-right hidden sm:table-cell" title="Trafione różnice bramek">Różn.</th>
+                  <th className="px-3 py-3 text-right hidden sm:table-cell" title="Rozliczone typy">Typy</th>
+                </>
+              )}
+              <th className="px-4 sm:px-5 py-3 text-right">Punkty</th>
             </tr>
           </thead>
           <tbody>
@@ -43,7 +54,7 @@ export default function RankingTable({ entries, title, onSelectUser }) {
                       : 'hover:bg-surface-700/30'
                     }`}
                 >
-                  <td className="px-5 py-3.5">
+                  <td className="px-4 sm:px-5 py-3.5">
                     <span className={`font-bold tabular-nums text-sm ${
                       entry.rank === 1 ? 'text-mundial-gold text-base' :
                       entry.rank === 2 ? 'text-gray-300' :
@@ -53,15 +64,27 @@ export default function RankingTable({ entries, title, onSelectUser }) {
                       {entry.rank}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-3 sm:px-5 py-3.5">
                     <span className={`font-medium ${isCurrentUser ? 'text-mundial-teal' : 'text-gray-200'}`}>
                       {entry.nick}
                     </span>
                     {isCurrentUser && (
                       <span className="ml-2 text-xs text-mundial-teal/70">(Ty)</span>
                     )}
+                    {showStats && (
+                      <p className="sm:hidden text-[11px] text-gray-400 mt-0.5 tabular-nums">
+                        dokł. {entry.exact_hits} · różn. {entry.diff_hits} · {countOf(entry.scored_predictions, TIPS)}
+                      </p>
+                    )}
                   </td>
-                  <td className="px-5 py-3.5 text-right">
+                  {showStats && (
+                    <>
+                      <td className={`${statCell} text-emerald-400/80`}>{entry.exact_hits}</td>
+                      <td className={`${statCell} text-yellow-400/80`}>{entry.diff_hits}</td>
+                      <td className={statCell}>{entry.scored_predictions}</td>
+                    </>
+                  )}
+                  <td className="px-4 sm:px-5 py-3.5 text-right">
                     <span className={`font-bold text-lg ${
                       entry.rank === 1 ? 'text-mundial-gold' :
                       entry.rank === 2 ? 'text-gray-300' :

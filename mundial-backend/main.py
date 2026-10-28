@@ -4,9 +4,11 @@ import os
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+from db.connection import PoolBusy
 from domain.sync_plan import is_sync_enabled
 from routers import admin as admin_router
 from routers import admin_bonus as admin_bonus_router
@@ -88,6 +90,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(PoolBusy)
+async def pool_busy_handler(_request: Request, _exc: PoolBusy) -> JSONResponse:
+    # every db connection stayed busy too long — tell the client to retry
+    return JSONResponse(status_code=503, content={"detail": "Serwer jest chwilowo przeciążony, spróbuj ponownie"})
 
 
 @app.get("/health")

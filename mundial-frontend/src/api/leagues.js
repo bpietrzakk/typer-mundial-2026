@@ -41,3 +41,22 @@ export const deleteLeague = async (id) =>
 // leave league — non-owner members only
 export const leaveLeague = async (id) =>
   api.post(`/leagues/${id}/leave`);
+
+// competitions counted by the league: { all: bool, competitions: [...] }
+export const getLeagueScope = async (id) => {
+  const res = await api.get(`/leagues/${id}/competitions`);
+  return res.data;
+};
+
+// empty list = all competitions, owner only
+export const setLeagueScope = async (id, competitionIds) => {
+  const res = await api.put(`/leagues/${id}/competitions`, { competition_ids: competitionIds });
+  return res.data;
+};
+
+// seasonId optional — without it: sum of all active seasons in the league scope
+export const getLeagueStandings = async (id, seasonId) => {
+  const params = seasonId ? { season_id: seasonId } : {};
+  const res = await api.get(`/leagues/${id}/ranking`, { params });
+  return res.data;
+};

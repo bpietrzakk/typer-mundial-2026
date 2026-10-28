@@ -1,50 +1,52 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getUserPredictions } from '../api/predictions';
+import HitBadge from './HitBadge';
+import { HIT_META } from '../utils/matchUi';
 
-const STAGE_LABELS = {
-  group: 'Faza grupowa',
-  round_of_16: '1/8 finału',
-  quarter: 'Ćwierćfinał',
-  semi: 'Półfinał',
-  final: 'Finał',
-};
-
-// decide what kind of points the user scored — same thresholds as MyPredictions
-function pointsCategory(points, stage) {
-  const exactMap = { group: 5, round_of_16: 7, quarter: 9, semi: 11, final: 15 };
-  const diffMap = { group: 3, round_of_16: 4, quarter: 5, semi: 6, final: 8 };
-
-  const exact = exactMap[stage] || 5;
-  const diff = diffMap[stage] || 3;
-
-  if (points >= exact) return 'exact';
-  if (points >= diff) return 'diff';
-  if (points > 0) return 'tendency';
-  return 'miss';
-}
-
-const CATEGORY_STYLES = {
-  exact: 'points-exact',
-  diff: 'points-diff',
-  tendency: 'points-tendency',
-  miss: 'points-miss',
-};
-
-export default function UserPredictionsModal({ userId, nick, onClose }) {
+// seasonId (optional) narrows the list to one season — the backend returns
+// all finished predictions of the user, so we filter on our side
+export default function UserPredictionsModal({ userId, nick, onClose, seasonId }) {
   const [predictions, setPredictions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError('');
     getUserPredictions(userId)
-      .then((data) => { if (!cancelled) setPredictions(data); })
+      .then((data) => {
+        if (cancelled) return;
+        setPredictions(seasonId ? data.filter((p) => p.season_id === seasonId) : data);
+      })
       .catch(() => { if (!cancelled) setError('Nie udało się załadować typów'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [userId, seasonId]);
+
+  const closeRef = useRef(null);
+  // latest onClose without re-running the dialog effect on every parent render
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+
+  // dialog behaviour: Esc closes, focus goes into the dialog and returns
+  // to the clicked element afterwards, Tab never leaves the dialog
+  useEffect(() => {
+    const opener = document.activeElement;
+    closeRef.current?.focus();
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onCloseRef.current();
+      } else if (e.key === 'Tab') {
+        // the close button is the only focusable element
+        e.preventDefault();
+        closeRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      if (opener instanceof HTMLElement) opener.focus();
+    };
+  }, []);
 
   const totalPoints = predictions.reduce((sum, p) => sum + (p.points_awarded || 0), 0);
 
@@ -54,15 +56,19 @@ export default function UserPredictionsModal({ userId, nick, onClose }) {
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="user-predictions-title"
         className="glass-card w-full max-w-lg max-h-[80vh] overflow-y-auto p-5 animate-fade-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-bold text-gray-200">{nick}</h3>
+            <h3 id="user-predictions-title" className="text-lg font-bold text-gray-200">{nick}</h3>
             <p className="text-xs text-gray-500">Typy na zakończone mecze · {totalPoints} pkt</p>
           </div>
           <button
+            ref={closeRef}
             onClick={onClose}
             className="p-2 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-surface-700/50 transition-colors"
             aria-label="Zamknij"
@@ -94,38 +100,43 @@ export default function UserPredictionsModal({ userId, nick, onClose }) {
         {!loading && !error && predictions.length > 0 && (
           <div className="grid gap-2">
             {predictions.map((pred) => {
-              const cat = pointsCategory(pred.points_awarded ?? 0, pred.match_stage);
+              const hit = HIT_META[pred.hit_type];
               return (
                 <div key={pred.id} className="bg-surface-700/30 rounded-xl p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-gray-200">
-                          {pred.home_team_name} vs {pred.away_team_name}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          • {STAGE_LABELS[pred.match_stage] || pred.match_stage}
-                        </span>
-                      </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-200">
+                        {pred.home_team_name} vs {pred.away_team_name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {[pred.competition_code, pred.round_name].filter(Boolean).join(' · ')}
+                      </p>
                       <div className="flex items-center gap-4 mt-1.5">
                         <div>
-                          <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5">Typ</p>
+                          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Typ</p>
                           <p className="score-num text-lg font-black text-white leading-none">
                             {pred.pred_home} : {pred.pred_away}
                           </p>
                         </div>
-                        <span className="text-gray-600">→</span>
+                        <span className="text-gray-400">→</span>
                         <div>
-                          <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5">Wynik</p>
+                          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Wynik</p>
                           <p className="score-num text-lg font-black text-gray-200 leading-none">
                             {pred.home_goals} : {pred.away_goals}
                           </p>
                         </div>
                       </div>
                     </div>
-                    <span className={`text-lg font-bold ${CATEGORY_STYLES[cat]}`}>
-                      +{pred.points_awarded ?? 0}
-                    </span>
+                    <div className="text-right shrink-0">
+                      <span className={`text-lg font-bold ${hit ? hit.text : 'text-gray-500'}`}>
+                        +{pred.points_awarded ?? 0}
+                      </span>
+                      {hit && (
+                        <div className="mt-1 flex justify-end">
+                          <HitBadge hitType={pred.hit_type} />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

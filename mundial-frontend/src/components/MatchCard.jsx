@@ -1,170 +1,66 @@
-import { useState } from 'react';
-import PredictionForm from './PredictionForm';
+import CompetitionBadge from './CompetitionBadge';
+import MatchPredictionStrip from './MatchPredictionStrip';
+import MatchScoreBlock from './MatchScoreBlock';
+import MatchTeamSide from './MatchTeamSide';
+import { STATUS_META } from '../utils/matchUi';
 
-// human-friendly stage labels (Polish)
-const STAGE_LABELS = {
-  group: 'Faza grupowa',
-  round_of_16: '1/8 finału',
-  quarter: 'Ćwierćfinał',
-  semi: 'Półfinał',
-  final: 'Finał',
-};
-
-// badge class per stage
-const STAGE_BADGE = {
-  group: 'badge-group',
-  round_of_16: 'badge-r16',
-  quarter: 'badge-quarter',
-  semi: 'badge-semi',
-  final: 'badge-final',
-};
-
-// format kickoff time in Polish locale
-function formatKickoff(isoString) {
-  const d = new Date(isoString);
-  return d.toLocaleDateString('pl-PL', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function TeamCrest({ team, size = 'w-9 h-9' }) {
-  const [imgErr, setImgErr] = useState(false);
-  const initials = (team.short_name || team.name).slice(0, 3).toUpperCase();
-
-  if (team.crest_url && !imgErr) {
-    return (
-      <img
-        src={team.crest_url}
-        alt={team.name}
-        className={`${size} object-contain flex-shrink-0`}
-        onError={() => setImgErr(true)}
-      />
-    );
-  }
-  return (
-    <span className={`${size} rounded-full bg-surface-600/80 flex items-center justify-center text-xs font-bold text-gray-400 flex-shrink-0`}>
-      {initials}
-    </span>
-  );
-}
-
-export default function MatchCard({ match, prediction, onPredictionSaved }) {
-  const [showForm, setShowForm] = useState(false);
-  const { home_team, away_team, stage, status, kickoff_at, home_goals, away_goals } = match;
-
-  const isScheduled = status === 'scheduled';
+// one match: teams, score / time, status, my prediction (+ inline form).
+// onMatchChange(matchId, patch) lets the parent update its list after a save
+export default function MatchCard({ match, readOnly = false, showCompetition = false, onMatchChange }) {
+  const { status, kickoff_confirmed: confirmed, my_prediction: pred } = match;
+  const statusMeta = STATUS_META[status];
   const isLive = status === 'live';
-  const isFinished = status === 'finished';
 
-  // check if prediction deadline has passed (client-side hint)
-  const canPredict = isScheduled && new Date(kickoff_at) > new Date();
+  const handleSaved = (saved) => onMatchChange?.(match.id, { my_prediction: saved });
+  const handleLocked = () => onMatchChange?.(match.id, { can_predict: false });
 
-  const handleSaved = (pred) => {
-    setShowForm(false);
-    if (onPredictionSaved) onPredictionSaved(pred);
-  };
+  // slightly tint the card of a scored prediction
+  const hitBorder = pred?.hit_type === 'exact' ? 'border-emerald-400/40'
+    : pred?.hit_type === 'diff' ? 'border-yellow-400/30'
+    : '';
+
+  const showHeader = showCompetition || statusMeta || confirmed === false;
 
   return (
-    <div className={`glass-card p-4 sm:p-5 animate-fade-in transition-all ${isLive ? 'border-mundial-red/70 shadow-glow-red' : ''}`}>
-      {/* top row — stage badge + kickoff time */}
-      <div className="flex items-center justify-between mb-4">
-        <span className={STAGE_BADGE[stage] || 'badge-group'}>
-          {STAGE_LABELS[stage] || stage}
-        </span>
-        <div className="flex items-center text-sm text-gray-400">
-          {isScheduled && <span className="status-scheduled" />}
-          {isLive && <span className="status-live" />}
-          {isFinished && <span className="status-finished" />}
-          {formatKickoff(kickoff_at)}
-        </div>
-      </div>
-
-      {/* teams row */}
-      <div className="flex items-center justify-between gap-3">
-        {/* home team */}
-        <div className="flex-1 flex items-center justify-end gap-2">
-          <div className="text-right">
-            <p className="font-semibold text-gray-100 text-sm sm:text-base">
-              {home_team.name}
-            </p>
-            {home_team.short_name && (
-              <p className="text-xs text-gray-500 mt-0.5">{home_team.short_name}</p>
+    <div className={`glass-card p-4 sm:p-5 animate-fade-in ${isLive ? 'border-mundial-red/70 shadow-glow-red' : hitBorder}`}>
+      {showHeader && (
+        <div className="flex items-center justify-between gap-2 mb-3 min-h-[22px]">
+          <div className="flex items-center gap-2 min-w-0">
+            {showCompetition && match.competition && (
+              <>
+                <CompetitionBadge code={match.competition.code} />
+                {match.round?.name && (
+                  <span className="text-xs text-gray-400 truncate">{match.round.name}</span>
+                )}
+              </>
             )}
           </div>
-          <TeamCrest team={home_team} />
-        </div>
-
-        {/* score / vs */}
-        <div className="flex-shrink-0 w-24 text-center">
-          {isFinished || isLive ? (
-            <div className={`text-3xl font-black score-num tracking-tight ${isLive ? 'text-mundial-red animate-pulse-slow' : 'text-white'}`}>
-              {home_goals} : {away_goals}
-            </div>
-          ) : (
-            <div className="text-lg font-bold text-gray-500">vs</div>
-          )}
-        </div>
-
-        {/* away team */}
-        <div className="flex-1 flex items-center justify-start gap-2">
-          <TeamCrest team={away_team} />
-          <div className="text-left">
-            <p className="font-semibold text-gray-100 text-sm sm:text-base">
-              {away_team.name}
-            </p>
-            {away_team.short_name && (
-              <p className="text-xs text-gray-500 mt-0.5">{away_team.short_name}</p>
+          <div className="flex items-center gap-2 shrink-0">
+            {confirmed === false && status === 'scheduled' && (
+              <span className="text-[11px] text-amber-300/90">godzina do potwierdzenia</span>
             )}
-          </div>
-        </div>
-      </div>
-
-      {/* user's prediction (if any) */}
-      {prediction && (
-        <div className="mt-3 pt-3 border-t border-surface-500/20">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-400">Twój typ:</span>
-            <span className="font-semibold text-gray-200 score-num">
-              {prediction.pred_home} : {prediction.pred_away}
-            </span>
-            {prediction.points_awarded !== null && prediction.points_awarded !== undefined && (
-              <span className={`font-bold ${
-                prediction.points_awarded >= 5 ? 'points-exact' :
-                prediction.points_awarded >= 3 ? 'points-diff' :
-                prediction.points_awarded >= 2 ? 'points-tendency' :
-                'points-miss'
-              }`}>
-                +{prediction.points_awarded} pkt
+            {statusMeta && (
+              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ${statusMeta.cls}`}>
+                {statusMeta.pulse && <span className="w-1.5 h-1.5 rounded-full bg-mundial-red animate-pulse" />}
+                {statusMeta.label}
               </span>
             )}
           </div>
         </div>
       )}
 
-      {/* predict button / form */}
-      {canPredict && (
-        <div className="mt-4">
-          {!showForm ? (
-            <button
-              onClick={() => setShowForm(true)}
-              className="w-full btn-secondary text-sm !py-2"
-            >
-              {prediction ? 'Zmień typ' : 'Typuj wynik'}
-            </button>
-          ) : (
-            <PredictionForm
-              matchId={match.id}
-              initialHome={prediction?.pred_home}
-              initialAway={prediction?.pred_away}
-              onSaved={handleSaved}
-              onCancel={() => setShowForm(false)}
-            />
-          )}
-        </div>
-      )}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
+        <MatchTeamSide team={match.home_team} side="home" />
+        <MatchScoreBlock match={match} />
+        <MatchTeamSide team={match.away_team} side="away" />
+      </div>
+
+      <MatchPredictionStrip
+        match={match}
+        readOnly={readOnly}
+        onSaved={handleSaved}
+        onLocked={handleLocked}
+      />
     </div>
   );
 }

@@ -65,7 +65,7 @@ export default function Register() {
       <div className="relative w-full max-w-md animate-fade-in">
         {/* header */}
         <div className="text-center mb-8">
-          <img src="/favicon.svg" alt="Mundial Typer 2026" className="w-16 h-16 mx-auto mb-4 rounded-xl" />
+          <img src="/favicon.svg" alt="czutka" className="w-16 h-16 mx-auto mb-4 rounded-xl" />
           <h1 className="text-3xl font-extrabold gradient-text mb-2">
             Dołącz do gry!
           </h1>
