@@ -22,6 +22,7 @@ import Rules from './pages/Rules';
 import JoinByLink from './pages/JoinByLink';
 import NotFound from './pages/NotFound';
 import Landing from './pages/Landing';
+import Welcome from './pages/Welcome';
 import HomeRoute from './components/HomeRoute';
 
 // layout wrapper — navbar + page content for authenticated routes
@@ -139,6 +140,15 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AppLayout><Rules /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          {/* onboarding after sign-up without an invite — no navbar, full focus */}
+          <Route
+            path="/witaj"
+            element={
+              <ProtectedRoute>
+                <Welcome />
               </ProtectedRoute>
             }
           />

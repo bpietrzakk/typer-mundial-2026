@@ -1,6 +1,7 @@
 import HitBadge from './HitBadge';
 import PredictionForm from './PredictionForm';
 import { HIT_META, VOID_STATUSES } from '../utils/matchUi';
+import { matchPoints } from '../utils/scoring';
 
 // bottom strip of a match card: inline form, saved prediction or a short note.
 // renders nothing (not even the divider) when there is nothing to say
@@ -15,6 +16,7 @@ export default function MatchPredictionStrip({ match, readOnly, onSaved, onLocke
           matchId={match.id}
           initialHome={pred?.pred_home}
           initialAway={pred?.pred_away}
+          points={matchPoints(match)}
           onSaved={onSaved}
           onLocked={onLocked}
         />

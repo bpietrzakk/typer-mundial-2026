@@ -3,6 +3,7 @@ import { getLeagueCoupon } from '../api/coupon';
 import { useAuth } from '../context/AuthContext';
 import useAsync from '../hooks/useAsync';
 import { formatWeekRange, nextOpenDeadline, shiftDay } from '../utils/coupon';
+import { distinctPoints } from '../utils/scoring';
 import CouponDayList from './CouponDayList';
 import CouponProgress from './CouponProgress';
 import ErrorState from './ErrorState';
@@ -10,6 +11,7 @@ import LeagueCouponEditor from './LeagueCouponEditor';
 import LeagueCouponProgress from './LeagueCouponProgress';
 import LeagueMatchPredictions from './LeagueMatchPredictions';
 import LeagueWeekResults from './LeagueWeekResults';
+import ScoringHint from './ScoringHint';
 
 const renderPredictions = (m) => <LeagueMatchPredictions match={m} />;
 
@@ -108,6 +110,7 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
               Kupon tygodnia
               {coupon && <span className="text-gray-400 font-medium"> · {formatWeekRange(coupon.week_start, coupon.week_end)}</span>}
             </h2>
+            {matches.length > 0 && <ScoringHint points={distinctPoints(matches)} className="sm:ml-auto sm:mr-2" />}
             {coupon && (
               <div className="flex items-center gap-1" role="group" aria-label="Wybór tygodnia">
                 <button

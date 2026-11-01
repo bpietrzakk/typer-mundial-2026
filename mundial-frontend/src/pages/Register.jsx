@@ -49,7 +49,8 @@ export default function Register() {
       const res = await register(nick, email, password);
       if (res.verified) {
         clearPendingInvite();
-        navigate(from || '/matches', { replace: true });
+        // invited -> straight to the league, everyone else gets the short onboarding
+        navigate(invited ? from : '/witaj', { replace: true });
       } else {
         // email confirmation required — show the "check your inbox" screen
         navigate('/verify-pending', { state: { email } });

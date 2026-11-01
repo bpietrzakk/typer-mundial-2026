@@ -90,15 +90,15 @@ pierwszy mecz kuponu, nie wytypowałeś 4”. Mail wymaga domeny w Resend, a pus
 tylko po dodaniu aplikacji do ekranu głównego. Podsumowanie tygodnia jako **obrazek** do
 wrzucenia na grupę (dziś jest tekst).
 
-### 2. Onboarding nowego gracza bez ligi
-Jest strona startowa i kreator ligi. Brakuje krótkiego „co typujesz? → z kim grasz?” zaraz po
-rejestracji dla kogoś, kto przyszedł bez zaproszenia. Dziś ląduje na Starcie z „Hitami tygodnia”.
+### ✅ 2. Onboarding nowego gracza bez ligi (zrobione 01.11, etap 1)
+Ekran `/witaj` po rejestracji bez zaproszenia: „Co typujesz?” (obserwowanie rozgrywek), potem „Z kim
+grasz?” (załóż ligę / mam kod / na razie sam). Ograniczenie: przy włączonej weryfikacji maila
+pierwsze logowanie po weryfikacji idzie na Start.
 
-### 3. Mniej zakładek, jasny podział
-Nadal 6 pozycji (Start, Mecze, Typy, Ranking, Ligi, Rozgrywki). Propozycja z pierwszej rundy
-(Liga / Typuj / Wyniki / Profil) aktualna, ale po kuponie warto najpierw zobaczyć, z czego ludzie
-faktycznie korzystają. Kandydat do usunięcia: osobne „obserwuj” w Rozgrywkach, które miesza się z
-zakresem ligi.
+### ◐ 3. Mniej zakładek, jasny podział (częściowo, etap 1)
+✅ Nawigacja ma 5 pozycji (Start, Mecze, Typy, Ligi, Ranking). „Rozgrywki” są w Ustawieniach i
+pod przyciskiem „Wybierz rozgrywki” w Meczach. Zostało: połączenie „obserwuj” z zakresem ligi
+w jedno pojęcie i ewentualne dalsze łączenie (Typy + Ranking).
 
 ### 4. Zimny start na produkcji
 `/health` budzi już bazę, ale darmowy Render nadal usypia (72 s). Decyzja: płatny plan (ok. 7 $/mies.)
@@ -289,12 +289,12 @@ obietnicy maila, rankingi lig na górze strony Ranking.
 **Co zostało z tej rundy:**
 - **Nazwa „czutka” bez wyjaśnienia w aplikacji.** Hasło jest już na stronie startowej („Masz czutkę?
   Udowodnij.”). Można je powtórzyć przy pustych stanach i w podsumowaniach.
-- **Podpowiedzi punktów przy meczu** (5 / 3 / 2, w finale LM 15). Dziś zasady są w Ustawieniach.
-- **Globalny ranking rozgrywek** nadal istnieje (opisany jako „Wszyscy gracze czutki”). Przy
-  małej liczbie graczy nadal wygląda pusto. Do rozważenia całkowite schowanie.
-- **6 ikon w dolnym pasku** i dublujące się „Mecze” z „Rozgrywkami” (patrz „P0: co zostało” pkt 3).
-- **Rozwijana lista 38 kolejek** w zakładce Mecze.
-- **Szara podpowiedź „0” także w zwykłych kartach meczów** (dziś tylko w kuponie).
+- ✅ *(etap 1)* Podpowiedź punktów przy meczu i w kuponie („5 · 3 · 2”, w fazie pucharowej LM więcej).
+  Na telefonie wyjaśnienie liczb jest tylko w atrybucie `title`.
+- ✅ *(etap 1)* Globalny ranking domyślnie zwinięty, na górze rankingi lig.
+- ✅ *(etap 1)* 5 pozycji w nawigacji zamiast 6.
+- ✅ *(etap 1)* Lista rund w Meczach pokazuje ±3 kolejki od bieżącej plus „Wszystkie rundy…”.
+- ✅ *(etap 1)* Szara podpowiedź „0” także w zwykłych kartach meczów.
 - **Podgląd linku z nazwą konkretnej ligi** (renderowanie tagów po stronie serwera dla `/join/KOD`).
 
 ---

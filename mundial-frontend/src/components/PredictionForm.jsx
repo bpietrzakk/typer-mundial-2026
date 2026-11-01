@@ -3,10 +3,12 @@ import { addPrediction } from '../api/predictions';
 import { useToast } from '../context/ToastContext';
 import { errorMessage } from '../utils/matchUi';
 import ScoreInput from './ScoreInput';
+import ScoringHint from './ScoringHint';
 
 // inline prediction row: [home] : [away] [save]
 // initialHome / initialAway = the saved prediction (undefined when none)
-export default function PredictionForm({ matchId, initialHome, initialAway, onSaved, onLocked }) {
+// points = { exact, diff, tendency } shown next to the label (optional)
+export default function PredictionForm({ matchId, initialHome, initialAway, points, onSaved, onLocked }) {
   const { addToast } = useToast();
   const [home, setHome] = useState(initialHome != null ? String(initialHome) : '');
   const [away, setAway] = useState(initialAway != null ? String(initialAway) : '');
@@ -19,19 +21,13 @@ export default function PredictionForm({ matchId, initialHome, initialAway, onSa
   useEffect(() => () => clearTimeout(flashTimer.current), []);
 
   const hasSaved = initialHome != null && initialAway != null;
-  const filled = home !== '' && away !== '';
-  const dirty = !hasSaved || home !== String(initialHome) || away !== String(initialAway);
-
-  // picking one side fills an empty other side with 0, so 2:0 needs no extra clicks
-  const changeHome = (value) => {
-    setHome(value);
-    if (value !== '' && away === '') setAway('0');
-  };
-
-  const changeAway = (value) => {
-    setAway(value);
-    if (value !== '' && home === '') setHome('0');
-  };
+  // one side typed is enough — the empty one shows a grey 0 and is saved as 0
+  const filled = home !== '' || away !== '';
+  const finalHome = home === '' ? '0' : home;
+  const finalAway = away === '' ? '0' : away;
+  const dirty = !hasSaved || finalHome !== String(initialHome) || finalAway !== String(initialAway);
+  const hintHome = home === '' && away !== '';
+  const hintAway = away === '' && home !== '';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,13 +35,16 @@ export default function PredictionForm({ matchId, initialHome, initialAway, onSa
     setSubmitting(true);
     setError('');
     try {
-      const pred = await addPrediction(matchId, Number(home), Number(away));
+      const pred = await addPrediction(matchId, Number(finalHome), Number(finalAway));
       onSaved({
         pred_home: pred.pred_home,
         pred_away: pred.pred_away,
         points_awarded: pred.points_awarded ?? null,
         hit_type: pred.hit_type ?? null,
       });
+      // show what was really saved (empty side -> 0)
+      setHome(finalHome);
+      setAway(finalAway);
       setJustSaved(true);
       clearTimeout(flashTimer.current);
       flashTimer.current = setTimeout(() => setJustSaved(false), 1800);
@@ -70,13 +69,14 @@ export default function PredictionForm({ matchId, initialHome, initialAway, onSa
   return (
     <form onSubmit={handleSubmit}>
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-          Twój typ
+        <span className="flex items-baseline gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Twój typ</span>
+          {points && <ScoringHint points={points} />}
         </span>
         <div className="flex items-center gap-2 ml-auto">
-          <ScoreInput value={home} onChange={changeHome} label="Gole gospodarzy" />
+          <ScoreInput value={home} onChange={setHome} label="Gole gospodarzy" hint={hintHome} />
           <span className="text-gray-500 font-bold">:</span>
-          <ScoreInput value={away} onChange={changeAway} label="Gole gości" />
+          <ScoreInput value={away} onChange={setAway} label="Gole gości" hint={hintAway} />
           <button
             type="submit"
             disabled={!filled || submitting || !dirty}

@@ -135,7 +135,7 @@ export default function Matches() {
             </SelectField>
 
             {rounds.length > 0 ? (
-              <RoundSelector rounds={rounds} selectedId={roundId} onSelect={selectRound} />
+              <RoundSelector key={seasonId} rounds={rounds} selectedId={roundId} onSelect={selectRound} />
             ) : (
               <div className="skeleton h-[42px] rounded-xl" aria-hidden={!roundsQ.loading} />
             )}

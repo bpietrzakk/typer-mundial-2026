@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import CouponDayList from './CouponDayList';
 import CouponProgress from './CouponProgress';
+import ScoringHint from './ScoringHint';
 import { formatWeekRange, nextOpenDeadline } from '../utils/coupon';
+import { distinctPoints } from '../utils/scoring';
 
 // start screen coupon: merged coupons of my leagues, or "hits of the week".
 // counters are counted from the list, so they move right after an autosave
@@ -19,6 +21,7 @@ export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked })
             {isHits ? 'Hity tygodnia' : 'Twój kupon'}
             <span className="text-gray-400 font-medium"> · {range}</span>
           </h2>
+          {matches.length > 0 && <ScoringHint points={distinctPoints(matches)} className="shrink-0" />}
         </div>
         {matches.length > 0 ? (
           <CouponProgress typed={typed} total={matches.length} nextDeadline={nextOpenDeadline(matches)} />
