@@ -78,6 +78,8 @@ Migracja 008 (`008_league_coupons.sql`, rollback w `rollback/008_league_coupons.
 
 **`league_coupon_jokers`** (migracja 010) to joker członka na kuponie: `coupon_id`, `user_id`, `match_id`, `set_at`, `PRIMARY KEY (coupon_id, user_id)` — jeden joker na osobę i tydzień. Klucz obcy `(coupon_id, match_id)` wskazuje na `league_coupon_matches`, więc mecz usunięty z kuponu zabiera jokera ze sobą. Punkty meczu z jokerem liczą się ×2 tylko w rankingu ligi w trybie `coupon` i w wynikach tygodnia; `predictions.points_awarded` się nie zmienia.
 
+**`league_pick_reactions`** (migracja 011) to emoji pod typem kolegi z ligi: `private_league_id`, `match_id`, `target_user_id` (autor typu), `user_id` (kto reaguje), `emoji`, `reacted_at`, `PRIMARY KEY (private_league_id, match_id, target_user_id, user_id)` — jedna reakcja na osobę i typ, nowe emoji ją nadpisuje. `CHECK (user_id <> target_user_id)` (bez reakcji na własny typ). Obaj muszą być członkami ligi: dwa klucze obce do `private_league_members (private_league_id, user_id)` z `ON DELETE CASCADE`, więc wyjście z ligi zabiera reakcje danej osoby i reakcje pod jej typami. Zestaw emoji (🔥 😂 🤡 👏 😱 🙈) pilnuje `domain/reactions.py`, baza tylko ogranicza długość. Reagować można dopiero po starcie meczu z kuponu ligi (router).
+
 Tabeli ligowej nie trzymamy: miejsca drużyn do doboru meczów liczymy w locie z zakończonych meczów sezonu (fazy `regular`/`league_phase`, 3/1/0, potem bilans i bramki — `domain.coupon.league_table`), a przed trzecią kolejką miejsc nie ma.
 
 ## Logo rozgrywek

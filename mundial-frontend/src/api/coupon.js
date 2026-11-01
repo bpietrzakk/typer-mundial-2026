@@ -69,3 +69,15 @@ export const clearCouponJoker = async (leagueId) => {
   const res = await api.delete(`/leagues/${leagueId}/coupon/joker`);
   return res.data;
 };
+
+// emoji under a friend's pick (after kickoff). put replaces my emoji, delete takes it back.
+// both return { match_id, target_user_id, reactions: {emoji: count}, my_reaction }
+export const setPickReaction = async (leagueId, matchId, targetUserId, emoji) => {
+  const res = await api.put(`/leagues/${leagueId}/matches/${matchId}/reactions`, { target_user_id: targetUserId, emoji });
+  return res.data;
+};
+
+export const clearPickReaction = async (leagueId, matchId, targetUserId) => {
+  const res = await api.delete(`/leagues/${leagueId}/matches/${matchId}/reactions`, { data: { target_user_id: targetUserId } });
+  return res.data;
+};

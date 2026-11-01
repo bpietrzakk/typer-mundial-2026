@@ -612,6 +612,29 @@ class CouponMemberPrediction(BaseModel):
     provisional_hit_type: str | None = None
     # the member's joker of the week (counts double in a 'coupon' league)
     is_joker: bool = False
+    # emoji reactions of other members (domain/reactions.py): emoji -> count
+    reactions: dict[str, int] = Field(default_factory=dict)
+    my_reaction: str | None = None
+
+
+class PickReactionRequest(BaseModel):
+    # PUT /leagues/{id}/matches/{match_id}/reactions
+    target_user_id: int = Field(ge=1, le=2**63 - 1)
+    emoji: str = Field(min_length=1, max_length=16)
+
+
+class PickReactionDeleteRequest(BaseModel):
+    # DELETE /leagues/{id}/matches/{match_id}/reactions (emoji is ignored)
+    target_user_id: int = Field(ge=1, le=2**63 - 1)
+    emoji: str | None = Field(default=None, max_length=16)
+
+
+class PickReactionsResponse(BaseModel):
+    # reactions under one pick after the change
+    match_id: int
+    target_user_id: int
+    reactions: dict[str, int]
+    my_reaction: str | None = None
 
 
 class PickScore(BaseModel):

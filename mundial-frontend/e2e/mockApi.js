@@ -34,6 +34,11 @@ export async function mockApi(page, { loggedIn = false, live = false } = {}) {
     ['GET', /^\/leagues\/1\/badges$/, () => fx.LEAGUE_BADGES],
     ['GET', /^\/leagues\/1\/coupon$/, () => (live ? fx.LEAGUE_COUPON_LIVE : fx.LEAGUE_COUPON)],
     ['GET', /^\/leagues\/1\/bonus-questions$/, () => []],
+    // emoji under ola's pick (the live coupon match): 🤡 from somebody else + mine
+    ['PUT', /^\/leagues\/1\/matches\/\d+\/reactions$/, (body) => ({
+      match_id: 1201, target_user_id: body.target_user_id,
+      reactions: { [body.emoji]: 1, '🤡': 1 }, my_reaction: body.emoji,
+    })],
   ];
 
   // only real API calls — page routes and built assets are left alone

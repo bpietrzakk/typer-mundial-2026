@@ -190,9 +190,11 @@ export const LEAGUE_COUPON_LIVE = {
     predictions_visible: true,
     member_predictions: [
       { user_id: 3, nick: 'ola', pred_home: 0, pred_away: 1, points_awarded: null, hit_type: null,
-        provisional_points: 0, provisional_hit_type: 'miss', is_joker: false },
+        provisional_points: 0, provisional_hit_type: 'miss', is_joker: false,
+        reactions: { '🤡': 1 }, my_reaction: null },
       { user_id: 1, nick: 'bartek', pred_home: 2, pred_away: 1, points_awarded: null, hit_type: null,
-        provisional_points: 3, provisional_hit_type: 'diff', is_joker: false },
+        provisional_points: 3, provisional_hit_type: 'diff', is_joker: false,
+        reactions: {}, my_reaction: null },
     ],
     league_summary: {
       count: 2, avg_home: 1, avg_away: 1, home_wins: 1, draws: 0, away_wins: 1,

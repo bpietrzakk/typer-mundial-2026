@@ -149,6 +149,20 @@ def test_rollback_restores_schema_and_data(conn, app_pool):
                     "INSERT INTO league_bonus_answers (question_id, user_id, team_id) VALUES (%s, %s, %s)",
                     (pick_id, ids["users"]["ala"], team_id),
                 )
+    # a reaction under a pick (011) goes first, newest first
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO league_pick_reactions (private_league_id, match_id, target_user_id, user_id, emoji) "
+                "SELECT %s, %s, a.user_id, b.user_id, '🔥' FROM private_league_members a "
+                "JOIN private_league_members b ON b.private_league_id = a.private_league_id AND b.user_id <> a.user_id "
+                "WHERE a.private_league_id = %s LIMIT 1",
+                (ids["private_league"], match_id, ids["private_league"]),
+            )
+            assert cur.rowcount == 1
+    assert run_rollback(conn, "011") == "011_pick_reactions.down.sql"
+    assert "011_pick_reactions.sql" not in _ledger(conn)
+
     assert run_rollback(conn, "010") == "010_jokers_and_team_pick.down.sql"
     assert "010_jokers_and_team_pick.sql" not in _ledger(conn)
 

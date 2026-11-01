@@ -87,8 +87,10 @@ kuponu w [`spec-kupon-tygodnia.md`](spec-kupon-tygodnia.md), kontrakt w `docs/ap
 ### 1. Przypomnienia, które wysyłają się same
 Jest przypomnienie „na grupę” od organizatora. Brakuje automatu: mail lub push „za 3 h
 pierwszy mecz kuponu, nie wytypowałeś 4”. Mail wymaga domeny w Resend, a push działa na iPhonie
-tylko po dodaniu aplikacji do ekranu głównego. Podsumowanie tygodnia jako **obrazek** do
-wrzucenia na grupę (dziś jest tekst).
+tylko po dodaniu aplikacji do ekranu głównego.
+✅ *(etap 9, 01.11)* Podsumowanie tygodnia jako **obrazek** do wrzucenia na grupę: przycisk
+„Udostępnij obrazek” w wynikach tygodnia rysuje PNG w `<canvas>` (czutka, liga, tydzień, top 5,
+„wyniki wstępne” w trakcie, typ tygodnia), tekst nadal pod „Kopiuj tekst”.
 
 ### ✅ 2. Onboarding nowego gracza bez ligi (zrobione 01.11, etap 1)
 Ekran `/witaj` po rejestracji bez zaproszenia: „Co typujesz?” (obserwowanie rozgrywek), potem „Z kim
@@ -153,6 +155,14 @@ Komentarze lub reakcje pod meczem albo pod podsumowaniem kolejki. Nie pełny cza
 już grupę na Messengerze. Ale emoji pod typem kolegi („🤡” przy 0:5) to tani i skuteczny element
 społecznościowy. Alternatywa: przycisk „udostępnij podsumowanie” generujący obrazek do wklejenia na
 grupę. To bardziej realistyczne, bo rozmowa i tak dzieje się na Messengerze.
+- ✅ *(etap 9, 01.11)* **Reakcje pod typem kolegi:** w „Typy ligi” (po starcie meczu) emoji
+  🔥 😂 🤡 👏 😱 🙈 pod cudzym typem, jedno na osobę (inne zastępuje, ten sam klik cofa), bez reakcji
+  na własny typ. Tabela `league_pick_reactions` (migracja 011), `PUT/DELETE
+  /leagues/{id}/matches/{match_id}/reactions`, liczniki i `my_reaction` w `member_predictions`.
+- ✅ *(etap 9, 01.11)* **„Udostępnij obrazek”:** wyniki tygodnia jako PNG z `<canvas>` (bez nowych
+  bibliotek): nazwa ligi, tydzień, top 5 z punktami (z „+N na żywo” i etykietą „wyniki wstępne”, gdy
+  tydzień trwa), typ tygodnia. Na telefonie systemowe „Udostępnij” z plikiem, na komputerze kopia do
+  schowka (gdzie się da) i pobranie pliku. Nie ma komentarzy ani czatu — rozmowa zostaje na Messengerze.
 
 ### Zasady w miejscu, nie na osobnej stronie
 Zamiast czytać „Zasady”: podgląd punktów na karcie („dokładny 5 · różnica 3 · zwycięzca 2”)

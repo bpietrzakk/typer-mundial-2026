@@ -7,11 +7,13 @@ from datetime import UTC, date, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from db.queries import coupon as q
+from db.queries import reactions as rq
 from domain.coupon import check_coupon_edit, week_start, week_start_of
 from domain.joker import check_joker_clear, check_joker_set, joker_multiplier
 from domain.league_picks import pick_summary
 from domain.live_points import member_provisional_totals
 from domain.match_status import is_open_for_predictions
+from domain.reactions import ReactionTarget, check_reaction, group_reactions
 from domain.ranking import sort_ranking
 from routers.deps import get_current_user
 from schemas.models import (
@@ -19,6 +21,9 @@ from schemas.models import (
     CouponUpdateRequest,
     LeagueCouponResponse,
     MyCouponResponse,
+    PickReactionDeleteRequest,
+    PickReactionRequest,
+    PickReactionsResponse,
 )
 from services.coupons import (
     ensure_league_coupon,
@@ -47,6 +52,15 @@ _JOKER_ERRORS = {
     "locked": (status.HTTP_409_CONFLICT, "Mecz z jokerem już się zaczął — jokera nie można przenieść ani zdjąć"),
     "started": (status.HTTP_409_CONFLICT, "Jokera można postawić tylko na mecz, który się jeszcze nie zaczął"),
     "race": (status.HTTP_409_CONFLICT, "Joker zmienił się w międzyczasie — odśwież kupon"),
+}
+
+# error code from domain.reactions.check_reaction -> (http status, message)
+_REACTION_ERRORS = {
+    "emoji": (status.HTTP_422_UNPROCESSABLE_CONTENT, "Nie ma takiej reakcji"),
+    "self": (status.HTTP_422_UNPROCESSABLE_CONTENT, "Nie można reagować na własny typ"),
+    "not_on_coupon": (status.HTTP_404_NOT_FOUND, "Tego meczu nie ma na kuponie ligi"),
+    "not_started": (status.HTTP_409_CONFLICT, "Na typy można reagować dopiero po rozpoczęciu meczu"),
+    "no_pick": (status.HTTP_404_NOT_FOUND, "Ten gracz nie typował tego meczu"),
 }
 
 
@@ -102,9 +116,11 @@ def _coupon_response(league: dict, can_manage: bool, week: date, user_id: int, n
 
     revealed: dict[int, list[dict]] = {}
     if coupon:
+        reactions = group_reactions(rq.list_coupon_reactions(league["id"], coupon_id), user_id)
         # only started matches come back, so other people's jokers never leak early
         for p in q.list_started_member_predictions(league["id"], coupon_id, now):
             p["is_joker"] = jokers.get(p["user_id"]) == p["match_id"]
+            p.update(reactions.get((p["match_id"], p["user_id"]), {}))
             revealed.setdefault(p["match_id"], []).append(p)
 
     for m in matches:
@@ -249,6 +265,52 @@ def clear_coupon_joker(
     if current is not None:
         q.clear_joker(coupon_id, user_id, current)
     return _coupon_response(league, can_manage, week_start(now), user_id, now)
+
+
+def _pick_reactions(league_id: int, match_id: int, target_user_id: int, user_id: int) -> dict:
+    grouped = group_reactions(rq.list_pick_reactions(league_id, match_id, target_user_id), user_id)
+    mine = grouped.get((match_id, target_user_id), {"reactions": {}, "my_reaction": None})
+    return {"match_id": match_id, "target_user_id": target_user_id, **mine}
+
+
+@router.put("/leagues/{league_id}/matches/{match_id}/reactions", response_model=PickReactionsResponse)
+def set_pick_reaction(
+    league_id: int,
+    match_id: int,
+    body: PickReactionRequest,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    # emoji under a friend's pick, only once the match kicked off.
+    # another emoji replaces mine, the same one again changes nothing
+    _require_member(league_id, current_user["id"])
+    user_id = current_user["id"]
+    row = rq.get_reaction_target(league_id, match_id, body.target_user_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mecz nie istnieje")
+    target = ReactionTarget(
+        status=row["status"], kickoff_at=row["kickoff_at"],
+        on_coupon=row["on_coupon"], target_has_pick=row["target_has_pick"],
+    )
+    error = check_reaction(user_id, body.target_user_id, body.emoji, target, _now())
+    if error is not None:
+        code, detail = _REACTION_ERRORS[error]
+        raise HTTPException(status_code=code, detail=detail)
+    rq.set_reaction(league_id, match_id, body.target_user_id, user_id, body.emoji)
+    return _pick_reactions(league_id, match_id, body.target_user_id, user_id)
+
+
+@router.delete("/leagues/{league_id}/matches/{match_id}/reactions", response_model=PickReactionsResponse)
+def delete_pick_reaction(
+    league_id: int,
+    match_id: int,
+    body: PickReactionDeleteRequest,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    # take my reaction back (no reaction = nothing to do)
+    _require_member(league_id, current_user["id"])
+    user_id = current_user["id"]
+    rq.delete_reaction(league_id, match_id, body.target_user_id, user_id)
+    return _pick_reactions(league_id, match_id, body.target_user_id, user_id)
 
 
 @router.get("/me/coupon", response_model=MyCouponResponse)

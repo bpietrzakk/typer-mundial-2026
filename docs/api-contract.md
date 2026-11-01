@@ -183,8 +183,12 @@ Specyfikacja: [rozwoj/spec-kupon-tygodnia.md](rozwoj/spec-kupon-tygodnia.md). Ty
 | GET | `/leagues/{id}/ranking` | W trybie `coupon` punkty za mecze liczą się tylko z meczów z kuponów tej ligi (bonusy ligowe bez zmian), a mecz-joker członka liczy się ×2. |
 | PUT | `/leagues/{id}/coupon/joker` | Członek. Body `{"match_id"}`. Joker bieżącego tygodnia: stawia albo przenosi (`domain.joker.check_joker_set`). 409: liga w trybie `scope` („Joker działa tylko w lidze, w której ranking liczy mecze z kuponu”), mecz już się zaczął, obecny joker stoi na meczu, który się zaczął (nie da się przenieść), joker zmieniony równolegle. 422: mecz spoza kuponu tego tygodnia. Zwraca to co GET kuponu. |
 | DELETE | `/leagues/{id}/coupon/joker` | Członek. Zdejmuje jokera bieżącego tygodnia (brak jokera = nic się nie dzieje). 409: tryb `scope` albo mecz z jokerem już się zaczął. Zwraca to co GET kuponu. |
+| PUT | `/leagues/{id}/matches/{match_id}/reactions` | Członek. Body `{"target_user_id", "emoji"}`. Emoji pod typem innego członka (`domain.reactions.check_reaction`), jedno na (liga, mecz, autor typu, reagujący) — inne emoji zastępuje poprzednie, to samo jeszcze raz nic nie zmienia. Dozwolone: 🔥 😂 🤡 👏 😱 🙈 (`REACTION_EMOJI`). 422: emoji spoza zestawu („Nie ma takiej reakcji”), własny typ („Nie można reagować na własny typ”). 404: nieznany mecz, mecz spoza kuponów ligi („Tego meczu nie ma na kuponie ligi”), autor nie jest członkiem albo nie typował („Ten gracz nie typował tego meczu”). 409: mecz się jeszcze nie zaczął / przełożony („Na typy można reagować dopiero po rozpoczęciu meczu”). Zwraca `{"match_id", "target_user_id", "reactions": {"🔥": 2}, "my_reaction": "🔥"}`. |
+| DELETE | `/leagues/{id}/matches/{match_id}/reactions` | Członek. Body `{"target_user_id"}` (`emoji` opcjonalne, ignorowane). Cofa moją reakcję (brak = nic się nie dzieje). Zwraca to co PUT. Front: drugi klik w to samo emoji = DELETE. |
 
 **Joker** (migracja 010, `domain/joker.py`): raz na kupon (tydzień) członek ligi w trybie `coupon` oznacza jeden mecz kuponu; punkty za ten mecz liczą się ×2 w rankingu ligi (tryb `coupon`) i w wynikach tygodnia (`members[].total_points`, `members[].provisional_points`). `predictions.points_awarded`, rankingi rozgrywek i `member_predictions[].points_awarded` się nie zmieniają. Ligi `scope` ignorują jokery (także zapisane wcześniej). Cudzy joker widoczny dopiero po starcie meczu (`is_joker` w `member_predictions`).
+
+**Reakcje pod typem** (migracja 011, `domain/reactions.py`): każdy typ w `member_predictions` ma `reactions` (emoji → liczba, kolejność jak `REACTION_EMOJI`, `{}` bez reakcji) i `my_reaction` (moje emoji albo `null`). Widać je tylko razem z typami, czyli po starcie meczu.
 
 Generowanie w tle: scheduler synchronizacji (`services/sync.run_scheduler`) co tick woła `services.coupons.coupon_tick`, który najwyżej raz na godzinę, od poniedziałku 06:00 czasu PL, tworzy brakujące kupony lig z `coupon_auto=true`.
 
@@ -206,7 +210,8 @@ Generowanie w tle: scheduler synchronizacji (`services/sync.run_scheduler`) co t
       "member_predictions": [ { "user_id": 3, "nick": "ola", "pred_home": 2, "pred_away": 1,
                                 "points_awarded": 5, "hit_type": "exact",
                                 "provisional_points": null, "provisional_hit_type": null,
-                                "is_joker": false } ],  // [] przed startem; provisional_* tylko live (bez ×2)
+                                "is_joker": false,
+                                "reactions": { "🤡": 2 }, "my_reaction": "🤡" } ],  // [] przed startem; provisional_* tylko live (bez ×2)
       "league_summary": {        // „średni typ ligi” z member_predictions (domain/league_picks.py), null przed startem / bez typów
         "count": 2, "avg_home": 1.5, "avg_away": 1.0,
         "home_wins": 1, "draws": 1, "away_wins": 0,

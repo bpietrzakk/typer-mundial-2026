@@ -106,8 +106,8 @@ test('league page shows the weekly coupon and members', async ({ page }) => {
   await expect(badges.getByText('2 dokładne')).toBeVisible();
 });
 
-test('live match: league table na żywo and the league average pick', async ({ page }) => {
-  await mockApi(page, { loggedIn: true, live: true });
+test('live match: league table na żywo, the league average pick and reactions', async ({ page }) => {
+  const api = await mockApi(page, { loggedIn: true, live: true });
   await page.goto('/leagues/1');
 
   // live table first, bartek moved up from 2nd
@@ -131,6 +131,15 @@ test('live match: league table na żywo and the league average pick', async ({ p
   await expect(coupon.getByText('Średni typ ligi')).toBeVisible();
   await expect(coupon.getByText('1,0 : 1,0')).toBeVisible();
   await expect(coupon.getByText(/50%/).first()).toBeVisible();
+
+  // emoji under a friend's pick, never under my own
+  await expect(coupon.getByRole('button', { name: 'Dodaj reakcję' })).toHaveCount(1);
+  await coupon.getByRole('button', { name: 'Dodaj reakcję' }).click();
+  await coupon.getByRole('button', { name: 'Reakcja 🔥' }).click();
+  await expect(coupon.getByRole('button', { name: /^🔥 1, Twoja reakcja/ })).toHaveAttribute('aria-pressed', 'true');
+  expect(api.requests).toContainEqual({
+    method: 'PUT', path: '/leagues/1/matches/1201/reactions', body: { target_user_id: 3, emoji: '🔥' },
+  });
 });
 
 test('invite link survives the detour through login', async ({ page }) => {

@@ -729,3 +729,72 @@ def test_live_table_in_coupon_mode_only_coupon_matches_and_joker_doubles(world, 
         "bartek": (2, 0, 0, 0, 2),
         "celina": (2, 0, 0, 0, 2),
     }
+
+
+# --- emoji reactions under a pick (011, domain/reactions.py) ---
+
+def _react(api, nick, league_id, match_id, target, emoji):
+    return api(nick).put(
+        f"/leagues/{league_id}/matches/{match_id}/reactions",
+        json={"target_user_id": target, "emoji": emoji},
+    )
+
+
+def test_reactions_on_started_picks_show_in_the_coupon(world, api, conn):
+    m, u, lid = world["m"], world["users"], world["biuro"]
+    _set_coupon(conn, lid, [m["t2"], m["t4"]])
+
+    first = _react(api, "celina", lid, m["t2"], u["ala"], "🔥")
+    assert first.status_code == 200
+    assert first.json() == {"match_id": m["t2"], "target_user_id": u["ala"],
+                            "reactions": {"🔥": 1}, "my_reaction": "🔥"}
+    assert _react(api, "bartek", lid, m["t2"], u["ala"], "👏").status_code == 200
+    # celina changes her mind: one reaction per pick, the new one replaces it
+    assert _react(api, "celina", lid, m["t2"], u["ala"], "👏").json()["reactions"] == {"👏": 2}
+    assert scalar(conn, "SELECT COUNT(*) FROM league_pick_reactions") == 2
+    _react(api, "ala", lid, m["t2"], u["bartek"], "🤡")
+
+    t2 = next(x for x in api("celina").get(f"/leagues/{lid}/coupon").json()["matches"] if x["id"] == m["t2"])
+    preds = {p["nick"]: p for p in t2["member_predictions"]}
+    assert (preds["ala"]["reactions"], preds["ala"]["my_reaction"]) == ({"👏": 2}, "👏")
+    assert (preds["bartek"]["reactions"], preds["bartek"]["my_reaction"]) == ({"🤡": 1}, None)
+
+    # take it back, twice is fine
+    url = f"/leagues/{lid}/matches/{m['t2']}/reactions"
+    gone = api("celina").request("DELETE", url, json={"target_user_id": u["ala"]})
+    assert gone.json()["reactions"] == {"👏": 1} and gone.json()["my_reaction"] is None
+    assert api("celina").request("DELETE", url, json={"target_user_id": u["ala"]}).status_code == 200
+
+
+def test_reaction_rules(world, api, conn):
+    m, u, lid = world["m"], world["users"], world["biuro"]
+    _set_coupon(conn, lid, [m["t2"], m["t4"]])
+
+    # own pick, a future match, a member without a pick, a match outside the coupon
+    assert _react(api, "ala", lid, m["t2"], u["ala"], "🔥").status_code == 422
+    assert _react(api, "celina", lid, m["t4"], u["ala"], "🔥").status_code == 409
+    assert _react(api, "ala", lid, m["t2"], u["celina"], "🔥").status_code == 404
+    # daniel typed t2 but he is not in Biuro
+    assert _react(api, "ala", lid, m["t2"], u["daniel"], "🔥").status_code == 404
+    assert _react(api, "ala", lid, m["prev"], u["bartek"], "🔥").status_code == 404
+    assert _react(api, "celina", lid, m["t2"], u["ala"], "💩").status_code == 422
+    assert _react(api, "daniel", lid, m["t2"], u["ala"], "🔥").status_code == 403
+    assert scalar(conn, "SELECT COUNT(*) FROM league_pick_reactions") == 0
+
+    # the db keeps the same rules
+    with pytest.raises(psycopg2.errors.CheckViolation):
+        execute(conn, "INSERT INTO league_pick_reactions (private_league_id, match_id, target_user_id, user_id, emoji) "
+                      "VALUES (%s, %s, %s, %s, '🔥')", (lid, m["t2"], u["ala"], u["ala"]))
+    with pytest.raises(psycopg2.errors.ForeignKeyViolation):
+        execute(conn, "INSERT INTO league_pick_reactions (private_league_id, match_id, target_user_id, user_id, emoji) "
+                      "VALUES (%s, %s, %s, %s, '🔥')", (lid, m["t2"], u["ala"], u["daniel"]))
+
+
+def test_reactions_go_when_a_member_leaves(world, api, conn):
+    m, u, lid = world["m"], world["users"], world["biuro"]
+    _set_coupon(conn, lid, [m["t2"]])
+    _react(api, "celina", lid, m["t2"], u["ala"], "😂")
+    _react(api, "ala", lid, m["t2"], u["bartek"], "😱")
+    execute(conn, "DELETE FROM private_league_members WHERE private_league_id = %s AND user_id = %s",
+            (lid, u["celina"]))
+    assert rows(conn, "SELECT emoji FROM league_pick_reactions") == [("😱",)]

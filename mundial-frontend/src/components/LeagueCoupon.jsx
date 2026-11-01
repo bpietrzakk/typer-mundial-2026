@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { clearCouponJoker, getLeagueCoupon, setCouponJoker } from '../api/coupon';
+import { clearCouponJoker, clearPickReaction, getLeagueCoupon, setCouponJoker, setPickReaction } from '../api/coupon';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import useAsync from '../hooks/useAsync';
@@ -15,8 +15,6 @@ import LeagueCouponProgress from './LeagueCouponProgress';
 import LeagueMatchPredictions from './LeagueMatchPredictions';
 import LeagueWeekResults from './LeagueWeekResults';
 import ScoringHint from './ScoringHint';
-
-const renderPredictions = (m) => <LeagueMatchPredictions match={m} />;
 
 // "Kupon tygodnia" of a league: week switcher, who typed, rows with autosave,
 // league predictions after kickoff, week results, organizer's editor.
@@ -70,6 +68,25 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
       throw err;
     }
   }, [league.id, mutate, addToast, refreshCoupon]);
+
+  // emoji under a friend's pick: tap = set / replace, same emoji again = take back
+  const react = useCallback(async (matchId, targetUserId, emoji, current) => {
+    try {
+      const next = emoji === current
+        ? await clearPickReaction(league.id, matchId, targetUserId)
+        : await setPickReaction(league.id, matchId, targetUserId, emoji);
+      const patch = { reactions: next.reactions, my_reaction: next.my_reaction };
+      mutate((c) => c && ({
+        ...c,
+        matches: c.matches.map((m) => (m.id === matchId
+          ? { ...m, member_predictions: m.member_predictions.map((p) => (p.user_id === targetUserId ? { ...p, ...patch } : p)) }
+          : m)),
+      }));
+    } catch (err) {
+      addToast(errorMessage(err, 'Nie udało się dodać reakcji'), 'error');
+    }
+  }, [league.id, mutate, addToast]);
+  const renderPredictions = useCallback((m) => <LeagueMatchPredictions match={m} onReact={react} />, [react]);
 
   // live scores — silent refresh while a coupon match is in play
   const hasLive = (coupon?.matches ?? []).some((m) => m.status === 'live');
