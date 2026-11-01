@@ -14,15 +14,19 @@ router = APIRouter(prefix="/ranking", tags=["ranking"])
 
 
 @router.get("", response_model=list[RankingEntry])
-def get_ranking(_user: dict = Depends(get_current_user)) -> list[dict]:
+def get_ranking(
+    bonuses: bool = True,
+    _user: dict = Depends(get_current_user),
+) -> list[dict]:
     # global ranking — sum of match prediction points + bonus + group advance
     # bonuses, sorted DESC by points then nick ASC for deterministic ties
-    return get_global_ranking()
+    return get_global_ranking(bonuses)
 
 
 @router.get("/{league_id}", response_model=list[RankingEntry])
 def get_ranking_for_league(
     league_id: int,
+    bonuses: bool = True,
     current_user: dict = Depends(get_current_user),
 ) -> list[dict]:
     # 404 covers both "league missing" and "not a member" so non-members
@@ -35,4 +39,4 @@ def get_ranking_for_league(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Liga nie istnieje",
         )
-    return get_league_ranking(league_id)
+    return get_league_ranking(league_id, bonuses)
