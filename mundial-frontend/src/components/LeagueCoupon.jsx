@@ -15,6 +15,7 @@ import LeagueCouponProgress from './LeagueCouponProgress';
 import LeagueMatchPredictions from './LeagueMatchPredictions';
 import LeagueWeekResults from './LeagueWeekResults';
 import ScoringHint from './ScoringHint';
+import SkeletonRow from './SkeletonRow';
 
 // "Kupon tygodnia" of a league: week switcher, who typed, rows with autosave,
 // league predictions after kickoff, week results, organizer's editor.
@@ -205,8 +206,8 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
         </div>
 
         {couponQ.loading && (
-          <div className="p-4 grid gap-3" aria-label="Ładuję kupon">
-            {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-10 rounded-lg" />)}
+          <div className="divide-y divide-surface-500/10" role="status" aria-busy="true" aria-label="Ładuję kupon">
+            {[...Array(4)].map((_, i) => <SkeletonRow key={i} variant="match" />)}
           </div>
         )}
 

@@ -6,6 +6,7 @@ import { apiErrorMessage } from '../utils/apiError';
 import { competitionLabel } from '../utils/matchUi';
 import LeagueBadges from './LeagueBadges';
 import LeagueRankingTable from './LeagueRankingTable';
+import SkeletonRow from './SkeletonRow';
 
 // seasons the league can show: current season of each competition in the scope
 function buildSeasonOptions(scope, competitions) {
@@ -178,8 +179,8 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
         )}
 
         {!hasData && (
-          <div className="p-5 grid gap-3" aria-label="Ładuję ranking">
-            {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-10 rounded-lg" />)}
+          <div className="divide-y divide-surface-500/10" role="status" aria-busy="true" aria-label="Ładuję ranking">
+            {[...Array(4)].map((_, i) => <SkeletonRow key={i} variant="rank" />)}
           </div>
         )}
 

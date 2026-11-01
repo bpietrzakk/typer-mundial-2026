@@ -9,6 +9,8 @@ import MatchesTitle from '../components/MatchesTitle';
 import MatchListSkeleton from '../components/MatchListSkeleton';
 import RoundSelector from '../components/RoundSelector';
 import SelectField from '../components/SelectField';
+import SkeletonChips from '../components/SkeletonChips';
+import SkeletonLine from '../components/SkeletonLine';
 import useAsync from '../hooks/useAsync';
 import useLivePolling from '../hooks/useLivePolling';
 import useSeasonSelection from '../hooks/useSeasonSelection';
@@ -72,8 +74,12 @@ export default function Matches() {
     return (
       <div className="page-container">
         <MatchesTitle />
-        <div className="skeleton h-10 rounded-xl mb-4" />
-        <div className="skeleton h-20 rounded-2xl mb-6" />
+        <SkeletonChips count={4} />
+        <div className="flex items-end gap-2 mb-6" aria-hidden="true">
+          <SkeletonLine width="w-11" height="h-11" className="!rounded-xl shrink-0" />
+          <SkeletonLine width="flex-1" height="h-11" className="!rounded-xl" />
+          <SkeletonLine width="w-11" height="h-11" className="!rounded-xl shrink-0" />
+        </div>
         <MatchListSkeleton />
       </div>
     );

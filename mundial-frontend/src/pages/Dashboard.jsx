@@ -12,6 +12,9 @@ import MyCouponCard from '../components/MyCouponCard';
 import MyLeaguesCard from '../components/MyLeaguesCard';
 import PointsExplain from '../components/PointsExplain';
 import SectionCard from '../components/SectionCard';
+import SkeletonCard from '../components/SkeletonCard';
+import SkeletonLine from '../components/SkeletonLine';
+import SkeletonRow from '../components/SkeletonRow';
 import useAsync from '../hooks/useAsync';
 import useLivePolling from '../hooks/useLivePolling';
 import useCompetitions from '../hooks/useCompetitions';
@@ -127,30 +130,44 @@ export default function Dashboard() {
   const recent = (predsQ.data ?? [])
     .filter((p) => p.points_awarded != null && !VOID_STATUSES.includes(p.status))
     .sort((a, b) => new Date(b.kickoff_at) - new Date(a.kickoff_at))
-    .slice(0, 4);
+    .slice(0, 6); // 4 on phones, 6 next to the coupon on desktop
+
+  // desktop: coupon on the left, leagues / seasons / results on the right
+  const gridCls = 'grid gap-5 lg:gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] items-start';
 
   if (coreLoading) {
     return (
-      <div className="page-container">
-        <div className="skeleton h-6 w-40 rounded-lg mb-4" />
-        <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 skeleton h-[28rem] rounded-2xl" />
-          <div className="skeleton h-64 rounded-2xl" />
+      <div className="page-container lg:max-w-6xl">
+        <SkeletonLine width="w-32" height="h-3.5" className="mb-4" />
+        <div className={gridCls}>
+          <SkeletonCard label="Ładuję kupon">
+            <div className="px-4 sm:px-5 py-3 border-b border-surface-500/20 space-y-2" aria-hidden="true">
+              <SkeletonLine height="h-2" className="!rounded-full" />
+              <SkeletonLine width="w-40" height="h-2.5" />
+            </div>
+            <div className="divide-y divide-surface-500/10">
+              {[...Array(5)].map((_, i) => <SkeletonRow key={i} variant="match" />)}
+            </div>
+          </SkeletonCard>
+          <div className="space-y-5">
+            <SkeletonCard rows={2} label="Ładuję ligi" />
+            <SkeletonCard rows={3} label="Ładuję wyniki" />
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="page-container">
+    <div className="page-container lg:max-w-6xl">
       <p className="text-gray-400 text-sm mb-4">
         Cześć, <span className="font-bold text-white">{user?.nick}</span>
       </p>
 
-      <div className="grid lg:grid-cols-3 gap-6 items-start">
+      <div className={gridCls}>
 
         {/* coupon + live */}
-        <div className="lg:col-span-2 min-w-0 space-y-6">
+        <div className="min-w-0 space-y-5">
           {couponQ.error || !coupon ? (
             <ErrorState text="Nie udało się załadować kuponu" onRetry={couponQ.reload} />
           ) : (
@@ -192,7 +209,7 @@ export default function Dashboard() {
         </div>
 
         {/* side column */}
-        <div className="space-y-6 min-w-0">
+        <div className="space-y-5 min-w-0">
           <MyLeaguesCard leaguesData={leaguesQ.data} loading={leaguesQ.loading} userId={user?.id} />
 
           {/* points in followed seasons */}
@@ -228,13 +245,15 @@ export default function Dashboard() {
           {/* recent results */}
           <SectionCard title="Ostatnie wyniki" link="/predictions" linkLabel="Wszystkie →">
             {predsQ.loading ? (
-              <div className="p-5"><div className="skeleton h-24 rounded-xl" /></div>
+              <div className="divide-y divide-surface-500/10" role="status" aria-busy="true" aria-label="Ładuję wyniki">
+                {[...Array(3)].map((_, i) => <SkeletonRow key={i} />)}
+              </div>
             ) : recent.length === 0 ? (
               <div className="p-8 text-center text-gray-500 text-sm">Brak rozliczonych typów</div>
             ) : (
               <div className="divide-y divide-surface-500/10">
-                {recent.map((p) => (
-                  <div key={p.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                {recent.map((p, i) => (
+                  <div key={p.id} className={`px-5 py-2.5 items-center justify-between gap-3 ${i >= 4 ? 'hidden lg:flex' : 'flex'}`}>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-200 truncate">
                         {p.home_team_name} – {p.away_team_name}

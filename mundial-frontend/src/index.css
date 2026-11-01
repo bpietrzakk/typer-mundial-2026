@@ -121,7 +121,7 @@
     @apply text-3xl sm:text-4xl font-bold font-display text-white mb-8;
   }
   .score-num { @apply font-display tabular-nums; }
-  .skeleton  { @apply bg-surface-700 rounded-lg animate-pulse; }
+  .skeleton  { @apply bg-surface-700 rounded-lg animate-pulse motion-reduce:animate-none; }
 
   .scrollbar-hide {
     scrollbar-width: none;

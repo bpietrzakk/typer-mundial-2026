@@ -16,7 +16,7 @@ export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked, j
 
   return (
     <section className="glass-card overflow-hidden animate-fade-in" aria-labelledby="my-coupon-title">
-      <div className="px-4 sm:px-5 pt-4 pb-4 border-b border-surface-500/20 bg-gradient-to-br from-mundial-teal/10 via-transparent to-transparent">
+      <div className="px-4 sm:px-5 py-3.5 border-b border-surface-500/20 bg-gradient-to-br from-mundial-teal/10 via-transparent to-transparent">
         <div className="flex items-baseline justify-between gap-3 mb-3">
           <h2 id="my-coupon-title" className="text-lg font-bold text-white">
             {isHits ? 'Hity tygodnia' : 'Twój kupon'}

@@ -9,6 +9,9 @@ import ErrorState from './ErrorState';
 import PodiumCard from './PodiumCard';
 import RankingTable from './RankingTable';
 import SelectField from './SelectField';
+import SkeletonCard from './SkeletonCard';
+import SkeletonChips from './SkeletonChips';
+import SkeletonLine from './SkeletonLine';
 import UserPredictionsModal from './UserPredictionsModal';
 import useAsync from '../hooks/useAsync';
 import useSeasonSelection from '../hooks/useSeasonSelection';
@@ -43,12 +46,28 @@ export default function GlobalRankingSection() {
     } catch { /* user cancelled */ }
   };
 
+  // podium (2nd, 1st, 3rd) + table rows while the ranking loads
+  const rankingSkeleton = (
+    <div role="status" aria-busy="true" aria-label="Ładuję ranking">
+      <div className="glass-card p-5 sm:p-6 mb-6 flex items-end gap-3 justify-center" aria-hidden="true">
+        {[['w-14', 'h-14'], ['w-16', 'h-16'], ['w-14', 'h-14']].map(([w, h], i) => (
+          <div key={i} className="flex-1 max-w-[140px] flex flex-col items-center gap-2">
+            <SkeletonLine width="w-6" height="h-2.5" />
+            <SkeletonLine width={w} height={h} className="!rounded-full" />
+            <SkeletonLine width="w-16" height="h-3" />
+            <SkeletonLine width="w-8" height="h-5" />
+          </div>
+        ))}
+      </div>
+      <SkeletonCard rows={5} variant="rank" label="Ładuję tabelę" />
+    </div>
+  );
+
   if (sel.loading) {
     return (
       <div>
-        <div className="skeleton h-10 rounded-xl mb-4" />
-        <div className="skeleton h-48 rounded-2xl mb-6" />
-        <div className="skeleton h-72 rounded-2xl" />
+        <SkeletonChips count={3} />
+        {rankingSkeleton}
       </div>
     );
   }
@@ -112,12 +131,7 @@ export default function GlobalRankingSection() {
         </div>
       )}
 
-      {rankingQ.loading && (
-        <>
-          <div className="skeleton h-48 rounded-2xl mb-6" />
-          <div className="skeleton h-72 rounded-2xl" />
-        </>
-      )}
+      {rankingQ.loading && rankingSkeleton}
 
       {rankingQ.error && (
         <ErrorState text="Nie udało się załadować rankingu" onRetry={rankingQ.reload} />

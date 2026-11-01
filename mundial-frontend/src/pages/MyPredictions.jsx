@@ -4,6 +4,8 @@ import { getMyPredictions } from '../api/predictions';
 import ChipButton from '../components/ChipButton';
 import ErrorState from '../components/ErrorState';
 import PredictionSection from '../components/PredictionSection';
+import SkeletonChips from '../components/SkeletonChips';
+import SkeletonLine from '../components/SkeletonLine';
 import useAsync from '../hooks/useAsync';
 import useCompetitions from '../hooks/useCompetitions';
 import { countOf } from '../utils/plural';
@@ -123,12 +125,28 @@ export default function MyPredictions() {
     return (
       <div className="page-container">
         <h1 className="page-title">Moje typy</h1>
-        <div className="skeleton h-12 rounded-xl mb-4" />
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-20 rounded-2xl" />)}
-        </div>
-        <div className="grid gap-3">
-          {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-24 rounded-2xl" />)}
+        <div role="status" aria-busy="true" aria-label="Ładuję typy">
+          <SkeletonChips count={3} className="mb-5" />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="glass-card p-4 flex flex-col items-center gap-2">
+                <SkeletonLine width="w-16" height="h-2.5" />
+                <SkeletonLine width="w-10" height="h-7" />
+              </div>
+            ))}
+          </div>
+          <div className="grid gap-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="glass-card p-4 flex items-start justify-between gap-3">
+                <div className="flex-1 space-y-2">
+                  <SkeletonLine width="w-48 max-w-full" height="h-3.5" />
+                  <SkeletonLine width="w-32" height="h-2.5" />
+                  <SkeletonLine width="w-14" height="h-7" className="mt-1" />
+                </div>
+                <SkeletonLine width="w-14" height="h-6" className="!rounded-full shrink-0" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );

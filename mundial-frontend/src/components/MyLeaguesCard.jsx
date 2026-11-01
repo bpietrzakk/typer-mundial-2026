@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import SkeletonRow from './SkeletonRow';
 import { PLAYERS, countOf } from '../utils/plural';
 
 // my private leagues with my place in the combined standings.
@@ -6,7 +7,7 @@ import { PLAYERS, countOf } from '../utils/plural';
 export default function MyLeaguesCard({ leaguesData, loading, userId, title = 'Moje ligi' }) {
   return (
     <div className="glass-card overflow-hidden">
-      <div className="px-5 py-4 border-b border-surface-500/20 flex items-center justify-between">
+      <div className="px-5 py-3 border-b border-surface-500/20 flex items-center justify-between">
         <h2 className="font-semibold text-gray-200">{title}</h2>
         <Link to="/leagues" className="text-xs text-mundial-teal hover:text-mundial-teal/80 transition-colors">
           Wszystkie →
@@ -14,7 +15,9 @@ export default function MyLeaguesCard({ leaguesData, loading, userId, title = 'M
       </div>
 
       {loading ? (
-        <div className="p-5"><div className="skeleton h-16 rounded-xl" /></div>
+        <div className="divide-y divide-surface-500/10" role="status" aria-busy="true" aria-label="Ładuję ligi">
+          {[...Array(2)].map((_, i) => <SkeletonRow key={i} />)}
+        </div>
       ) : !leaguesData || leaguesData.items.length === 0 ? (
         <div className="p-5 text-center">
           <p className="text-sm text-gray-400 mb-3">Rywalizuj ze znajomymi w prywatnej lidze.</p>
@@ -33,7 +36,7 @@ export default function MyLeaguesCard({ leaguesData, loading, userId, title = 'M
               <Link
                 key={league.id}
                 to={`/leagues/${league.id}`}
-                className="px-5 py-4 flex items-center justify-between gap-3 hover:bg-surface-700/30 transition-colors"
+                className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-surface-700/30 transition-colors"
               >
                 <div className="min-w-0">
                   <p className="font-semibold text-gray-200 truncate">{league.name}</p>

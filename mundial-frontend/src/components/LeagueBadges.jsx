@@ -1,4 +1,5 @@
 import LeagueBadgeItem from './LeagueBadgeItem';
+import SkeletonRow from './SkeletonRow';
 
 // "Odznaki sezonu" card: season badges of the league, ties share a badge.
 // data = GET /leagues/{id}/badges, null while loading
@@ -15,8 +16,8 @@ export default function LeagueBadges({ data, error }) {
       </div>
 
       {!data && (
-        <div className="p-5 grid gap-2" aria-label="Ładuję odznaki">
-          {[...Array(2)].map((_, i) => <div key={i} className="skeleton h-10 rounded-lg" />)}
+        <div className="p-2 grid gap-0.5 sm:grid-cols-2" role="status" aria-busy="true" aria-label="Ładuję odznaki">
+          {[...Array(2)].map((_, i) => <SkeletonRow key={i} variant="badge" />)}
         </div>
       )}
 

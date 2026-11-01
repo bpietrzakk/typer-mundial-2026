@@ -123,8 +123,10 @@ albo działający keep-alive na cron-job.org.
   plakatowy) gryzą się z nową, minimalistyczną marką.
 - **Jedna paleta:** turkus, czerwień, złoto i fiolet badge'y rozgrywek konkurują ze sobą. Warto
   wybrać 1 kolor marki + 1 akcent i używać kolorów tylko do znaczenia (wygrana, pudło, na żywo).
-- **Gęstość:** karty są wysokie i mają dużo pustego miejsca. Na desktopie prawa kolumna Startu jest
-  w większości pusta. Kompaktowe wiersze (pkt 3) i dwie kolumny na desktopie by to rozwiązały.
+- ✅ *(etap 10, 01.11)* **Gęstość:** Start na desktopie ma dwie wyważone kolumny (kupon i „na żywo”
+  po lewej, ligi, sezony i ostatnie wyniki w szerszej prawej, strona trochę szersza), na desktopie
+  6 ostatnich wyników zamiast 4, mniejsze odstępy w nagłówkach i wierszach kart. Telefon bez zmian
+  układu (jedna kolumna, kupon na górze).
 
 ### ✅ Kontekst do typowania (etap 3, 01.11)
 Ikona „i” przy meczu i w kuponie: miejsce w tabeli (liczone z naszych wyników), forma z 5 meczów
@@ -191,7 +193,10 @@ i po meczu wyjaśnienie, czemu „+3”. Mecze pucharowe z większą punktacją 
   gdzie dochodzi Render, Neon i sieć. Na produkcji tego nie mierzyłem poza `/health`.
 - Lokalnie, Start ok. 0,6 s przy 5–8 zapytaniach do API. Jest
   dobrze. Można jeszcze połączyć dane Startu w jeden endpoint (`/me/home`).
-- **Szkielety ładowania** zamiast spinnerów: strona wygląda wtedy na szybszą, nawet gdy nie jest.
+- ✅ *(etap 10, 01.11)* **Szkielety ładowania** w kształcie treści zamiast prostokątów: wiersze kuponu
+  (godzina, herby, okienka wyniku), karty meczów, wiersze rankingu, podium, karty lig, typów i
+  odznak. Wspólne klocki `SkeletonLine` / `SkeletonRow` / `SkeletonCard` / `SkeletonChips`, pulsowanie
+  wyłączone przy `prefers-reduced-motion`. Spinner został tylko przy sprawdzaniu logowania.
 
 ### Dług techniczny
 - Stare endpointy i strony Mundialu (`/matches`, `/ranking`, `/bonus/*`, `leagues`, `scoring_rules`,

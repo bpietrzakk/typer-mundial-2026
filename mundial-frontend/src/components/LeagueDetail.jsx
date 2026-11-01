@@ -13,6 +13,8 @@ import LeaguePrizePool from './LeaguePrizePool';
 import LeagueScopeEditor from './LeagueScopeEditor';
 import LeagueShareCard from './LeagueShareCard';
 import LeagueStandings from './LeagueStandings';
+import SkeletonCard from './SkeletonCard';
+import SkeletonLine from './SkeletonLine';
 import UserPredictionsModal from './UserPredictionsModal';
 
 // private league page: weekly coupon first, then ranking, bonus questions and settings.
@@ -68,8 +70,12 @@ export default function LeagueDetail({ leagueId }) {
   if (loading) {
     return (
       <div className="page-container">
-        <div className="skeleton h-12 w-48 rounded-xl mb-6" />
-        <div className="skeleton h-96 rounded-2xl" />
+        <div aria-busy="true">
+          <SkeletonLine width="w-24" height="h-3" className="mb-5" />
+          <SkeletonLine width="w-56 max-w-full" height="h-9" className="mb-6" />
+          <SkeletonCard rows={4} variant="match" label="Ładuję kupon" className="mb-6" />
+          <SkeletonCard rows={4} variant="rank" label="Ładuję ranking" />
+        </div>
       </div>
     );
   }

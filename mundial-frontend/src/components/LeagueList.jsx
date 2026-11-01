@@ -4,6 +4,7 @@ import { getMyLeagues, joinLeague, getLeagueScope } from '../api/leagues';
 import { apiErrorMessage } from '../utils/apiError';
 import LeagueCard from './LeagueCard';
 import LeagueCreateForm from './LeagueCreateForm';
+import SkeletonLine from './SkeletonLine';
 
 // all my leagues + join / create forms
 export default function LeagueList() {
@@ -77,9 +78,15 @@ export default function LeagueList() {
     return (
       <div className="page-container">
         <h1 className="page-title">Ligi</h1>
-        <div className="grid gap-4">
+        <div className="grid gap-4" role="status" aria-busy="true" aria-label="Ładuję ligi">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="skeleton h-20 rounded-2xl" />
+            <div key={i} className="glass-card p-5 flex items-center justify-between gap-3">
+              <div className="flex-1 space-y-2">
+                <SkeletonLine width="w-40" height="h-4" />
+                <SkeletonLine width="w-20" height="h-3" />
+              </div>
+              <SkeletonLine width="w-5" height="h-5" className="shrink-0" />
+            </div>
           ))}
         </div>
       </div>
