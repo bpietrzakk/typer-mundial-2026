@@ -1,185 +1,100 @@
-# Mundial Typer 2026
+<div align="center">
 
-Aplikacja do typowania wyników meczów Mundialu 2026 dla znajomych. Prywatne ligi z kodem zaproszenia, automatyczne pobieranie wyników, ranking z podium i bonusy za mistrza turnieju.
+# ⚽ czutka
 
+**Typuj wyniki meczów ze znajomymi.**
+Prywatne ligi, kupon tygodnia, ranking na żywo i odznaki. Bez reklam i bez hazardu.
 
-> [English version below](#mundial-typer-2026-english)
+[**czutka.uk**](https://www.czutka.uk) · [Dokumentacja](docs/README.md) · [API](docs/api-contract.md)
 
----
+![CI](https://github.com/bpietrzakk/typer-mundial-2026/actions/workflows/ci.yml/badge.svg)
 
-## Screenshoty
-
-| Dashboard | Mecze | Ranking |
-|-----------|-------|---------|
-| ![Dashboard](docs/screenshots/homepage.png) | ![Mecze](docs/screenshots/mecze-grupy.png) | ![Ranking](docs/screenshots/ranking_globalny.png) |
-
-| Moje Typy | Bonusy | Ligi prywatne |
-|-----------|--------|---------------|
-| ![Typy](docs/screenshots/moje_typy.png) | ![Bonusy](docs/screenshots/bonusy.png) | ![Ligi](docs/screenshots/ligi_prywatne.png) |
+</div>
 
 ---
 
-## Funkcje
+## Jak to działa
 
-- Typowanie wyników wszystkich 64 meczów Mundialu 2026
-- Bonusy przed turniejem: mistrz i awanse z grup
-- Ranking globalny z podium (złoto/srebro/brąz)
-- Prywatne ligi — dołączanie kodem lub linkiem zaproszenia
-- Dashboard z postępem turnieju, pozycją w lidze i passą
-- Automatyczne pobieranie wyników z football-data.org co 5 minut
-- PWA — instalacja na ekranie głównym telefonu
-- Udostępnianie pozycji w rankingu (native share API)
+1. **Zakładasz ligę** i wysyłasz znajomym link na grupę.
+2. **Co tydzień liga dostaje kupon**: kilka najciekawszych meczów z wybranych rozgrywek.
+3. **Typujesz wyniki** do pierwszego gwizdka, zapis jest automatyczny.
+4. **Punkty liczą się same** po meczu, a w trakcie widać „gdyby się teraz skończyło”.
 
----
+## Co jest w środku
+
+| | |
+|---|---|
+| 🏆 **Rozgrywki** | Liga Mistrzów, Premier League, LaLiga, Serie A, Bundesliga, Ligue 1 i archiwum Mundialu 2026 |
+| 🎟️ **Kupon tygodnia** | mecze tygodnia dla całej ligi, joker ×2 raz na kupon |
+| 👀 **Po gwizdku** | typy znajomych, średni typ ligi i reakcje emoji |
+| 📈 **Na żywo** | prowizoryczne punkty i tabela ligi ze strzałkami ▲▼ |
+| 🔥 **Grywalizacja** | serie bez pudła i odznaki sezonu (Król dokładnych, Prorok, Maruda…) |
+| ❓ **Pytania bonusowe** | mistrz sezonu albo własne pytanie organizatora |
+| 📱 **PWA** | instalacja na telefonie jak zwykła aplikacja |
 
 ## Punktacja
 
-### Mecze — liczy się najwyższy trafiony próg
+| Trafienie | Przykład (typ 2:1) | Punkty |
+|---|---|:---:|
+| Dokładny wynik | 2:1 | **5** |
+| Różnica bramek | 3:2 | **3** |
+| Zwycięzca | 4:0 | **2** |
 
-| Trafienie | Faza grupowa | 1/8 | Ćwierćfinał | Półfinał | Finał |
-|-----------|:-----------:|:---:|:-----------:|:--------:|:-----:|
-| Dokładny wynik | 5 | 7 | 9 | 11 | 15 |
-| Różnica bramek | 3 | 4 | 5 | 6 | 8 |
-| Wynik meczu (kto wygrał) | 2 | 3 | 4 | 5 | 6 |
+Mecze pucharowe są warte więcej (np. finał 15 · 8 · 6). Szczegóły w [docs/scoring.md](docs/scoring.md).
 
-### Bonusy
+## Uruchomienie lokalnie
 
-| Trafienie | Punkty | Kiedy przyznawane |
-|-----------|--------|------------------|
-| Mistrz turnieju | 20 | Po finale |
-| Awans z grupy (za każdą drużynę) | 3 | Po fazie grupowej |
+Potrzebujesz Dockera.
 
----
+```bash
+cp mundial-backend/.env.example mundial-backend/.env   # uzupełnij JWT_SECRET
+docker compose up --build
+```
+
+- aplikacja: http://localhost:8080
+- Swagger API: http://localhost:8000/docs
+
+Praca z hot-reloadem (backend i front osobno) jest opisana w [CLAUDE.md](CLAUDE.md#jak-odpalić-lokalnie).
+
+## Testy
+
+```bash
+cd mundial-backend && uv run pytest        # backend (RUN_DB_TESTS=1 z bazą testową)
+cd mundial-frontend && npm run lint        # lint frontu
+cd mundial-frontend && npm run test:e2e    # Playwright, główne ścieżki
+```
+
+Wszystko odpala się też w GitHub Actions przy każdym pushu.
 
 ## Stack
 
 | Warstwa | Technologia |
-|---------|-------------|
-| Frontend | React 18 + Vite (JavaScript) |
-| Stylowanie | Tailwind CSS, glassmorphism |
-| Backend | Python 3.12, FastAPI |
-| Baza danych | PostgreSQL 16 (Neon) |
-| Auth | JWT (httpOnly cookie) + Argon2id |
-| Email | Resend |
-| Dane meczów | football-data.org API |
-| Hosting | Vercel + Render.com |
+|---|---|
+| Frontend | React 19, Vite, Tailwind, React Router |
+| Backend | FastAPI, psycopg2 (czysty SQL), pytest |
+| Baza | PostgreSQL 16 (Neon) |
+| Dane meczów | [football-data.org](https://www.football-data.org) |
+| Hosting | Vercel (front), Render (backend), Neon (baza) |
+
+Jak zmiana trafia na produkcję: [docs/ci-cd.md](docs/ci-cd.md).
+
+<details>
+<summary><b>Jak wyglądał Mundial Typer 2026</b> (pierwsza wersja)</summary>
+
+<br>
+
+Wersja z Mundialu jest zachowana na branchu `mundial-2026` i tagu `mundial-2026-final`.
+
+| Start | Mecze | Ranking |
+|---|---|---|
+| ![Start](docs/screenshots/homepage.png) | ![Mecze](docs/screenshots/mecze-grupy.png) | ![Ranking](docs/screenshots/ranking_globalny.png) |
+
+</details>
 
 ---
 
-## Uruchomienie lokalnie
+<div align="center">
 
-```bash
-git clone <repo>
-cd mundial_typer_2026
+Robione po godzinach przez **bartka** i **Daniela**.
 
-cp mundial-backend/.env.example mundial-backend/.env
-# uzupełnij .env: JWT_SECRET, ADMIN_EMAILS
-
-docker compose up --build
-```
-
-- Aplikacja: http://localhost:8080
-- Swagger UI: http://localhost:8000/docs
-
-Szczegóły dewelopki z hot-reload w `CLAUDE.md`.
-
----
-
-## Deploy
-
-**Vercel + Render + Neon — $0/mies.**
-
-```
-Frontend  → Vercel (darmowy)
-Backend   → Render.com (darmowy, Web Service z obrazu Docker)
-Baza      → Neon (darmowy, PostgreSQL 16)
-Keep-alive → cron-job.org (ping /health co 10 min)
-```
-
-Obraz Dockera backendu budowany automatycznie przez GitHub Actions i publikowany na `ghcr.io`.
-
----
-
----
-
-# Mundial Typer 2026 (English)
-
-A World Cup 2026 prediction app for friends. Private leagues with invite codes, automatic results, leaderboard with podium and tournament bonuses.
-
-
-> [Wersja polska powyżej](#mundial-typer-2026)
-
----
-
-## Screenshots
-
-| Dashboard | Matches | Ranking |
-|-----------|---------|---------|
-| ![Dashboard](docs/screenshots/homepage.png) | ![Matches](docs/screenshots/mecze-grupy.png) | ![Ranking](docs/screenshots/ranking_globalny.png) |
-
-| My Picks | Bonuses | Private Leagues |
-|----------|---------|-----------------|
-| ![Picks](docs/screenshots/moje_typy.png) | ![Bonuses](docs/screenshots/bonusy.png) | ![Leagues](docs/screenshots/ligi_prywatne.png) |
-
----
-
-## Features
-
-- Predict all 64 World Cup 2026 matches, change picks before kickoff
-- Pre-tournament bonuses: champion pick and group stage advances
-- Global leaderboard with gold/silver/bronze podium
-- Private leagues — invite by code or shareable link
-- Dashboard with tournament progress, league position and streak tracker
-- Automatic result fetching from football-data.org every 5 minutes
-- PWA — installable on mobile home screen
-- Share your ranking position (native share API)
-
----
-
-## Scoring
-
-### Matches — highest matching tier wins
-
-| Tier | Group | R16 | QF | SF | Final |
-|------|:-----:|:---:|:--:|:--:|:-----:|
-| Exact score | 5 | 7 | 9 | 11 | 15 |
-| Goal difference | 3 | 4 | 5 | 6 | 8 |
-| Correct winner | 2 | 3 | 4 | 5 | 6 |
-
-### Bonuses
-
-| Pick | Points | Awarded |
-|------|--------|---------|
-| Tournament champion | 20 | After final |
-| Group advance (per team) | 3 | After group stage |
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 18 + Vite |
-| Styling | Tailwind CSS |
-| Backend | Python 3.12, FastAPI |
-| Database | PostgreSQL 16 (Neon) |
-| Auth | JWT (httpOnly cookie) + Argon2id |
-| Email | Resend |
-| Match data | football-data.org API |
-| Hosting | Vercel + Render.com |
-
----
-
-## Run Locally
-
-```bash
-git clone <repo>
-cd mundial_typer_2026
-
-cp mundial-backend/.env.example mundial-backend/.env
-# set JWT_SECRET and ADMIN_EMAILS
-
-docker compose up --build
-# App: http://localhost:8080
-# Swagger: http://localhost:8000/docs
-```
+</div>
