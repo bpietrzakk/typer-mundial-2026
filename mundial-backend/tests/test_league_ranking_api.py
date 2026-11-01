@@ -45,7 +45,7 @@ def test_league_ranking_as_member_returns_200(monkeypatch):
         ranking_module, "get_league_with_owner", lambda lid: _fake_league_summary(),
     )
     monkeypatch.setattr(ranking_module, "is_league_member", lambda lid, uid: True)
-    monkeypatch.setattr(ranking_module, "get_league_ranking", lambda lid: [
+    monkeypatch.setattr(ranking_module, "get_league_ranking", lambda lid, bonuses=True: [
         {"rank": 1, "user_id": 1, "nick": "bartek", "total_points": 30},
         {"rank": 2, "user_id": 2, "nick": "daniel", "total_points": 10},
     ])

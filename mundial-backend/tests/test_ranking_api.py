@@ -46,7 +46,7 @@ def test_ranking_returns_sorted_list(monkeypatch):
     # query returns already-sorted rows with rank assigned
     monkeypatch.setattr(
         ranking_module, "get_global_ranking",
-        lambda: [
+        lambda bonuses=True: [
             {"rank": 1, "user_id": 5, "nick": "alice",  "total_points": 42},
             {"rank": 2, "user_id": 1, "nick": "bartek", "total_points": 17},
             {"rank": 3, "user_id": 9, "nick": "ceon",   "total_points": 0},
@@ -61,12 +61,26 @@ def test_ranking_returns_sorted_list(monkeypatch):
     assert body[0]["total_points"] == 42
     assert body[2]["total_points"] == 0
     # response model strips anything that isn't in RankingEntry
-    assert set(body[0].keys()) == {"rank", "user_id", "nick", "total_points"}
+    assert set(body[0].keys()) == {"rank", "user_id", "nick", "total_points", "match_points", "bonus_points"}
 
 
 def test_ranking_empty_list_ok(monkeypatch):
     monkeypatch.setattr(deps_module, "get_user_by_id", lambda uid: FAKE_USER)
-    monkeypatch.setattr(ranking_module, "get_global_ranking", lambda: [])
+    monkeypatch.setattr(ranking_module, "get_global_ranking", lambda bonuses=True: [])
     resp = client.get("/ranking", cookies=_auth_cookie())
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+def test_ranking_rows_with_and_without_bonuses():
+    # bonuses flip the order: b leads with bonuses, a leads on matches only
+    from db.queries import _ranking_rows
+    rows = [
+        {"id": 1, "nick": "a", "match_points": 164, "bonus_points": 0},
+        {"id": 2, "nick": "b", "match_points": 135, "bonus_points": 80},
+    ]
+    with_b = _ranking_rows(rows, bonuses=True)
+    assert [(e["nick"], e["total_points"], e["rank"]) for e in with_b] == [("b", 215, 1), ("a", 164, 2)]
+    without = _ranking_rows(rows, bonuses=False)
+    assert [(e["nick"], e["total_points"], e["rank"]) for e in without] == [("a", 164, 1), ("b", 135, 2)]
+    assert without[1]["bonus_points"] == 80

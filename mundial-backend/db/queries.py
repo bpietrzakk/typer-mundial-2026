@@ -366,7 +366,9 @@ SQL_GLOBAL_RANKING = """
         u.id,
         u.nick,
         COALESCE(pp.total, 0) + COALESCE(bp.total, 0) + COALESCE(gap.total, 0)
-            AS total_points
+            AS total_points,
+        COALESCE(pp.total, 0) AS match_points,
+        COALESCE(bp.total, 0) + COALESCE(gap.total, 0) AS bonus_points
     FROM users u
     LEFT JOIN (
         SELECT p.user_id, SUM(p.points_awarded) AS total
@@ -583,7 +585,9 @@ SQL_LEAGUE_RANKING = """
         u.id,
         u.nick,
         COALESCE(pp.total, 0) + COALESCE(bp.total, 0) + COALESCE(gap.total, 0)
-            AS total_points
+            AS total_points,
+        COALESCE(pp.total, 0) AS match_points,
+        COALESCE(bp.total, 0) + COALESCE(gap.total, 0) AS bonus_points
     FROM users u
     JOIN private_league_members plm
         ON plm.user_id = u.id AND plm.private_league_id = %s
@@ -1099,7 +1103,26 @@ def score_all_group_advances(group_name: str, real_team_ids: list[int]) -> int:
 
 # --- ranking queries ---
 
-def get_global_ranking() -> list[dict]:
+def _ranking_rows(rows, bonuses: bool = True) -> list[dict]:
+    # bonuses=False ranks by match points only (mundial ranking without bonuses)
+    entries = []
+    for r in rows:
+        match_pts = int(r["match_points"])
+        bonus_pts = int(r["bonus_points"])
+        entries.append({
+            "user_id": r["id"],
+            "nick": r["nick"],
+            "match_points": match_pts,
+            "bonus_points": bonus_pts,
+            "total_points": match_pts + bonus_pts if bonuses else match_pts,
+        })
+    entries.sort(key=lambda e: (-e["total_points"], e["nick"]))
+    for i, e in enumerate(entries):
+        e["rank"] = i + 1
+    return entries
+
+
+def get_global_ranking(bonuses: bool = True) -> list[dict]:
     # returns every user (even with 0 points) so the frontend can show
     # "you are dead last" too. rank is computed in python — enumerate over
     # the already-sorted rows. ties get sequential ranks (1, 2, 3) for now.
@@ -1108,21 +1131,12 @@ def get_global_ranking() -> list[dict]:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(SQL_GLOBAL_RANKING)
-                rows = cur.fetchall()
-                return [
-                    {
-                        "rank": i + 1,
-                        "user_id": r["id"],
-                        "nick": r["nick"],
-                        "total_points": int(r["total_points"]),
-                    }
-                    for i, r in enumerate(rows)
-                ]
+                return _ranking_rows(cur.fetchall(), bonuses)
     finally:
         release_conn(conn)
 
 
-def get_league_ranking(league_id: int) -> list[dict]:
+def get_league_ranking(league_id: int, bonuses: bool = True) -> list[dict]:
     # same shape as global ranking but restricted to league members.
     # bonuses are global per user (decisions #009), so just one param.
     conn = get_conn()
@@ -1130,16 +1144,7 @@ def get_league_ranking(league_id: int) -> list[dict]:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(SQL_LEAGUE_RANKING, (league_id,))
-                rows = cur.fetchall()
-                return [
-                    {
-                        "rank": i + 1,
-                        "user_id": r["id"],
-                        "nick": r["nick"],
-                        "total_points": int(r["total_points"]),
-                    }
-                    for i, r in enumerate(rows)
-                ]
+                return _ranking_rows(cur.fetchall(), bonuses)
     finally:
         release_conn(conn)
 

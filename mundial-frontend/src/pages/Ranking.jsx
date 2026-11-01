@@ -50,6 +50,7 @@ export default function Ranking() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
+  const [bonuses, setBonuses] = useState(true);
 
   const handleShare = async (entry) => {
     const text = `Jestem #${entry.rank} z ${entry.total_points} pkt na Mundial Typer 2026! ⚽`;
@@ -63,19 +64,21 @@ export default function Ranking() {
     } catch { /* user anulował */ }
   };
 
-  useEffect(() => { loadRanking(); }, []);
-
   const loadRanking = async () => {
     setLoading(true);
     setError('');
     try {
-      setEntries(await getRanking());
+      setEntries(await getRanking({ bonuses }));
     } catch {
       setError('Nie udało się załadować rankingu');
     } finally {
       setLoading(false);
     }
   };
+
+  // reload when the bonuses switch changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadRanking(); }, [bonuses]);
 
   if (loading) {
     return (
@@ -111,6 +114,24 @@ export default function Ranking() {
     <div className="page-container">
       <h1 className="page-title">Ranking globalny</h1>
 
+      {/* official ranking with bonuses or match points only */}
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <div className="inline-flex rounded-xl bg-white/5 p-1">
+          {[[true, 'Z bonusami'], [false, 'Bez bonusów']].map(([value, label]) => (
+            <button
+              key={label}
+              onClick={() => setBonuses(value)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                bonuses === value ? 'bg-mundial-teal text-white' : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500">Bonusy: mistrz 20 pkt, awans z grupy 3 pkt za drużynę.</p>
+      </div>
+
       {/* user's position banner (if not in top 3) */}
       {myEntry && myEntry.rank > 3 && (
         <div className="glass-card px-5 py-3 mb-6 flex items-center gap-3 border-mundial-teal/20">
@@ -118,6 +139,9 @@ export default function Ranking() {
           <span className="text-2xl font-black tabular-nums text-mundial-gold">#{myEntry.rank}</span>
           <span className="text-gray-500 text-sm">·</span>
           <span className="text-lg font-bold tabular-nums text-gray-200">{myEntry.total_points} pkt</span>
+          {bonuses && myEntry.bonus_points > 0 && (
+            <span className="text-xs text-gray-500 tabular-nums">{myEntry.match_points} + {myEntry.bonus_points} bonusy</span>
+          )}
           {entries[0] && myEntry.total_points < entries[0].total_points && (
             <span className="text-xs text-gray-500">
               {entries[0].total_points - myEntry.total_points} pkt za liderem
