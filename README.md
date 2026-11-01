@@ -1,7 +1,25 @@
-# czutka
+<p align="center">
+  <img src="mundial-frontend/public/icon-192.png" width="96" alt="czutka">
+</p>
 
-Typer piłkarski dla znajomych: zakładasz prywatną ligę, co tydzień typujecie wyniki meczów,
-punkty liczą się same. Działa na [czutka.uk](https://www.czutka.uk).
+<h1 align="center">czutka</h1>
+
+<p align="center">
+  Typer piłkarski dla znajomych. Zakładasz ligę, co tydzień typujecie wyniki, punkty liczą się same.<br>
+  <a href="https://www.czutka.uk"><b>czutka.uk</b></a>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/czutka-start.png" alt="Start: kupon tygodnia i ligi" width="860">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/czutka-start-mobile.png" width="250" alt="Start na telefonie">
+  &nbsp;
+  <img src="docs/screenshots/czutka-liga-mobile.png" width="250" alt="Liga z tabelą na żywo">
+  &nbsp;
+  <img src="docs/screenshots/czutka-typy-mobile.png" width="250" alt="Moje typy">
+</p>
 
 Zaczęło się jako typer na Mundial 2026. Ta wersja jest na branchu `mundial-2026`.
 
