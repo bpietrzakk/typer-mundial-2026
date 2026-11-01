@@ -1,5 +1,8 @@
 # czutka: pomysły na rozbudowę i przebudowę
 
+> Historia testów i wdrożonych zmian (do 01.11.2026). Aktualna lista otwartych zadań jest w
+> [do-zrobienia.md](do-zrobienia.md).
+
 Notatki z testu aplikacji (branch `feat/multi-competition`, 28.10.2026), w trzech rundach
 (trzecia, „zwykły gość”, jest w sekcji [„Trzecia runda”](#trzecia-runda-zwykły-gość-który-niczego-nie-zna-2810-wieczór)). W
 pierwszej testowałem jak nowy użytkownik na desktopie (1280 px) i telefonie (390 px). W drugiej

@@ -12,3 +12,12 @@ Zacznij od głównego [README](../README.md), jeśli chcesz tylko uruchomić pro
 - [migrations.md](migrations.md) — jak działają migracje, jak je cofnąć, jak sprawdzić, że dane się nie zmieniły, procedura na produkcji.
 - [ci-cd.md](ci-cd.md) — co sprawdzają automatyczne testy na GitHubie i jak zmiana trafia na produkcję (Vercel + Render + Neon).
 - [decisions.md](decisions.md) — dziennik decyzji architektonicznych: co wybraliśmy, jakie były alternatywy i dlaczego. Nowe wpisy dopisuje się na końcu.
+
+## Rozwój
+
+- [rozwoj/do-zrobienia.md](rozwoj/do-zrobienia.md) — otwarte zadania i pomysły, krótko.
+- [rozwoj/pomysly.md](rozwoj/pomysly.md) — historia testów UX i tego, co z nich wdrożono.
+- [rozwoj/spec-kupon-tygodnia.md](rozwoj/spec-kupon-tygodnia.md) — specyfikacja kuponu tygodnia.
+- [rozwoj/analiza-biznesowa.md](rozwoj/analiza-biznesowa.md), [monetyzacja.md](rozwoj/monetyzacja.md), [walidacja-b2b.md](rozwoj/walidacja-b2b.md) — czy i jak na tym zarobić.
+
+Zrzuty ekranu: `screenshots/czutka-*.png` (obecna wersja), `screenshots/mundial-2026/` (wersja z Mundialu).
