@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getCompetitionSeasons } from '../api/competitions';
 import { createBonusQuestion } from '../api/leagueBonus';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 import { apiErrorMessage } from '../utils/apiError';
 import { localInputToUtcIso, toLocalInputValue } from '../utils/format';
 

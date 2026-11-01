@@ -1,4 +1,4 @@
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 import { formatWeekRange, weekWinners } from '../utils/coupon';
 import { copyAndShare } from '../utils/share';
 import LeagueRankingTable from './LeagueRankingTable';

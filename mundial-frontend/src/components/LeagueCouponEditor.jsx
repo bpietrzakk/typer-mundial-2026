@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getCouponCandidates, regenerateLeagueCoupon, updateLeagueCoupon } from '../api/coupon';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 import { apiErrorMessage } from '../utils/apiError';
 import { hasStarted } from '../utils/coupon';
 import { competitionLabel } from '../utils/matchUi';

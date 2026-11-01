@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { updateLeagueSettings } from '../api/leagues';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 import { apiErrorMessage } from '../utils/apiError';
 
 // "Na co gramy?" — stake per person + 50/30/20 split, only the owner can edit.

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import PasswordInput from '../components/PasswordInput';
 import InviteNotice from '../components/InviteNotice';
 import { clearPendingInvite, inviteCodeFromPath, isInvitePath, readPendingInvite, savePendingInvite } from '../utils/pendingInvite';

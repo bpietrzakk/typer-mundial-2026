@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getAdminCompetitions, getSyncRuns, runSync, setCompetitionActive } from '../api/admin';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 import { apiErrorMessage } from '../utils/apiError';
 import AdminChampionTool from './AdminChampionTool';
 import AdminCompetitionsList from './AdminCompetitionsList';

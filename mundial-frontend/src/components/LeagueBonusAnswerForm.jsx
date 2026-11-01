@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getSeasonTeams } from '../api/competitions';
 import { answerBonusQuestion } from '../api/leagueBonus';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 import { apiErrorMessage } from '../utils/apiError';
 import LeagueTeamMultiPicker from './LeagueTeamMultiPicker';
 

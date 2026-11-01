@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { clearCouponJoker, getLeagueCoupon, setCouponJoker } from '../api/coupon';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
+import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import useAsync from '../hooks/useAsync';
 import useLivePolling from '../hooks/useLivePolling';
 import { JOKER_RULE, formatWeekRange, isJokerLocked, nextOpenDeadline, shiftDay } from '../utils/coupon';

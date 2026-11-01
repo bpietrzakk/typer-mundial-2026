@@ -42,7 +42,7 @@ export default function JoinByLink() {
           setError(detail || 'Nieprawidłowy lub wygasły kod zaproszenia');
         }
       });
-  }, [code]);
+  }, [code, navigate]);
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">

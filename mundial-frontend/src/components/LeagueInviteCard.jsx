@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { resetLeagueCode } from '../api/leagues';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 import { apiErrorMessage } from '../utils/apiError';
 
 // invite code of a league: copy, share link, owner can reset it (inline confirm)

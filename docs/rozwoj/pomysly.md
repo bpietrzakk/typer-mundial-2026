@@ -176,8 +176,9 @@ i po meczu wyjaśnienie, czemu „+3”. Mecze pucharowe z większą punktacją 
 ### Dług techniczny
 - Stare endpointy i strony Mundialu (`/matches`, `/ranking`, `/bonus/*`, `leagues`, `scoring_rules`,
   `matches.stage`): zaplanować migrację „contract” i usunąć, gdy front z nich nie korzysta.
-- 3 stare błędy lintu (`AuthContext`, `ToastContext`, `VerifyEmail`) i brak jakichkolwiek testów
-  frontu. Choćby kilka testów Playwright na główne ścieżki (rejestracja, typowanie, liga) w CI.
+- ✅ ~~3 stare błędy lintu i brak testów frontu~~ (01.11.2026): lint czysty i blokujący w CI,
+  6 testów Playwright z podstawionym API (strona gościa, logowanie, typowanie, liga z kuponem,
+  link z zaproszeniem przez logowanie, weryfikacja maila), `npm run test:e2e`, odpalane w CI.
 - Brak monitoringu błędów (Sentry ma darmowy plan) i podstawowej analityki (np. Plausible lub
   Umami): dziś nie wiadomo, ile osób wraca w weekend, gdzie odpadają i czy ktoś używa bonusów.
 - `ADMIN_EMAILS` w env zamiast roli w bazie. Do 2 adminów jest OK, przy B2B (patrz monetyzacja) nie.

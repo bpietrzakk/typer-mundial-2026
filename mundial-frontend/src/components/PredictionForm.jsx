@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { addPrediction } from '../api/predictions';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 import { errorMessage } from '../utils/matchUi';
 import ScoreInput from './ScoreInput';
 import ScoringHint from './ScoringHint';

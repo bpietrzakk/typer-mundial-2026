@@ -5,18 +5,20 @@ import { verifyEmail } from '../api/auth';
 export default function VerifyEmail() {
   const [params] = useSearchParams();
   const token = params.get('token') || '';
-  // status: 'loading' | 'ok' | 'error'
-  const [status, setStatus] = useState('loading');
+  // result of the verify call, remembered per token: { token, status }
+  const [result, setResult] = useState(null);
 
   useEffect(() => {
-    if (!token) {
-      setStatus('error');
-      return;
-    }
+    if (!token) return;
     verifyEmail(token)
-      .then(() => setStatus('ok'))
-      .catch(() => setStatus('error'));
+      .then(() => setResult({ token, status: 'ok' }))
+      .catch(() => setResult({ token, status: 'error' }));
   }, [token]);
+
+  // status: 'loading' | 'ok' | 'error' — no token in the link is an error right away
+  let status = 'loading';
+  if (!token) status = 'error';
+  else if (result?.token === token) status = result.status;
 
   return (
     <div className="auth-bg min-h-screen flex items-center justify-center px-4">

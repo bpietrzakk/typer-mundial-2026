@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
+import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import { getFeed } from '../api/competitions';
 import { clearCouponJoker, getMyCoupon, setCouponJoker } from '../api/coupon';
 import { getMyPredictions } from '../api/predictions';

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { patchLeagueSettings } from '../api/leagues';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 import { apiErrorMessage } from '../utils/apiError';
 
 const SIZES = Array.from({ length: 11 }, (_, i) => i + 5); // 5..15

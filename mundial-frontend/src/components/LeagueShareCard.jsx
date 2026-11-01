@@ -1,4 +1,4 @@
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 import { copyAndShare, inviteUrl } from '../utils/share';
 
 // big "send the link to your friends" card for a fresh league

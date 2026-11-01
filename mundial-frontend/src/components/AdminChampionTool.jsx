@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { getCompetitionSeasons, getSeasonTeams } from '../api/competitions';
 import { resolveSeasonChampion } from '../api/admin';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 import { apiErrorMessage } from '../utils/apiError';
 import LeagueTeamPicker from './LeagueTeamPicker';
 

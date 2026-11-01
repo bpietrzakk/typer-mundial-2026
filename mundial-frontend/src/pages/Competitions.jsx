@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { followCompetition, unfollowCompetition } from '../api/competitions';
 import CompetitionCard from '../components/CompetitionCard';
 import ErrorState from '../components/ErrorState';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 import useCompetitions from '../hooks/useCompetitions';
 import { isArchiveCompetition } from '../utils/matchUi';
 

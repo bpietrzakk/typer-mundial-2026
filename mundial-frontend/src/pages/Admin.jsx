@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
+import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import {
   getUsers, getUserPredictions, getUserBonuses, bootstrap, deleteUser,
   setMatchResult, verifyUserEmail, getAdminLeagues, getLeagueMembers,

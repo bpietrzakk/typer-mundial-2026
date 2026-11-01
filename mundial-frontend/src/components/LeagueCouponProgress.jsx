@@ -1,5 +1,5 @@
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
+import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import { formatDeadline } from '../utils/coupon';
 import { copyAndShare, inviteUrl } from '../utils/share';
 import { MATCHES, countOf } from '../utils/plural';

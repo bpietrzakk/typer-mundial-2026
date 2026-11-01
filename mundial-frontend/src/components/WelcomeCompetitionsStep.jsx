@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { followCompetition, unfollowCompetition } from '../api/competitions';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 import useCompetitions from '../hooks/useCompetitions';
 import { competitionLabel, isArchiveCompetition } from '../utils/matchUi';
 import CompetitionBadge from './CompetitionBadge';

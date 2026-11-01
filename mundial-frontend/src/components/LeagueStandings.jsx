@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getLeagueStandings } from '../api/leagues';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 import { apiErrorMessage } from '../utils/apiError';
 import { competitionLabel } from '../utils/matchUi';
 import LeagueRankingTable from './LeagueRankingTable';

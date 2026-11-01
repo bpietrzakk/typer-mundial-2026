@@ -1,6 +1,5 @@
-import { createContext, useCallback, useContext, useState } from 'react';
-
-const ToastContext = createContext(null);
+import { useCallback, useState } from 'react';
+import { ToastContext } from '../hooks/useToast';
 
 let _nextId = 0;
 
@@ -23,12 +22,6 @@ export function ToastProvider({ children }) {
       <ToastStack toasts={toasts} onDismiss={dismiss} />
     </ToastContext.Provider>
   );
-}
-
-export function useToast() {
-  const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error('useToast must be used inside ToastProvider');
-  return ctx;
 }
 
 const TYPE_STYLES = {

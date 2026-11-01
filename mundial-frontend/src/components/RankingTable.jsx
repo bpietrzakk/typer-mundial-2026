@@ -1,4 +1,4 @@
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { TIPS, countOf } from '../utils/plural';
 
 // showStats (optional) adds exact / diff / scored columns from RankingEntry

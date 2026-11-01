@@ -1,4 +1,4 @@
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 // "/" for everybody: guests get the landing page, logged in players the app
 export default function HomeRoute({ guest, children }) {

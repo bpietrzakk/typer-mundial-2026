@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
+import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import { changeNick, changePassword, deleteAccount } from '../api/settings';
 import PasswordInput from '../components/PasswordInput';
 import UserAvatar from '../components/UserAvatar';

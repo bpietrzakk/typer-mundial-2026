@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import GlobalRankingSection from '../components/GlobalRankingSection';
 import MyLeaguesCard from '../components/MyLeaguesCard';
 import useMyLeagues from '../hooks/useMyLeagues';

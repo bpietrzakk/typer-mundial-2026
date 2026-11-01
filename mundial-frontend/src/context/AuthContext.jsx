@@ -1,16 +1,8 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import * as authApi from '../api/auth';
 import { isInvitePath } from '../utils/pendingInvite';
-
-const AuthContext = createContext(null);
-
-// hook for components to consume auth state
-export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be inside AuthProvider');
-  return ctx;
-};
+import { AuthContext, useAuth } from '../hooks/useAuth';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);

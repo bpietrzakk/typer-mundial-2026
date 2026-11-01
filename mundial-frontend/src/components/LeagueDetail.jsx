@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { getLeague, getLeagueScope } from '../api/leagues';
 import { getCompetitions } from '../api/competitions';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import AdminCollapsible from './AdminCollapsible';
 import LeagueBonusQuestions from './LeagueBonusQuestions';
 import LeagueCoupon from './LeagueCoupon';
