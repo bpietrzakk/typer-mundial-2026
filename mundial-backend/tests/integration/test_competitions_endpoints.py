@@ -111,7 +111,7 @@ def test_competition_seasons_newest_first(world, api):
     assert body[0] == {
         "id": world["seasons"]["epl"], "label": "2026/27", "status": "active",
         "starts_on": "2026-08-21", "ends_on": "2027-05-30",
-        "competition": {"id": world["EPL"], "code": "EPL", "name": "Premier League"},
+        "competition": {"id": world["EPL"], "code": "EPL", "name": "Premier League", "logo_url": "https://crests.football-data.org/PL.png"},
     }
     assert api("ala").get("/competitions/999999/seasons").status_code == 404
 
@@ -176,7 +176,9 @@ def test_season_matches_shape_order_and_can_predict(world, api):
     assert {x["id"] for x in body if x["can_predict"]} == {m["e6"], m["e8"]}
 
     first = by_id[m["e1"]]
-    assert first["competition"] == {"id": world["EPL"], "code": "EPL", "name": "Premier League"}
+    assert first["competition"] == {
+        "id": world["EPL"], "code": "EPL", "name": "Premier League", "logo_url": "https://crests.football-data.org/PL.png",
+    }
     assert first["season_id"] == world["seasons"]["epl"]
     assert first["round"] == {"id": world["rounds"]["epl1"], "phase": "regular", "matchday": 1, "name": "Kolejka 1"}
     assert first["home_team"]["short_name"] == "ARS"
@@ -428,8 +430,8 @@ def test_league_scope_defaults_to_all_and_can_be_changed_by_the_owner(world, api
     assert resp.status_code == 200
     # sort_order: UCL (10) before EPL (40), duplicates dropped
     assert resp.json() == {"all": False, "competitions": [
-        {"id": world["UCL"], "code": "UCL", "name": "Liga Mistrzów"},
-        {"id": world["EPL"], "code": "EPL", "name": "Premier League"},
+        {"id": world["UCL"], "code": "UCL", "name": "Liga Mistrzów", "logo_url": "https://crests.football-data.org/CL.png"},
+        {"id": world["EPL"], "code": "EPL", "name": "Premier League", "logo_url": "https://crests.football-data.org/PL.png"},
     ]}
     assert api("celina").get(f"/leagues/{league}/competitions").json()["all"] is False
 

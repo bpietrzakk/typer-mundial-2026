@@ -76,6 +76,10 @@ Migracja 008 (`008_league_coupons.sql`, rollback w `rollback/008_league_coupons.
 
 Tabeli ligowej nie trzymamy: miejsca drużyn do doboru meczów liczymy w locie z zakończonych meczów sezonu (fazy `regular`/`league_phase`, 3/1/0, potem bilans i bramki — `domain.coupon.league_table`), a przed trzecią kolejką miejsc nie ma.
 
+## Logo rozgrywek
+
+`competitions.logo_url` (kolumna od migracji 005) trzyma `emblem` rozgrywki z football-data. Przebieg `season` zapisuje go przy okazji `GET /competitions/{code}`, które i tak pobiera bieżący sezon, więc nie kosztuje dodatkowego zapytania; zapis następuje tylko, gdy wartość się zmieniła. Migracja 009 (`009_competition_logos.sql`, rollback w `rollback/009_competition_logos.down.sql`) jednorazowo uzupełnia logo rozgrywek football-data (`provider_ref` CL, PL, PD, SA, BL1, FL1 → `https://crests.football-data.org/{provider_ref}.png`, a WC → `wm26.png`, bo `WC.png` nie istnieje) tam, gdzie było NULL. Same obrazki front ładuje przez proxy `GET /img/crest` ([api-contract.md](api-contract.md#obrazki--proxy-herbów)).
+
 ## Synchronizacja
 
 `sync_runs` to dziennik każdego przebiegu synchronizacji z API: rodzaj, rozgrywka, czas, liczba zapytań, ile meczów zaktualizowano i rozliczono, ewentualny błąd. Służy do podglądu w panelu admina i do pilnowania limitu zapytań darmowego planu. Wiersz o statusie `running` jest jednocześnie blokadą: unikalny indeks częściowy (migracja 007) dopuszcza tylko jeden taki wiersz naraz. Jak działa synchronizacja, opisuje [data-source.md](data-source.md#synchronizacja).

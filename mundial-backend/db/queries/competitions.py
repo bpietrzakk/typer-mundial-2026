@@ -49,7 +49,8 @@ SQL_UNFOLLOW_COMPETITION = """
 # newest first: later start date, then higher id; no start date = oldest
 SQL_LIST_COMPETITION_SEASONS = """
     SELECT s.id, s.label, s.status, s.starts_on, s.ends_on,
-           c.id AS competition_id, c.code AS competition_code, c.name AS competition_name
+           c.id AS competition_id, c.code AS competition_code, c.name AS competition_name,
+           c.logo_url AS competition_logo_url
     FROM seasons s
     JOIN competitions c ON c.id = s.competition_id
     WHERE s.competition_id = %s
@@ -58,7 +59,8 @@ SQL_LIST_COMPETITION_SEASONS = """
 
 SQL_GET_SEASON = """
     SELECT s.id, s.label, s.status, s.starts_on, s.ends_on,
-           c.id AS competition_id, c.code AS competition_code, c.name AS competition_name
+           c.id AS competition_id, c.code AS competition_code, c.name AS competition_name,
+           c.logo_url AS competition_logo_url
     FROM seasons s
     JOIN competitions c ON c.id = s.competition_id
     WHERE s.id = %s
@@ -92,6 +94,7 @@ _SQL_MATCH_SELECT = """
         m.home_goals, m.away_goals, m.home_goals_et, m.away_goals_et,
         m.home_pens, m.away_pens, m.decided_by,
         c.id AS competition_id, c.code AS competition_code, c.name AS competition_name,
+        c.logo_url AS competition_logo_url,
         r.id AS round_id, r.phase AS round_phase, r.matchday AS round_matchday,
         r.name AS round_name,
         h.id AS home_id, h.name AS home_name, h.short_name AS home_short, h.crest_url AS home_crest,
@@ -152,6 +155,7 @@ def _row_to_season(r: dict) -> dict:
             "id": r["competition_id"],
             "code": r["competition_code"],
             "name": r["competition_name"],
+            "logo_url": r.get("competition_logo_url"),
         },
     }
 
@@ -172,6 +176,7 @@ def _row_to_competition_match(r: dict) -> dict:
             "id": r["competition_id"],
             "code": r["competition_code"],
             "name": r["competition_name"],
+            "logo_url": r.get("competition_logo_url"),
         },
         "season_id": r["season_id"],
         # only for the can_predict rule, the response model drops it

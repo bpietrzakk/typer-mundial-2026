@@ -15,8 +15,8 @@ Zasady ogólne:
 // Team
 { "id": 1, "name": "Arsenal", "short_name": "ARS", "crest_url": "https://..." }
 
-// CompetitionRef
-{ "id": 2, "code": "EPL", "name": "Premier League" }
+// CompetitionRef (logo_url = emblem z football-data, null gdy brak; front ładuje go przez /img/crest)
+{ "id": 2, "code": "EPL", "name": "Premier League", "logo_url": "https://crests.football-data.org/PL.png" }
 
 // SeasonRef
 { "id": 5, "label": "2026/27", "status": "active" }   // upcoming | active | archived
@@ -70,7 +70,7 @@ Typy meczów `cancelled` / `awarded` nie liczą się nigdzie.
 ```jsonc
 // GET /competitions → lista
 { "id": 2, "code": "EPL", "name": "Premier League", "country": "Anglia", "kind": "league",
-  "logo_url": null, "is_active": true, "is_followed": false,
+  "logo_url": "https://crests.football-data.org/PL.png", "is_active": true, "is_followed": false,
   "current_season": SeasonRef | null }   // sezon active, a gdy brak — najnowszy
 
 // GET /competitions/{id}/seasons, GET /seasons/{id}
@@ -206,6 +206,14 @@ Generowanie w tle: scheduler synchronizacji (`services/sync.run_scheduler`) co t
 // POST /leagues
 { "name": "Biuro", "ranking_mode": "coupon", "coupon_size": 10, "competition_ids": [2, 5] }
 ```
+
+## Obrazki — proxy herbów
+
+| Metoda | Ścieżka | Opis |
+|---|---|---|
+| GET | `/img/crest?url=` | Publiczny (bez logowania). Zwraca obrazek spod `url`, ale tylko `https://crests.football-data.org/...` (inny host, schemat, port albo login w URL → **400** „Niedozwolony adres obrazka”). Pobiera raz przez `httpx` (timeout 5 s, bez przekierowań, tylko `image/*` do 2 MB), potem serwuje z pamięci (LRU, 500 obrazków) albo z dysku (`CREST_CACHE_DIR`, domyślnie katalog tymczasowy systemu, `/tmp/czutka-crests`). Odpowiedź: oryginalny `Content-Type` + `Cache-Control: public, max-age=604800, immutable`. Błąd po stronie football-data (status ≠ 200, nie obrazek, timeout) → **502** „Nie udało się pobrać obrazka”, bez zapisu do cache. |
+
+Front buduje adres w `src/utils/imageProxy.js`: `${VITE_API_URL || '/api'}/img/crest?url=<encodeURIComponent(crest_url)>`; adresy spoza football-data idą bez zmian. Service worker przepuszcza te żądania do zwykłego cache przeglądarki.
 
 ## Podział plików (żeby agenci się nie zderzali)
 

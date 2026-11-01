@@ -9,6 +9,7 @@ import logging
 import os
 import time
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 
 import httpx
@@ -434,7 +435,10 @@ class FootballDataProvider:
         current = data.get("currentSeason")
         if not current:
             raise ProviderError(f"football-data: no current season for {competition_ref}")
-        return normalize_season(current, is_current=True)
+        season = normalize_season(current, is_current=True)
+        # 'emblem' is free here, no extra request needed for the logo
+        emblem = data.get("emblem") or None
+        return replace(season, competition_logo_url=emblem) if emblem else season
 
     def get_season_matches(self, competition_ref: str, season_ref: str) -> list[ProviderMatch]:
         data = self._get(f"/competitions/{competition_ref}/matches", {"season": season_ref})

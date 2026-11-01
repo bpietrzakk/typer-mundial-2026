@@ -256,6 +256,9 @@ def _sync_competition_season(comp: dict, meter: RequestMeter, now: datetime) -> 
 
     # an archived season is never touched, so don't download its matches (the big request)
     with q.transaction() as cur:
+        # the logo came with the season response, keep it fresh for free
+        if season.competition_logo_url and q.update_competition_logo(cur, comp["id"], season.competition_logo_url):
+            logger.info("%s: logo updated", comp["code"])
         stored = q.get_season_for_sync(cur, comp["id"], season.provider_ref, season.label)
     if stored is not None and stored["status"] == "archived":
         logger.warning("%s season %s is archived, not syncing it", comp["code"], season.label)

@@ -160,6 +160,15 @@ def test_both_legs_of_a_knockout_tie_share_one_round(db, fake):
     assert in_round == 2
 
 
+def test_season_run_stores_the_competition_logo(db, fake):
+    execute(db, "UPDATE competitions SET logo_url = NULL WHERE code IN ('EPL', 'UCL')")
+    ok_run("season")
+    assert rows(db, "SELECT code, logo_url FROM competitions WHERE code IN ('EPL', 'UCL') ORDER BY code") == [
+        ("EPL", "https://crests.football-data.org/PL.png"),
+        ("UCL", "https://crests.football-data.org/CL.png"),
+    ]
+
+
 def test_second_season_run_changes_nothing(db, fake):
     ok_run("season")
     counts = {

@@ -283,7 +283,7 @@ def leave_league(league_id: int, user_id: int) -> bool:
 # no rows in private_league_competitions = the league counts every competition
 
 SQL_LIST_LEAGUE_COMPETITIONS = """
-    SELECT c.id, c.code, c.name
+    SELECT c.id, c.code, c.name, c.logo_url
     FROM private_league_competitions plc
     JOIN competitions c ON c.id = plc.competition_id
     WHERE plc.private_league_id = %s

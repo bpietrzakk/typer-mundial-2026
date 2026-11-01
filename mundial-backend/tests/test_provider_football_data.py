@@ -171,6 +171,17 @@ def test_get_current_season_returns_the_winner():
     assert provider.get_current_season("PL").winner_external_id == "57"
 
 
+def test_get_current_season_carries_the_competition_emblem():
+    provider, _ = make_provider(lambda request: ok(load("competition_PL")))
+    assert provider.get_current_season("PL").competition_logo_url == "https://crests.football-data.org/PL.png"
+
+
+def test_competition_without_emblem_has_no_logo():
+    payload = {"currentSeason": load("competition_PL")["currentSeason"], "emblem": None}
+    provider, _ = make_provider(lambda request: ok(payload))
+    assert provider.get_current_season("PL").competition_logo_url is None
+
+
 # ---------- matches from recorded fixtures ----------
 
 def test_cl_league_phase_matches():

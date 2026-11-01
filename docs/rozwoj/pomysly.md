@@ -109,12 +109,12 @@ albo działający keep-alive na cron-job.org.
 ## P1: wyraźnie lepsza aplikacja
 
 ### Wygląd i charakter
-- **Logo rozgrywek:** dziś są to kolorowe kafelki z kodem („EPL”, „SA”). football-data zwraca
-  pole `emblem` dla każdej rozgrywki (np. `https://crests.football-data.org/PL.png`). Wystarczy je
-  zapisać przy synchronizacji (`competitions.logo_url`). Od razu wygląda to jak produkt, a nie prototyp.
-- **Herby drużyn hostowane u nas:** przy ładowaniu ok. 40 herbów naraz z `crests.football-data.org`
-  część wraca jako błąd i pokazują się inicjały („MIL”, „BOL”), co widziałem w teście. Lepiej je
-  pobierać przy synchronizacji i serwować z naszego CDN (albo przez proxy z cache).
+- ✅ *(etap 2, 01.11)* **Logo rozgrywek** zapisywane z `emblem` football-data przy synchronizacji
+  (migracja 009 uzupełnia istniejące) i pokazywane w badge'ach.
+- ✅ *(etap 2, 01.11)* **Herby przez nasz cache:** endpoint `GET /img/crest` (tylko
+  `crests.football-data.org`, cache w pamięci i na dysku, tydzień w przeglądarce). Na Renderze
+  cache dyskowy znika przy restarcie (pierwsze ładowanie wolniejsze).
+- ✅ *(etap 2)* Puste stany z prostą ilustracją SVG (boisko, podium).
 - **Mniej „dashboardu”, więcej piłki:** wszystko to te same ciemne karty z gradientem. Brakuje
   akcentów boiska: kolorów klubów na karcie meczu, zdjęć lub tła stadionu w nagłówku kolejki,
   ilustracji w pustych stanach. Tytuły robione fontem z czasów „Mundial Typer” (szeroki,

@@ -90,7 +90,9 @@ def fake_pl_cl() -> FakeProvider:
     # Premier League + Champions League 2026/27 from the recorded responses
     fake = FakeProvider()
     for ref in ("PL", "CL"):
-        fake.seasons[ref] = normalize_season(load_fixture(f"competition_{ref}")["currentSeason"], is_current=True)
+        raw = load_fixture(f"competition_{ref}")
+        season = normalize_season(raw["currentSeason"], is_current=True)
+        fake.seasons[ref] = replace(season, competition_logo_url=raw.get("emblem"))
         fake.season_matches[ref] = normalize_matches(load_fixture(f"competition_{ref}_matches_2026"), ref)
     return fake
 

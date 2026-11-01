@@ -25,6 +25,8 @@ class ProviderSeason:
     ends_on: date | None
     is_current: bool
     winner_external_id: str | None = None   # team id of the season winner, once decided
+    # logo of the competition, it comes in the same response as the current season
+    competition_logo_url: str | None = None
 
 
 @dataclass(frozen=True)

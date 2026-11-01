@@ -19,6 +19,7 @@ from routers import auth as auth_router
 from routers import bonus as bonus_router
 from routers import competitions as competitions_router
 from routers import coupon as coupon_router
+from routers import img as img_router
 from routers import league_bonus as league_bonus_router
 from routers import leagues as leagues_router
 from routers import matches as matches_router
@@ -124,3 +125,4 @@ app.include_router(bonus_router.router)
 app.include_router(league_bonus_router.router)
 app.include_router(competitions_router.router)
 app.include_router(coupon_router.router)
+app.include_router(img_router.router)

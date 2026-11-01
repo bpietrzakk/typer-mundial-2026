@@ -26,7 +26,7 @@ export const VOID_STATUSES = ['cancelled', 'awarded'];
 
 // --- competitions ---
 
-// badge colours per competition code (logo_url is mostly empty)
+// badge colours per competition code (the logo sits on top when there is one)
 const COMP_COLORS = {
   UCL:  'bg-blue-500/20 text-blue-300 border-blue-400/30',
   EPL:  'bg-purple-500/20 text-purple-300 border-purple-400/30',

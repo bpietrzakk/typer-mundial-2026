@@ -374,6 +374,7 @@ class CompetitionRef(BaseModel):
     id: int
     code: str
     name: str
+    logo_url: str | None = None
 
 
 class SeasonRef(BaseModel):

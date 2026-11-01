@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { proxiedImageUrl } from '../utils/imageProxy';
 
 // team crest + name; falls back to initials when the crest is missing or fails to load
 export default function LeagueTeamLabel({ team, className = '' }) {
@@ -12,7 +13,7 @@ export default function LeagueTeamLabel({ team, className = '' }) {
     <span className={`inline-flex items-center gap-2 min-w-0 ${className}`}>
       {showCrest ? (
         <img
-          src={team.crest_url}
+          src={proxiedImageUrl(team.crest_url)}
           alt=""
           loading="lazy"
           onError={() => setCrestFailed(true)}

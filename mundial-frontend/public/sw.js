@@ -59,6 +59,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // crest images from our cache endpoint — leave them to the browser,
+  // its HTTP cache honours the week-long immutable header (no-store would not)
+  if (url.pathname.endsWith('/img/crest')) return;
+
   // API calls — network-only (always fresh data, no HTTP cache)
   // cross-origin requests (to the backend) are always network-only
   const isApiCall =

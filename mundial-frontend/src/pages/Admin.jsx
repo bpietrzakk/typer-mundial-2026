@@ -9,6 +9,7 @@ import {
 } from '../api/admin';
 import { getMatches } from '../api/matches';
 import { apiErrorMessage } from '../utils/apiError';
+import { proxiedImageUrl } from '../utils/imageProxy';
 import AdminCollapsible from '../components/AdminCollapsible';
 import AdminSyncPanel from '../components/AdminSyncPanel';
 
@@ -271,7 +272,7 @@ function UsersTab({ addToast, currentUserId }) {
                         <div className="flex items-center gap-2 text-sm">
                           <span className="text-gray-500">Mistrz:</span>
                           {data.bonuses.crest_url && (
-                            <img src={data.bonuses.crest_url} alt="" className="w-4 h-4 object-contain" />
+                            <img src={proxiedImageUrl(data.bonuses.crest_url)} alt="" loading="lazy" className="w-4 h-4 object-contain" />
                           )}
                           <span className="text-mundial-gold font-semibold">{data.bonuses.champion_name}</span>
                           {data.bonuses.champion_points != null && (

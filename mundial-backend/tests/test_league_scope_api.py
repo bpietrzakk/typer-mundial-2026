@@ -32,8 +32,8 @@ LEAGUE = {
     "id": 10, "name": "Biuro", "owner_user_id": OWNER["id"], "owner_nick": "bartek",
     "join_code": "ABCD2345", "created_at": "2026-06-02T08:00:00+00:00",
 }
-EPL = {"id": 2, "code": "EPL", "name": "Premier League"}
-UCL = {"id": 3, "code": "UCL", "name": "Liga Mistrzów"}
+EPL = {"id": 2, "code": "EPL", "name": "Premier League", "logo_url": None}
+UCL = {"id": 3, "code": "UCL", "name": "Liga Mistrzów", "logo_url": None}
 MEMBER_IDS = {OWNER["id"], MEMBER["id"]}
 
 

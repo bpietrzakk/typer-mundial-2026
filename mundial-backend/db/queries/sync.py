@@ -156,6 +156,13 @@ SQL_INSERT_SEASON = """
     RETURNING id
 """
 
+# emblem from the provider, only written when it really changed
+SQL_UPDATE_COMPETITION_LOGO = """
+    UPDATE competitions
+    SET logo_url = %s
+    WHERE id = %s AND logo_url IS DISTINCT FROM %s
+"""
+
 SQL_UPDATE_SEASON = """
     UPDATE seasons
     SET provider_ref = %s, starts_on = %s, ends_on = %s, status = %s
@@ -196,6 +203,11 @@ def insert_season(cur, competition_id, label, provider_ref, starts_on, ends_on, 
         (competition_id, label, provider_ref, starts_on, ends_on, status, profile_id),
     )
     return cur.fetchone()["id"]
+
+
+def update_competition_logo(cur, competition_id: int, logo_url: str) -> bool:
+    cur.execute(SQL_UPDATE_COMPETITION_LOGO, (logo_url, competition_id, logo_url))
+    return cur.rowcount > 0
 
 
 def update_season(cur, season_id: int, provider_ref: str, starts_on, ends_on, status: str) -> None:

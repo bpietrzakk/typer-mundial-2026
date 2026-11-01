@@ -124,7 +124,7 @@ export default function GlobalRankingSection() {
       )}
 
       {!rankingQ.loading && !rankingQ.error && entries.length === 0 && (
-        <EmptyState title="Ranking jest jeszcze pusty" text="Pojawi się, gdy ktoś wytypuje mecze tego sezonu.">
+        <EmptyState art="podium" title="Ranking jest jeszcze pusty" text="Pojawi się, gdy ktoś wytypuje mecze tego sezonu.">
           <Link to={`/matches?competition=${sel.competitionId}`} className="btn-secondary inline-block">
             Przejdź do meczów
           </Link>

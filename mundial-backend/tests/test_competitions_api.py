@@ -189,7 +189,7 @@ def test_competition_seasons_list(monkeypatch):
     assert body[0] == {
         "id": 5, "label": "2026/27", "status": "active",
         "starts_on": "2026-08-21", "ends_on": "2027-05-30",
-        "competition": {"id": 2, "code": "EPL", "name": "Premier League"},
+        "competition": {"id": 2, "code": "EPL", "name": "Premier League", "logo_url": None},
     }
 
 
@@ -299,7 +299,7 @@ def test_season_matches_shape_and_my_prediction(monkeypatch):
     first = body[0]
     assert first["my_prediction"] == pred
     assert body[1]["my_prediction"] is None
-    assert first["competition"] == {"id": 2, "code": "EPL", "name": "Premier League"}
+    assert first["competition"] == {"id": 2, "code": "EPL", "name": "Premier League", "logo_url": None}
     assert first["round"] == {"id": 77, "phase": "regular", "matchday": 9, "name": "Kolejka 9"}
     assert first["home_team"] == {"id": 1, "name": "Arsenal", "short_name": "ARS", "crest_url": "https://c/ars.png"}
     assert first["kickoff_confirmed"] is True

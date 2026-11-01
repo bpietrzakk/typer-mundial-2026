@@ -16,6 +16,12 @@ def _after_004() -> list[str]:
     return [p.name for p in list_migration_files() if p.name >= "005"]
 
 
+def scalar_logo(conn, code: str) -> str | None:
+    with conn.cursor() as cur:
+        cur.execute("SELECT logo_url FROM competitions WHERE code = %s", (code,))
+        return cur.fetchone()[0]
+
+
 def _ledger(conn) -> list[str]:
     with conn.cursor() as cur:
         cur.execute("SELECT filename FROM schema_migrations ORDER BY filename")
@@ -121,6 +127,14 @@ def test_rollback_restores_schema_and_data(conn, app_pool):
                 "INSERT INTO league_coupon_matches (coupon_id, match_id) VALUES (%s, %s)",
                 (cur.fetchone()[0], match_id),
             )
+
+    # 009 filled the football-data logos, its rollback clears them again
+    assert scalar_logo(conn, "EPL") == "https://crests.football-data.org/PL.png"
+    assert scalar_logo(conn, "WC") == "https://crests.football-data.org/wm26.png"
+    assert run_rollback(conn, "009") == "009_competition_logos.down.sql"
+    assert "009_competition_logos.sql" not in _ledger(conn)
+    assert scalar_logo(conn, "EPL") is None
+    assert scalar_logo(conn, "WC") is None
 
     # newest first: 008, 007, 006, then 005
     assert run_rollback(conn, "008") == "008_league_coupons.down.sql"
