@@ -1,8 +1,9 @@
 import api from './axios';
 
 // global ranking — all users sorted by total points
-export const getRanking = async () => {
-  const res = await api.get('/ranking');
+// bonuses=false ranks by match points only
+export const getRanking = async ({ bonuses = true } = {}) => {
+  const res = await api.get('/ranking', { params: { bonuses } });
   return res.data;
 };
 
