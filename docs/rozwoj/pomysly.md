@@ -124,15 +124,17 @@ albo działający keep-alive na cron-job.org.
 - **Gęstość:** karty są wysokie i mają dużo pustego miejsca. Na desktopie prawa kolumna Startu jest
   w większości pusta. Kompaktowe wiersze (pkt 3) i dwie kolumny na desktopie by to rozwiązały.
 
-### Kontekst do typowania
-Typujący lubią mieć powód: forma (ostatnie 5 meczów W/R/P), miejsce w tabeli, ostatnie mecze
-bezpośrednie. Wystarczy mała ikonka „i” na karcie meczu. Dane są w football-data (tabela
-`standings`, mecze drużyny). Bonus: „średni typ ligi” po rozpoczęciu meczu.
+### ✅ Kontekst do typowania (etap 3, 01.11)
+Ikona „i” przy meczu i w kuponie: miejsce w tabeli (liczone z naszych wyników), forma z 5 meczów
+(W/R/P) i do 3 meczów bezpośrednich (`GET /matches/{id}/context`). Mecze bezpośrednie pojawią się,
+gdy w bazie będzie więcej niż jeden sezon. Zostało: „średni typ ligi” po rozpoczęciu meczu.
 
-### Na żywo
-- wynik na żywo na karcie (synchronizacja i tak odświeża co 5 min w czasie meczów);
-- „gdyby się teraz skończyło: +3” na karcie i w tabeli ligi („tabela na żywo”);
-- odświeżanie bez przeładowania. Dziś Start odpytuje feed co minutę, a reszta stron wcale.
+### ✅ Na żywo (etap 3, 01.11)
+- „Gdyby się teraz skończyło: +3” przy meczach na żywo (pole `provisional_points`, bez zapisu
+  punktów), także przy typach członków ligi i w „Na razie prowadzi” w wynikach tygodnia.
+- Odświeżanie co 60 s, gdy jest mecz na żywo i karta jest widoczna (Start, kupon ligi, Mecze),
+  bez gubienia wpisywanych typów.
+- Zostało: osobna „tabela ligi na żywo” (dziś tabela w wynikach tygodnia jest oficjalna).
 
 ### Grywalizacja (z umiarem)
 - **Joker:** raz na kolejkę podwójne punkty za wybrany mecz. Prosta zasada, która mocno zwiększa emocje.

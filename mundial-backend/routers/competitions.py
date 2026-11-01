@@ -31,7 +31,7 @@ from schemas.models import (
     SeasonRankingEntry,
     TeamWithGroup,
 )
-
+from services.live_points import add_provisional_points
 
 router = APIRouter(tags=["competitions"])
 
@@ -125,7 +125,7 @@ def get_season_matches(
     if round_id is not None and not is_round_in_season(round_id, season_id):
         raise _not_found("Runda nie istnieje")
     matches = list_season_matches(current_user["id"], season_id, round_id)
-    return _with_can_predict(matches, datetime.now(timezone.utc))
+    return add_provisional_points(_with_can_predict(matches, datetime.now(timezone.utc)))
 
 
 @router.get("/seasons/{season_id}/teams", response_model=list[TeamWithGroup])
@@ -157,4 +157,4 @@ def get_feed(
     now = datetime.now(timezone.utc)
     window_start, window_end = feed_window(now, days)
     matches = list_feed_matches(current_user["id"], window_start, window_end)
-    return _with_can_predict(matches, now)
+    return add_provisional_points(_with_can_predict(matches, now))

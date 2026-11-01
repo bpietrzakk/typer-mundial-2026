@@ -452,6 +452,9 @@ class CompetitionMatch(BaseModel):
     decided_by: str | None = None  # regular | extra_time | penalties
     can_predict: bool
     my_prediction: MyPrediction | None = None
+    # live match + my prediction: points "if it ended now", never saved
+    provisional_points: int | None = None
+    provisional_hit_type: str | None = None
 
 
 class SeasonRankingEntry(BaseModel):
@@ -551,6 +554,9 @@ class CouponMemberPrediction(BaseModel):
     pred_away: int
     points_awarded: int | None = None
     hit_type: str | None = None
+    # live match only: points "if it ended now"
+    provisional_points: int | None = None
+    provisional_hit_type: str | None = None
 
 
 class CouponMatch(CompetitionMatch):
@@ -572,6 +578,7 @@ class CouponMember(BaseModel):
     exact_hits: int
     diff_hits: int
     scored_predictions: int
+    provisional_points: int = 0   # from live coupon matches, not in total_points
 
 
 class LeagueCouponResponse(BaseModel):
@@ -616,3 +623,29 @@ class MyCouponResponse(BaseModel):
     total: int
     next_deadline: datetime | None = None   # earliest kickoff of an open match I did not type
     matches: list[MyCouponMatch]
+
+
+# --- match context (GET /matches/{id}/context) ---
+
+class MatchContextTeam(BaseModel):
+    team_id: int
+    rank: int | None = None     # place in the season table, null under 3 games
+    points: int | None = None   # table points, null without table games
+    played: int
+    form: list[str]             # W / R / P, newest first, max 5
+
+
+class HeadToHeadMatch(BaseModel):
+    match_id: int
+    kickoff_at: datetime
+    home_team_id: int
+    away_team_id: int
+    home_goals: int
+    away_goals: int
+
+
+class MatchContextResponse(BaseModel):
+    match_id: int
+    home: MatchContextTeam
+    away: MatchContextTeam
+    head_to_head: list[HeadToHeadMatch]   # newest first, max 3

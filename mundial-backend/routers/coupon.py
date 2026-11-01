@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from db.queries import coupon as q
 from domain.coupon import check_coupon_edit, week_start, week_start_of
+from domain.live_points import member_provisional_totals
 from domain.match_status import is_open_for_predictions
 from domain.ranking import sort_ranking
 from routers.deps import get_current_user
@@ -22,6 +23,7 @@ from services.coupons import (
     regenerate_league_coupon,
     to_checks,
 )
+from services.live_points import add_provisional_points
 
 router = APIRouter(tags=["coupon"])
 
@@ -97,6 +99,10 @@ def _coupon_response(league: dict, can_manage: bool, week: date, user_id: int, n
         m["predictions_visible"] = visible
         m["member_predictions"] = revealed.get(m["id"], [])
 
+    # live matches: "if it ended now" for me and for every revealed member pick
+    matches = add_provisional_points(matches)
+    provisional = member_provisional_totals(matches)
+
     total = len(matches)
     return {
         "league_id": league["id"],
@@ -111,7 +117,10 @@ def _coupon_response(league: dict, can_manage: bool, week: date, user_id: int, n
         "can_edit": bool(can_manage) and week == current_week,
         "total": total,
         "matches": matches,
-        "members": [{**r, "total": total} for r in sort_ranking(members)],
+        "members": [
+            {**r, "total": total, "provisional_points": provisional.get(r["user_id"], 0)}
+            for r in sort_ranking(members)
+        ],
     }
 
 
@@ -194,7 +203,7 @@ def get_my_coupon(current_user: dict = Depends(get_current_user)) -> dict:
         source = "hits"
         match_ids = hits_of_the_week(user_id, week)
 
-    matches = _with_can_predict(q.list_matches_by_ids(user_id, match_ids), now)
+    matches = add_provisional_points(_with_can_predict(q.list_matches_by_ids(user_id, match_ids), now))
     for m in matches:
         m["leagues"] = sorted(labels.get(m["id"], []), key=lambda ref: ref["name"].casefold())
 

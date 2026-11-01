@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { addPrediction } from '../api/predictions';
 import HitBadge from './HitBadge';
+import MatchContextButton from './MatchContextButton';
+import MatchContextPanel from './MatchContextPanel';
+import ProvisionalPoints from './ProvisionalPoints';
 import TeamCrest from './TeamCrest';
 import { STATUS_META, VOID_STATUSES, competitionLabel, errorMessage, formatTime } from '../utils/matchUi';
 
@@ -30,6 +33,8 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, showCompe
   const [error, setError] = useState('');
   const [failedKey, setFailedKey] = useState(null); // values that failed, no auto retry for them
   const [zeroNote, setZeroNote] = useState(''); // "zapisano 2:0" after the 0 hint was taken
+  const [contextOpen, setContextOpen] = useState(false);
+  const contextId = useId();
 
   const awayRef = useRef(null);
   const noteTimer = useRef(null);
@@ -204,8 +209,8 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, showCompe
     <div className={`px-3 sm:px-4 py-2.5 ${isLive ? 'bg-mundial-red/5' : ''}`}>
       <div className="max-w-2xl mx-auto">
         <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto_minmax(0,1fr)_0.875rem] sm:grid-cols-[3rem_minmax(0,1fr)_auto_minmax(0,1fr)_1.25rem] items-center gap-1 sm:gap-3">
-          {/* time / status */}
-          <div className="text-[11px] leading-tight tabular-nums">
+          {/* time / status + form toggle */}
+          <div className="flex flex-col items-start gap-0.5 text-[11px] leading-tight tabular-nums">
             {isLive ? (
               <span className="inline-flex items-center gap-1 font-bold text-mundial-red">
                 <span className="w-1.5 h-1.5 rounded-full bg-mundial-red animate-pulse" />live
@@ -217,6 +222,12 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, showCompe
               {tbd ? '—' : formatTime(match.kickoff_at)}
             </span>
             )}
+            <MatchContextButton
+              open={contextOpen}
+              onToggle={() => setContextOpen((o) => !o)}
+              controls={contextId}
+              className="!w-4 !h-4 !text-[10px]"
+            />
           </div>
 
           {/* home */}
@@ -257,6 +268,8 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, showCompe
                     <HitBadge hitType={shownPred.hit_type} points={shownPred.points_awarded} className="!text-[10px] !py-0" />
                   ) : match.status === 'finished' ? (
                     <span className="text-gray-500">czeka na rozliczenie</span>
+                  ) : isLive ? (
+                    <ProvisionalPoints match={match} compact />
                   ) : null}
                 </>
               ) : (
@@ -276,6 +289,8 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, showCompe
             ))}
           </div>
         )}
+
+        {contextOpen && <MatchContextPanel match={match} id={contextId} className="mt-2" />}
 
         {children}
       </div>

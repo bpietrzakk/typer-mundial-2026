@@ -307,8 +307,10 @@ def test_season_matches_shape_and_my_prediction(monkeypatch):
         "id", "competition", "season_id", "round", "kickoff_at", "kickoff_confirmed", "status",
         "home_team", "away_team", "home_goals", "away_goals", "home_goals_et", "away_goals_et",
         "home_pens", "away_pens", "decided_by", "can_predict", "my_prediction",
+        "provisional_points", "provisional_hit_type",
     }
     assert first["kickoff_at"].endswith("Z")
+    assert first["provisional_points"] is None
 
 
 def test_season_matches_pass_viewer_and_round_filter(monkeypatch):
@@ -419,6 +421,26 @@ def test_feed_uses_window_from_three_hours_ago_to_days_ahead(monkeypatch):
     assert before + timedelta(days=3) <= seen["end"] <= after + timedelta(days=3)
     body = resp.json()
     assert [m["can_predict"] for m in body] == [True, False]
+
+
+def test_feed_live_match_gets_provisional_points(monkeypatch):
+    from services import live_points as live_module
+
+    live = _match(2, "live", -timedelta(minutes=40), my_prediction={
+        "pred_home": 2, "pred_away": 0, "points_awarded": None, "hit_type": None,
+    })
+    live.update(home_goals=1, away_goals=0)
+    asked = []
+    monkeypatch.setattr(competitions_module, "list_feed_matches", lambda uid, s, e: [_match(1), live])
+    monkeypatch.setattr(live_module, "list_season_scoring_rules", lambda ids: asked.append(ids) or {
+        5: {"default": {"exact_pts": 5, "diff_pts": 3, "tendency_pts": 2}},
+    })
+    body = client.get("/feed", cookies=_cookie()).json()
+    assert asked == [[5]]
+    assert (body[0]["provisional_points"], body[0]["provisional_hit_type"]) == (None, None)
+    assert (body[1]["provisional_points"], body[1]["provisional_hit_type"]) == (2, "tendency")
+    # nothing is saved: the stored points stay empty
+    assert body[1]["my_prediction"]["points_awarded"] is None
 
 
 def test_feed_default_is_seven_days(monkeypatch):

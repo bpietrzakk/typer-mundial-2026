@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getFeed } from '../api/competitions';
@@ -12,6 +12,7 @@ import MyCouponCard from '../components/MyCouponCard';
 import MyLeaguesCard from '../components/MyLeaguesCard';
 import SectionCard from '../components/SectionCard';
 import useAsync from '../hooks/useAsync';
+import useLivePolling from '../hooks/useLivePolling';
 import useCompetitions from '../hooks/useCompetitions';
 import useMyLeagues from '../hooks/useMyLeagues';
 import useMySeasonStandings from '../hooks/useMySeasonStandings';
@@ -71,11 +72,8 @@ export default function Dashboard() {
   // live scores — silent refresh while a match is in play
   const refreshCoupon = couponQ.refresh;
   const refreshFeed = feedQ.refresh;
-  useEffect(() => {
-    if (!anyLive) return undefined;
-    const id = setInterval(() => { refreshCoupon(); refreshFeed(); }, 60_000);
-    return () => clearInterval(id);
-  }, [anyLive, refreshCoupon, refreshFeed]);
+  const refreshLive = useCallback(() => { refreshCoupon(); refreshFeed(); }, [refreshCoupon, refreshFeed]);
+  useLivePolling(anyLive, refreshLive);
 
   // league tags only make sense with more than one league
   const leagueNames = new Set((coupon?.matches ?? []).flatMap((m) => m.leagues.map((l) => l.id)));

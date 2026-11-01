@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import HitBadge from './HitBadge';
+import { HIT_META } from '../utils/matchUi';
 
 // share of home wins / draws / away wins among the predictions, in %
 function distribution(preds) {
@@ -26,8 +27,9 @@ export default function LeagueMatchPredictions({ match }) {
   }
 
   const dist = distribution(preds);
-  // best points first, then nick
-  const sorted = [...preds].sort((a, b) => (b.points_awarded ?? -1) - (a.points_awarded ?? -1) || a.nick.localeCompare(b.nick));
+  // best points first (live: points if it ended now), then nick
+  const pts = (p) => p.points_awarded ?? p.provisional_points ?? -1;
+  const sorted = [...preds].sort((a, b) => pts(b) - pts(a) || a.nick.localeCompare(b.nick));
 
   return (
     <div className="mt-1 pl-[2.5rem] sm:pl-[3.75rem]">
@@ -69,6 +71,10 @@ export default function LeagueMatchPredictions({ match }) {
                     <span className="score-num font-bold text-gray-100">{p.pred_home}:{p.pred_away}</span>
                     {p.hit_type ? (
                       <HitBadge hitType={p.hit_type} points={p.points_awarded} className="!text-[10px] !py-0" />
+                    ) : p.provisional_points != null ? (
+                      <span className="text-[10px] text-gray-400" title="gdyby mecz się teraz skończył">
+                        teraz <span className={`font-black ${HIT_META[p.provisional_hit_type]?.text ?? ''}`}>+{p.provisional_points}</span>
+                      </span>
                     ) : (
                       <span className="text-[10px] text-gray-500">w grze</span>
                     )}

@@ -40,7 +40,9 @@ Zasady ogólne:
   "home_pens": null, "away_pens": null,
   "decided_by": null,                              // regular | extra_time | penalties
   "can_predict": true,                             // domain.match_status.is_open_for_predictions
-  "my_prediction": MyPrediction | null
+  "my_prediction": MyPrediction | null,
+  "provisional_points": null,                      // tylko live + mój typ: „gdyby się teraz skończyło” (domain.live_points), nigdy nie zapisywane
+  "provisional_hit_type": null                     // exact | diff | tendency | miss, jak wyżej
 }
 
 // RankingEntry (nowe rankingi)
@@ -61,6 +63,7 @@ Typy meczów `cancelled` / `awarded` nie liczą się nigdzie.
 | GET | `/seasons/{id}` | Szczegóły sezonu. |
 | GET | `/seasons/{id}/rounds` | Rundy sezonu w kolejności `sort_order`, potem `matchday`. |
 | GET | `/seasons/{id}/matches?round_id=` | Mecze sezonu (opcjonalnie jednej rundy), po `kickoff_at`. Lista `Match`. |
+| GET | `/matches/{id}/context` | Kontekst do typowania (z naszych wyników, `domain.match_context`). Dla obu drużyn: miejsce w tabeli sezonu (tylko fazy `regular`/`league_phase`; `rank: null` gdy drużyna ma < 3 mecze, `points: null` gdy nie gra w tabeli), forma z ostatnich 5 zakończonych meczów sezonu (`W`/`R`/`P`, od najnowszego, bez tego meczu), do 3 ostatnich meczów bezpośrednich z całej bazy. Nieznany mecz → 404 „Mecz nie istnieje”. |
 | GET | `/seasons/{id}/teams` | Drużyny sezonu (`season_teams`), po nazwie. Lista `Team` + `group_name`. |
 | GET | `/seasons/{id}/ranking` | Ranking sezonu (wszyscy użytkownicy z ≥1 typem w sezonie). Dla archiwum Mundialu dolicza stare bonusy (`bonus_predictions`, `group_advance_predictions` z tym `season_id`), żeby sumy były takie jak w starym rankingu. |
 | GET | `/feed?days=7` | Mecze z obserwowanych rozgrywek (gdy użytkownik nic nie obserwuje — ze wszystkich aktywnych) z oknem: od teraz − 3 h do teraz + `days` dni (1–30, domyślnie 7), plus wszystkie `live`. Lista `Match`. |
@@ -76,6 +79,15 @@ Typy meczów `cancelled` / `awarded` nie liczą się nigdzie.
 // GET /competitions/{id}/seasons, GET /seasons/{id}
 { "id": 5, "label": "2026/27", "status": "active", "starts_on": "2026-08-21", "ends_on": "2027-05-30",
   "competition": CompetitionRef }
+
+// GET /matches/{id}/context
+{
+  "match_id": 1201,
+  "home": { "team_id": 1, "rank": 4, "points": 1, "played": 4, "form": ["P", "P", "P", "R"] },
+  "away": { "team_id": 2, "rank": 1, "points": 12, "played": 4, "form": ["W", "W", "W", "W"] },
+  "head_to_head": [ { "match_id": 990, "kickoff_at": "2026-10-09T15:00:00Z",
+                      "home_team_id": 2, "away_team_id": 1, "home_goals": 1, "away_goals": 0 } ]
+}
 
 // GET /seasons/{id}/rounds
 { "id": 77, "phase": "regular", "matchday": 9, "name": "Kolejka 9", "sort_order": 9,
@@ -180,11 +192,13 @@ Generowanie w tle: scheduler synchronizacji (`services/sync.run_scheduler`) co t
       "member_count": 3,
       "predictions_visible": true,   // mecz się zaczął
       "member_predictions": [ { "user_id": 3, "nick": "ola", "pred_home": 2, "pred_away": 1,
-                                "points_awarded": 5, "hit_type": "exact" } ]   // [] przed startem
+                                "points_awarded": 5, "hit_type": "exact",
+                                "provisional_points": null, "provisional_hit_type": null } ]   // [] przed startem; provisional_* tylko live
   } ],
   "members": [                   // posortowani jak ranking (punkty tygodnia), wszyscy członkowie
     { "rank": 1, "user_id": 3, "nick": "ola", "typed": 7, "total": 10,
-      "total_points": 12, "exact_hits": 1, "diff_hits": 2, "scored_predictions": 4 }
+      "total_points": 12, "exact_hits": 1, "diff_hits": 2, "scored_predictions": 4,
+      "provisional_points": 3 }  // suma „gdyby się teraz skończyło” z meczów live, NIE wliczona w total_points ani w sortowanie
   ]
 }
 

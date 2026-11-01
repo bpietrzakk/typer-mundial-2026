@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { getSeasonMatches, getSeasonRounds } from '../api/competitions';
 import CompetitionPicker from '../components/CompetitionPicker';
@@ -10,6 +10,7 @@ import MatchListSkeleton from '../components/MatchListSkeleton';
 import RoundSelector from '../components/RoundSelector';
 import SelectField from '../components/SelectField';
 import useAsync from '../hooks/useAsync';
+import useLivePolling from '../hooks/useLivePolling';
 import useSeasonSelection from '../hooks/useSeasonSelection';
 import { SEASON_STATUS_LABELS, formatDayShort, toId } from '../utils/matchUi';
 
@@ -45,11 +46,7 @@ export default function Matches() {
   // live scores — silent refresh every minute while something is in play
   const hasLive = matches.some((m) => m.status === 'live');
   const refreshMatches = matchesQ.refresh;
-  useEffect(() => {
-    if (!hasLive) return undefined;
-    const id = setInterval(refreshMatches, 60_000);
-    return () => clearInterval(id);
-  }, [hasLive, refreshMatches]);
+  useLivePolling(hasLive, refreshMatches);
 
   // keep the selection in the URL so links and the back button work
   const selectRound = useCallback((id) => {

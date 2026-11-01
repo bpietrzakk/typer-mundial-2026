@@ -1,5 +1,6 @@
 import HitBadge from './HitBadge';
 import PredictionForm from './PredictionForm';
+import ProvisionalPoints from './ProvisionalPoints';
 import { HIT_META, VOID_STATUSES } from '../utils/matchUi';
 import { matchPoints } from '../utils/scoring';
 
@@ -38,7 +39,10 @@ export default function MatchPredictionStrip({ match, readOnly, onSaved, onLocke
             {!isVoid && !meta && status === 'finished' && (
               <span className="text-xs text-gray-400">czeka na rozliczenie</span>
             )}
-            {!isVoid && !meta && status !== 'finished' && (
+            {!isVoid && !meta && status === 'live' && match.provisional_points != null && (
+              <ProvisionalPoints match={match} />
+            )}
+            {!isVoid && !meta && status !== 'finished' && !(status === 'live' && match.provisional_points != null) && (
               <span className="text-xs text-gray-400">typ zapisany</span>
             )}
           </div>

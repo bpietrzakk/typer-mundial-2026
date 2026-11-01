@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getLeagueCoupon } from '../api/coupon';
 import { useAuth } from '../context/AuthContext';
 import useAsync from '../hooks/useAsync';
+import useLivePolling from '../hooks/useLivePolling';
 import { formatWeekRange, nextOpenDeadline, shiftDay } from '../utils/coupon';
 import { distinctPoints } from '../utils/scoring';
 import CouponDayList from './CouponDayList';
@@ -55,11 +56,7 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
   // live scores — silent refresh while a coupon match is in play
   const hasLive = (coupon?.matches ?? []).some((m) => m.status === 'live');
   const refresh = couponQ.refresh;
-  useEffect(() => {
-    if (!hasLive) return undefined;
-    const id = setInterval(refresh, 60_000);
-    return () => clearInterval(id);
-  }, [hasLive, refresh]);
+  useLivePolling(hasLive, refresh);
 
   // reminder link lands on /leagues/ID#kupon -> jump to the coupon once it loaded
   const loaded = Boolean(coupon);
