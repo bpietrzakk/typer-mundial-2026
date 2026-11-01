@@ -31,6 +31,7 @@ export async function mockApi(page, { loggedIn = false, live = false } = {}) {
     ['GET', /^\/leagues\/1$/, () => fx.LEAGUE],
     ['GET', /^\/leagues\/1\/competitions$/, () => ({ all: true, competitions: [] })],
     ['GET', /^\/leagues\/1\/ranking$/, () => (live ? fx.LEAGUE_RANKING_LIVE : fx.LEAGUE_RANKING)],
+    ['GET', /^\/leagues\/1\/badges$/, () => fx.LEAGUE_BADGES],
     ['GET', /^\/leagues\/1\/coupon$/, () => (live ? fx.LEAGUE_COUPON_LIVE : fx.LEAGUE_COUPON)],
     ['GET', /^\/leagues\/1\/bonus-questions$/, () => []],
   ];

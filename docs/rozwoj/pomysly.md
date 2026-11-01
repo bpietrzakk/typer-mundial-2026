@@ -138,14 +138,15 @@ wynik, podział 1/X/2 i najczęstszy dokładny typ nad typami znajomych.
 - ✅ *(etap 6, 01.11)* **Tabela ligi na żywo:** przełącznik „Na żywo / Oficjalny” w rankingu ligi,
   gdy trwa mecz: punkty „gdyby się teraz skończyło” (z jokerem ×2), strzałki ▲/▼ względem oficjalnej.
 
-### ◐ Grywalizacja (z umiarem)
+### ✅ Grywalizacja (z umiarem)
 - ✅ *(etap 4, 01.11)* **Joker:** raz na kupon podwójne punkty za wybrany mecz (tylko w lidze w trybie
   „tylko kupon”; liczy się w rankingu ligi i wynikach tygodnia, także na żywo).
 - ✅ *(etap 4, 01.11)* **Więcej pytań bonusowych:** „własne pytanie o drużynę” z treścią od
   organizatora (np. kto spadnie, kto wygra LM), kilka poprawnych odpowiedzi, rozstrzyga organizator.
   Król strzelców wymaga danych o zawodnikach, których nie mamy.
-- Zostało: **seria** („5 kolejek z rzędu bez pudła”) i **odznaki sezonowe** (król dokładnych
-  wyników, prorok, maruda) z podsumowaniem sezonu.
+- ✅ *(etap 7, 01.11)* **Seria i odznaki sezonowe:** 🔥N przy nicku w rankingu ligi (kolejki albo
+  kupony z rzędu bez pudła) i karta „Odznaki sezonu” (Król dokładnych, Prorok, Odważny, Seria,
+  Maruda), liczone na bieżąco z `GET /leagues/{id}/badges`. Zostało: podsumowanie sezonu na koniec.
 
 ### Komunikacja w lidze
 Komentarze lub reakcje pod meczem albo pod podsumowaniem kolejki. Nie pełny czat, bo ludzie mają

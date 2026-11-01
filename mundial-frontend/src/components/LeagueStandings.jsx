@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getLeagueStandings } from '../api/leagues';
+import { getLeagueBadges, getLeagueStandings } from '../api/leagues';
 import useLivePolling from '../hooks/useLivePolling';
 import { useToast } from '../hooks/useToast';
 import { apiErrorMessage } from '../utils/apiError';
 import { competitionLabel } from '../utils/matchUi';
+import LeagueBadges from './LeagueBadges';
 import LeagueRankingTable from './LeagueRankingTable';
 
 // seasons the league can show: current season of each competition in the scope
@@ -64,6 +65,22 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
     return () => { cancelled = true; };
   }, [leagueId, activeSeasonId, requestKey, addToast, pollTick]);
 
+  // season badges + streaks for the same seasons, no live polling needed
+  const [badges, setBadges] = useState({ key: null, data: null, error: false });
+  useEffect(() => {
+    let cancelled = false;
+    getLeagueBadges(leagueId, activeSeasonId ?? undefined)
+      .then((data) => { if (!cancelled) setBadges({ key: requestKey, data, error: false }); })
+      .catch(() => { if (!cancelled) setBadges({ key: requestKey, data: null, error: true }); });
+    return () => { cancelled = true; };
+  }, [leagueId, activeSeasonId, requestKey]);
+  const badgeData = badges.key === requestKey ? badges.data : null;
+  // user id -> current round streak, for the flame next to the nick
+  const streaks = useMemo(
+    () => new Map((badgeData?.streaks ?? []).map((st) => [st.user_id, st.current_rounds])),
+    [badgeData],
+  );
+
   // combined view with zeros everywhere -> look for an archived season with points
   const archivedKey = options.filter((o) => o.archived).map((o) => o.id).join(',');
   const combinedEmpty = result.key === requestKey && activeSeasonId === null && !result.error
@@ -104,108 +121,118 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
   useLivePolling(isLive, pollRanking);
 
   return (
-    <section className="glass-card overflow-hidden mb-2" aria-labelledby="league-ranking-title">
-      <div className="px-5 py-4 border-b border-surface-500/20 flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h2 id="league-ranking-title" className="text-lg font-semibold text-gray-200">Ranking ligi</h2>
-          {isLive && (
-            <div className="flex items-center rounded-full border border-surface-500/30 p-0.5 text-xs font-semibold" role="group" aria-label="Widok rankingu">
-              <button
-                type="button"
-                onClick={() => setShowLive(true)}
-                aria-pressed={liveView}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-colors ${liveView ? 'bg-mundial-red/15 text-mundial-red' : 'text-gray-400 hover:text-gray-200'}`}
-              >
-                <span className="w-1.5 h-1.5 bg-mundial-red rounded-full animate-pulse" aria-hidden="true" />
-                Na żywo
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowLive(false)}
-                aria-pressed={!liveView}
-                className={`px-2.5 py-1 rounded-full transition-colors ${!liveView ? 'bg-surface-600/60 text-gray-100' : 'text-gray-400 hover:text-gray-200'}`}
-              >
-                Oficjalny
-              </button>
-            </div>
+    <>
+      <section className="glass-card overflow-hidden mb-2" aria-labelledby="league-ranking-title">
+        <div className="px-5 py-4 border-b border-surface-500/20 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 id="league-ranking-title" className="text-lg font-semibold text-gray-200">Ranking ligi</h2>
+            {isLive && (
+              <div className="flex items-center rounded-full border border-surface-500/30 p-0.5 text-xs font-semibold" role="group" aria-label="Widok rankingu">
+                <button
+                  type="button"
+                  onClick={() => setShowLive(true)}
+                  aria-pressed={liveView}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-colors ${liveView ? 'bg-mundial-red/15 text-mundial-red' : 'text-gray-400 hover:text-gray-200'}`}
+                >
+                  <span className="w-1.5 h-1.5 bg-mundial-red rounded-full animate-pulse" aria-hidden="true" />
+                  Na żywo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowLive(false)}
+                  aria-pressed={!liveView}
+                  className={`px-2.5 py-1 rounded-full transition-colors ${!liveView ? 'bg-surface-600/60 text-gray-100' : 'text-gray-400 hover:text-gray-200'}`}
+                >
+                  Oficjalny
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="w-full sm:w-80">
+            <label htmlFor="league-season" className="sr-only">Sezon rankingu</label>
+            <select
+              id="league-season"
+              value={activeSeasonId ?? 'all'}
+              onChange={(e) => pickSeason(e.target.value === 'all' ? null : Number(e.target.value))}
+              className="input-field input-select !py-2 text-sm"
+            >
+              <option value="all">Łącznie (aktywne sezony)</option>
+              {options.map((o) => (
+                <option key={o.id} value={o.id}>{o.label}{o.archived ? ' · archiwum' : ''}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {archivePick && activeSeasonId === archivePick.id && (
+          <div className="px-5 py-3 border-b border-surface-500/20 bg-mundial-gold/10 flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-sm text-gray-200">
+              <span aria-hidden="true">🏆 </span>
+              {archivePick.label} – końcowa tabela.
+              <span className="text-gray-400"> W bieżących sezonach nikt nie ma jeszcze punktów.</span>
+            </p>
+            <button type="button" onClick={() => pickSeason(null)} className="text-xs font-semibold text-mundial-teal hover:text-mundial-teal/80">
+              Pokaż bieżące sezony
+            </button>
+          </div>
+        )}
+
+        {!hasData && (
+          <div className="p-5 grid gap-3" aria-label="Ładuję ranking">
+            {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-10 rounded-lg" />)}
+          </div>
+        )}
+
+        {hasData && result.error && (
+          <div className="p-8 text-center">
+            <p className="text-red-400 mb-3">{result.error}</p>
+            <button type="button" onClick={() => setReloadKey((k) => k + 1)} className="btn-secondary text-sm !py-2">
+              Spróbuj ponownie
+            </button>
+          </div>
+        )}
+
+        {liveView && hasData && (
+          <p className="px-5 py-2.5 border-b border-surface-500/20 bg-mundial-red/5 text-xs text-gray-300">
+            <span className="font-semibold text-mundial-red">Tabela na żywo</span> — oficjalne punkty plus punkty z trwających
+            meczów, gdyby skończyły się teraz. To jeszcze nie jest wynik końcowy; strzałki pokazują zmianę względem
+            oficjalnej tabeli.
+          </p>
+        )}
+
+        {hasData && !result.error && (
+          <div className={loading ? 'opacity-50 transition-opacity' : 'transition-opacity'} aria-busy={loading}>
+            <LeagueRankingTable
+              entries={result.entries}
+              onSelectUser={onSelectUser}
+              live={liveView}
+              streaks={streaks}
+              streakUnit={badgeData?.unit}
+            />
+          </div>
+        )}
+
+        <div className="px-5 py-3 border-t border-surface-500/20 text-xs text-gray-400 space-y-1">
+          {selected ? (
+            <p>
+              Ranking sezonu <span className="text-gray-400">{selected.label}</span>: punkty z meczów tego sezonu
+              plus punkty z pytań bonusowych ligi dotyczących go.
+            </p>
+          ) : (
+            <p>
+              Widok łączny sumuje punkty z meczów aktywnych sezonów w zakresie ligi oraz punkty z pytań
+              bonusowych ligi.{rankingMode === 'coupon' && ' Liczą się tylko mecze z kuponów ligi.'} Sezony archiwalne wybierzesz z listy.
+            </p>
+          )}
+          {!selected && scope && !hasActiveSeason && (
+            <p className="text-amber-400/90">
+              W zakresie ligi nie ma teraz aktywnego sezonu, więc widok łączny pokazuje zera — wybierz sezon z listy.
+            </p>
           )}
         </div>
-        <div className="w-full sm:w-80">
-          <label htmlFor="league-season" className="sr-only">Sezon rankingu</label>
-          <select
-            id="league-season"
-            value={activeSeasonId ?? 'all'}
-            onChange={(e) => pickSeason(e.target.value === 'all' ? null : Number(e.target.value))}
-            className="input-field input-select !py-2 text-sm"
-          >
-            <option value="all">Łącznie (aktywne sezony)</option>
-            {options.map((o) => (
-              <option key={o.id} value={o.id}>{o.label}{o.archived ? ' · archiwum' : ''}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+      </section>
 
-      {archivePick && activeSeasonId === archivePick.id && (
-        <div className="px-5 py-3 border-b border-surface-500/20 bg-mundial-gold/10 flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-sm text-gray-200">
-            <span aria-hidden="true">🏆 </span>
-            {archivePick.label} – końcowa tabela.
-            <span className="text-gray-400"> W bieżących sezonach nikt nie ma jeszcze punktów.</span>
-          </p>
-          <button type="button" onClick={() => pickSeason(null)} className="text-xs font-semibold text-mundial-teal hover:text-mundial-teal/80">
-            Pokaż bieżące sezony
-          </button>
-        </div>
-      )}
-
-      {!hasData && (
-        <div className="p-5 grid gap-3" aria-label="Ładuję ranking">
-          {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-10 rounded-lg" />)}
-        </div>
-      )}
-
-      {hasData && result.error && (
-        <div className="p-8 text-center">
-          <p className="text-red-400 mb-3">{result.error}</p>
-          <button type="button" onClick={() => setReloadKey((k) => k + 1)} className="btn-secondary text-sm !py-2">
-            Spróbuj ponownie
-          </button>
-        </div>
-      )}
-
-      {liveView && hasData && (
-        <p className="px-5 py-2.5 border-b border-surface-500/20 bg-mundial-red/5 text-xs text-gray-300">
-          <span className="font-semibold text-mundial-red">Tabela na żywo</span> — oficjalne punkty plus punkty z trwających
-          meczów, gdyby skończyły się teraz. To jeszcze nie jest wynik końcowy; strzałki pokazują zmianę względem
-          oficjalnej tabeli.
-        </p>
-      )}
-
-      {hasData && !result.error && (
-        <div className={loading ? 'opacity-50 transition-opacity' : 'transition-opacity'} aria-busy={loading}>
-          <LeagueRankingTable entries={result.entries} onSelectUser={onSelectUser} live={liveView} />
-        </div>
-      )}
-
-      <div className="px-5 py-3 border-t border-surface-500/20 text-xs text-gray-400 space-y-1">
-        {selected ? (
-          <p>
-            Ranking sezonu <span className="text-gray-400">{selected.label}</span>: punkty z meczów tego sezonu
-            plus punkty z pytań bonusowych ligi dotyczących go.
-          </p>
-        ) : (
-          <p>
-            Widok łączny sumuje punkty z meczów aktywnych sezonów w zakresie ligi oraz punkty z pytań
-            bonusowych ligi.{rankingMode === 'coupon' && ' Liczą się tylko mecze z kuponów ligi.'} Sezony archiwalne wybierzesz z listy.
-          </p>
-        )}
-        {!selected && scope && !hasActiveSeason && (
-          <p className="text-amber-400/90">
-            W zakresie ligi nie ma teraz aktywnego sezonu, więc widok łączny pokazuje zera — wybierz sezon z listy.
-          </p>
-        )}
-      </div>
-    </section>
+      <LeagueBadges data={badgeData} error={badges.key === requestKey && badges.error} />
+    </>
   );
 }

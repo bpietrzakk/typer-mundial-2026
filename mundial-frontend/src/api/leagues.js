@@ -83,3 +83,11 @@ export const getLeagueStandings = async (id, seasonId) => {
   const res = await api.get(`/leagues/${id}/ranking`, { params });
   return res.data;
 };
+
+// season badges + member streaks, same seasons as the league ranking
+// { unit: 'round' | 'coupon', finished_picks, badges: [...], streaks: [...] }
+export const getLeagueBadges = async (id, seasonId) => {
+  const params = seasonId ? { season_id: seasonId } : {};
+  const res = await api.get(`/leagues/${id}/badges`, { params });
+  return res.data;
+};

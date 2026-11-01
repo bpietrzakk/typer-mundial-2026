@@ -14,6 +14,7 @@ from db.queries import (
     reset_join_code,
     update_prize_pool,
 )
+from db.queries.badges import list_league_finished_picks, list_league_unit_matches
 from db.queries.competitions import get_season
 from db.queries.coupon import get_league_coupon_ranking, update_league_coupon_settings
 from db.queries.leagues import (
@@ -26,10 +27,12 @@ from db.queries.leagues import (
 )
 from db.queries.ranking import get_league_season_ranking
 from domain.joker import joker_multiplier
+from domain.league_badges import member_streaks, season_badges
 from domain.ranking import sort_ranking
 from routers.deps import get_current_user
 from schemas.models import (
     CreateLeagueRequest,
+    LeagueBadgesResponse,
     JoinLeagueRequest,
     LeagueDetailResponse,
     LeagueRankingEntry,
@@ -282,6 +285,21 @@ def set_league_scope(
     return _scope_response(league_id)
 
 
+def _league_season_ids(league_id: int, season_id: int | None) -> list[int]:
+    # with season_id: that season (must be in the league scope),
+    # without it: every active season in the scope
+    if season_id is None:
+        return list_active_season_ids_in_league_scope(league_id)
+    if get_season(season_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sezon nie istnieje")
+    if not is_season_in_league_scope(league_id, season_id):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Ten sezon nie należy do rozgrywek tej ligi",
+        )
+    return [season_id]
+
+
 @router.get("/{league_id}/ranking", response_model=list[LeagueRankingEntry])
 def get_league_scoped_ranking(
     league_id: int,
@@ -294,18 +312,7 @@ def get_league_scoped_ranking(
     # ranking_mode 'coupon': match points only from this league's weekly coupons.
     # while a match is live: live_points / live_total / live_rank (not final)
     detail = _require_member(league_id, current_user["id"])
-
-    if season_id is not None:
-        if get_season(season_id) is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sezon nie istnieje")
-        if not is_season_in_league_scope(league_id, season_id):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="Ten sezon nie należy do rozgrywek tej ligi",
-            )
-        season_ids = [season_id]
-    else:
-        season_ids = list_active_season_ids_in_league_scope(league_id)
+    season_ids = _league_season_ids(league_id, season_id)
 
     mode = detail.get("ranking_mode") or "scope"
     if mode == "coupon":
@@ -315,3 +322,29 @@ def get_league_scoped_ranking(
         ranking = sort_ranking(get_league_season_ranking(league_id, season_ids))
     # official order stays, live matches only add the live_* fields
     return add_live_ranking(ranking, league_id, season_ids, mode)
+
+
+@router.get("/{league_id}/badges", response_model=LeagueBadgesResponse)
+def get_league_badges(
+    league_id: int,
+    season_id: int | None = Query(default=None),
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    # season badges + streaks of the members, computed on the fly.
+    # same seasons as GET /leagues/{id}/ranking, coupon mode = coupon matches only
+    detail = _require_member(league_id, current_user["id"])
+    season_ids = _league_season_ids(league_id, season_id)
+    coupon_only = (detail.get("ranking_mode") or "scope") == "coupon"
+
+    members = list_league_members(league_id)
+    member_ids = [m["user_id"] for m in members]
+    picks = list_league_finished_picks(league_id, season_ids, coupon_only)
+    units = list_league_unit_matches(league_id, season_ids, coupon_only)
+
+    streaks = member_streaks(member_ids, units, picks)
+    return {
+        "unit": "coupon" if coupon_only else "round",
+        "finished_picks": len(picks),
+        "badges": season_badges(member_ids, picks, streaks),
+        "streaks": [{"user_id": m["user_id"], "nick": m["nick"], **streaks[m["user_id"]]} for m in members],
+    }

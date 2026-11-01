@@ -1,4 +1,5 @@
 import { useAuth } from '../hooks/useAuth';
+import StreakFlame from './StreakFlame';
 
 const RANK_COLORS = {
   1: 'text-mundial-gold',
@@ -24,8 +25,9 @@ function PositionChange({ entry }) {
 }
 
 // league standings with exact / diff hit columns, highlights the logged-in user.
-// live = show the live table (live_rank / live_total from the api) in its order
-export default function LeagueRankingTable({ entries, onSelectUser, live = false }) {
+// live = show the live table (live_rank / live_total from the api) in its order.
+// streaks = optional Map user_id -> current round streak (🔥 from 2 up)
+export default function LeagueRankingTable({ entries, onSelectUser, live = false, streaks, streakUnit }) {
   const { user } = useAuth();
 
   if (entries.length === 0) {
@@ -77,6 +79,7 @@ export default function LeagueRankingTable({ entries, onSelectUser, live = false
                   <span className={`font-medium break-words ${isMe ? 'text-mundial-teal' : 'text-gray-200'}`}>
                     {entry.nick}
                   </span>
+                  {streaks && <StreakFlame count={streaks.get(entry.user_id)} unit={streakUnit} />}
                   {isMe && <span className="ml-2 text-xs text-mundial-teal/70">(Ty)</span>}
                 </td>
                 <td className="px-2 sm:px-5 py-3.5 text-right">

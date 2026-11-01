@@ -86,6 +86,11 @@ test('league page shows the weekly coupon and members', async ({ page }) => {
   const ranking = page.getByRole('region', { name: 'Ranking ligi' });
   await expect(ranking.getByText('ola', { exact: true }).first()).toBeVisible();
   await expect(ranking.getByText('bartek', { exact: true }).first()).toBeVisible();
+  // ola's round streak next to her nick + her season badge
+  await expect(ranking.getByText('🔥3')).toBeVisible();
+  const badges = page.getByRole('region', { name: 'Odznaki sezonu' });
+  await expect(badges.getByText('Król dokładnych')).toBeVisible();
+  await expect(badges.getByText('2 dokładne')).toBeVisible();
 });
 
 test('live match: league table na żywo and the league average pick', async ({ page }) => {

@@ -494,6 +494,33 @@ class LeagueRankingEntry(SeasonRankingEntry):
     live_rank: int | None = None   # place by live_total, not final
 
 
+class LeagueBadge(BaseModel):
+    # one season badge, ties share it (several user ids)
+    code: str
+    title: str
+    emoji: str
+    description: str
+    user_ids: list[int]
+    value: int
+
+
+class LeagueMemberStreak(BaseModel):
+    # rounds (or coupon weeks) in a row "bez pudła" + scored picks in a row
+    user_id: int
+    nick: str
+    current_rounds: int
+    best_rounds: int
+    current_matches: int
+
+
+class LeagueBadgesResponse(BaseModel):
+    # unit: 'round' (scope mode) or 'coupon' (weekly coupons)
+    unit: str
+    finished_picks: int
+    badges: list[LeagueBadge]
+    streaks: list[LeagueMemberStreak]
+
+
 class PredictionResult(PredictionResponse):
     # POST /predictions: the old fields + which tier was hit
     hit_type: str | None = None

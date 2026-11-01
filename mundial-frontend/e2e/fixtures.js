@@ -132,6 +132,24 @@ export const LEAGUE_RANKING_LIVE = [
   { ...member(2, 1, 'bartek', 7), live_points: 7, live_total: 14, live_rank: 1 },
 ];
 
+// season badges: ola is the exact king and has a 3-round streak
+export const LEAGUE_BADGES = {
+  unit: 'round',
+  finished_picks: 6,
+  badges: [{
+    code: 'exact_king',
+    title: 'Król dokładnych',
+    emoji: '👑',
+    description: 'Najwięcej dokładnych wyników w sezonie',
+    user_ids: [3],
+    value: 2,
+  }],
+  streaks: [
+    { user_id: 3, nick: 'ola', current_rounds: 3, best_rounds: 3, current_matches: 4 },
+    { user_id: 1, nick: 'bartek', current_rounds: 0, best_rounds: 1, current_matches: 0 },
+  ],
+};
+
 export const LEAGUE_COUPON = {
   league_id: 1,
   ...WEEK,
