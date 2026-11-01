@@ -27,3 +27,27 @@ def sort_ranking(rows: list) -> list:
         result.append({**row, "rank": rank})
 
     return result
+
+
+def with_live_ranking(ranking: list, live_points: dict, is_live: bool) -> list:
+    # official ranking (sorted, with rank) + live fields, official order kept.
+    # live_total = official + provisional points from live matches,
+    # live_rank = place by live_total with the same tiebreak (official hits).
+    # nothing live -> live_total / live_rank None, the table stays official
+    if not is_live:
+        return [{**r, "live_points": 0, "live_total": None, "live_rank": None} for r in ranking]
+
+    live_rows = [
+        {**r, "total_points": (r.get("total_points") or 0) + live_points.get(r["user_id"], 0)}
+        for r in ranking
+    ]
+    live_rank = {r["user_id"]: r["rank"] for r in sort_ranking(live_rows)}
+    return [
+        {
+            **r,
+            "live_points": live_points.get(r["user_id"], 0),
+            "live_total": (r.get("total_points") or 0) + live_points.get(r["user_id"], 0),
+            "live_rank": live_rank[r["user_id"]],
+        }
+        for r in ranking
+    ]

@@ -103,7 +103,7 @@ Typy meczów `cancelled` / `awarded` nie liczą się nigdzie.
 | GET | `/leagues/{id}/competitions` | Zakres ligi: `{"all": true, "competitions": []}` gdy brak wierszy, inaczej `all=false` i lista `CompetitionRef`. Członek ligi, inaczej 403. |
 | PUT | `/leagues/{id}/competitions` | Body `{"competition_ids": [2, 3]}` (pusta lista = wszystkie). Tylko właściciel (403). Nieznane id → 422. Zwraca to co GET. |
 | GET | `/leagues/preview/{code}` | **Publiczny, bez logowania** — podgląd zaproszenia. Kod porównywany bez względu na wielkość liter. Zwraca `{"name": str, "owner_nick": str, "member_count": int, "competitions": [str]}` (polskie nazwy rozgrywek z zakresu ligi; pusta lista = wszystkie rozgrywki). Bez id, maili i kodu. Nieznany kod → 404 `"Nie znaleziono ligi z tym kodem"`. |
-| GET | `/leagues/{id}/ranking?season_id=` | Członek ligi (403). Z `season_id`: ranking tego sezonu (sezon musi należeć do rozgrywki z zakresu ligi, inaczej 422) + punkty bonusów ligowych tej ligi dla tego sezonu. Bez `season_id`: suma ze wszystkich sezonów `active` w zakresie ligi + bonusy ligowe tych sezonów. Lista `RankingEntry`, wszyscy członkowie (także z 0 pkt). |
+| GET | `/leagues/{id}/ranking?season_id=` | Członek ligi (403). Z `season_id`: ranking tego sezonu (sezon musi należeć do rozgrywki z zakresu ligi, inaczej 422) + punkty bonusów ligowych tej ligi dla tego sezonu. Bez `season_id`: suma ze wszystkich sezonów `active` w zakresie ligi + bonusy ligowe tych sezonów. Lista `RankingEntry`, wszyscy członkowie (także z 0 pkt), plus tabela na żywo: `live_points` (punkty „gdyby się teraz skończyło” z meczów `live` w zakresie ligi; w trybie `coupon` tylko mecze z kuponów, joker ×2), `live_total` = `total_points` + `live_points`, `live_rank` = miejsce wg `live_total` (ten sam tiebreak). Bez meczu live: `live_points: 0`, `live_total`/`live_rank` = `null`. Kolejność i `rank` zawsze oficjalne (`domain/ranking.with_live_ranking`). |
 
 ## Bonusy ligowe — agent D
 
@@ -205,7 +205,13 @@ Generowanie w tle: scheduler synchronizacji (`services/sync.run_scheduler`) co t
       "member_predictions": [ { "user_id": 3, "nick": "ola", "pred_home": 2, "pred_away": 1,
                                 "points_awarded": 5, "hit_type": "exact",
                                 "provisional_points": null, "provisional_hit_type": null,
-                                "is_joker": false } ]   // [] przed startem; provisional_* tylko live (bez ×2)
+                                "is_joker": false } ],  // [] przed startem; provisional_* tylko live (bez ×2)
+      "league_summary": {        // „średni typ ligi” z member_predictions (domain/league_picks.py), null przed startem / bez typów
+        "count": 2, "avg_home": 1.5, "avg_away": 1.0,
+        "home_wins": 1, "draws": 1, "away_wins": 0,
+        "home_pct": 50, "draw_pct": 50, "away_pct": 0,   // sumują się do 100
+        "top_scores": [ { "home": 2, "away": 1 } ],     // najczęstszy dokładny wynik (remisy w liczbie = kilka), [] gdy każdy typ inny
+        "top_count": 2 }
   } ],
   "members": [                   // posortowani jak ranking (punkty tygodnia), wszyscy członkowie
     { "rank": 1, "user_id": 3, "nick": "ola", "typed": 7, "total": 10,

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from db.queries import coupon as q
 from domain.coupon import check_coupon_edit, week_start, week_start_of
 from domain.joker import check_joker_clear, check_joker_set, joker_multiplier
+from domain.league_picks import pick_summary
 from domain.live_points import member_provisional_totals
 from domain.match_status import is_open_for_predictions
 from domain.ranking import sort_ranking
@@ -115,6 +116,8 @@ def _coupon_response(league: dict, can_manage: bool, week: date, user_id: int, n
         m["member_count"] = member_count
         m["predictions_visible"] = visible
         m["member_predictions"] = revealed.get(m["id"], [])
+        # "średni typ ligi" — same visibility as the picks it is made of
+        m["league_summary"] = pick_summary(m["member_predictions"]) if visible else None
 
     # live matches: "if it ended now" for me and for every revealed member pick
     matches = add_provisional_points(matches)

@@ -312,10 +312,16 @@ def test_member_predictions_only_after_kickoff(world, api, conn):
     assert [(p["nick"], p["pred_home"], p["pred_away"], p["points_awarded"], p["hit_type"])
             for p in started["member_predictions"]] == [("ala", 2, 1, 5, "exact"), ("bartek", 1, 1, 0, "miss")]
     assert started["typed_count"] == 2 and started["member_count"] == 3
+    # "średni typ ligi" from ala 2:1 + bartek 1:1
+    summary = started["league_summary"]
+    assert (summary["count"], summary["avg_home"], summary["avg_away"]) == (2, 1.5, 1.0)
+    assert (summary["home_wins"], summary["draws"], summary["away_wins"]) == (1, 1, 0)
+    assert summary["top_scores"] == []
 
     # ala typed t4, but it kicks off tonight: nothing leaks
     future = by_id[m["t4"]]
     assert future["predictions_visible"] is False and future["member_predictions"] == []
+    assert future["league_summary"] is None
     assert future["typed_count"] == 1
     # celina's own pick is there as my_prediction, nobody else's
     assert by_id[m["t7"]]["my_prediction"]["pred_home"] == 2
@@ -676,3 +682,50 @@ def test_my_coupon_marks_my_joker_per_league(world, api, conn):
     refs = {ref["name"]: ref for ref in t4["leagues"]}
     assert refs["Biuro"]["is_my_joker"] is True and refs["Biuro"]["ranking_mode"] == "coupon"
     assert refs["Rodzina"]["is_my_joker"] is False and refs["Rodzina"]["ranking_mode"] == "scope"
+
+
+# --- live league table (GET /leagues/{id}/ranking while a match is live) ---
+
+def _live_table(api, league_id):
+    return {
+        r["nick"]: (r["rank"], r["total_points"], r["live_points"], r["live_total"], r["live_rank"])
+        for r in api("ala").get(f"/leagues/{league_id}/ranking").json()
+    }
+
+
+def _go_live(conn, match_id, home, away):
+    execute(
+        conn, "UPDATE matches SET status = 'live', home_goals = %s, away_goals = %s WHERE id = %s",
+        (home, away, match_id),
+    )
+
+
+def test_live_table_is_empty_without_live_matches(world, api):
+    table = _live_table(api, world["biuro"])
+    assert all(v[2:] == (0, None, None) for v in table.values())
+
+
+def test_live_table_in_scope_mode_counts_every_live_match(world, api, conn):
+    m = world["m"]
+    _go_live(conn, m["t4"], 0, 2)  # ala 0:2 exact +5
+    _go_live(conn, m["t7"], 1, 1)  # celina 2:2 diff +3, overtakes bartek
+    # official: ala 10, bartek 2, celina 0
+    assert _live_table(api, world["biuro"]) == {
+        "ala": (1, 10, 5, 15, 1),
+        "bartek": (2, 2, 0, 2, 3),
+        "celina": (3, 0, 3, 3, 2),
+    }
+
+
+def test_live_table_in_coupon_mode_only_coupon_matches_and_joker_doubles(world, api, conn):
+    m, u, lid = world["m"], world["users"], world["biuro"]
+    coupon_id = _set_coupon(conn, lid, [m["t2"], m["t4"]])
+    _joker(conn, coupon_id, u["ala"], m["t4"])
+    _coupon_mode(conn, lid)
+    _go_live(conn, m["t4"], 0, 2)
+    _go_live(conn, m["t7"], 1, 1)  # not on the coupon -> celina gets nothing
+    assert _live_table(api, lid) == {
+        "ala": (1, 5, 10, 15, 1),
+        "bartek": (2, 0, 0, 0, 2),
+        "celina": (2, 0, 0, 0, 2),
+    }

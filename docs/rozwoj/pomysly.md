@@ -127,14 +127,16 @@ albo działający keep-alive na cron-job.org.
 ### ✅ Kontekst do typowania (etap 3, 01.11)
 Ikona „i” przy meczu i w kuponie: miejsce w tabeli (liczone z naszych wyników), forma z 5 meczów
 (W/R/P) i do 3 meczów bezpośrednich (`GET /matches/{id}/context`). Mecze bezpośrednie pojawią się,
-gdy w bazie będzie więcej niż jeden sezon. Zostało: „średni typ ligi” po rozpoczęciu meczu.
+gdy w bazie będzie więcej niż jeden sezon. ✅ *(etap 6, 01.11)* „Średni typ ligi” po gwizdku: średni
+wynik, podział 1/X/2 i najczęstszy dokładny typ nad typami znajomych.
 
 ### ✅ Na żywo (etap 3, 01.11)
 - „Gdyby się teraz skończyło: +3” przy meczach na żywo (pole `provisional_points`, bez zapisu
   punktów), także przy typach członków ligi i w „Na razie prowadzi” w wynikach tygodnia.
 - Odświeżanie co 60 s, gdy jest mecz na żywo i karta jest widoczna (Start, kupon ligi, Mecze),
   bez gubienia wpisywanych typów.
-- Zostało: osobna „tabela ligi na żywo” (dziś tabela w wynikach tygodnia jest oficjalna).
+- ✅ *(etap 6, 01.11)* **Tabela ligi na żywo:** przełącznik „Na żywo / Oficjalny” w rankingu ligi,
+  gdy trwa mecz: punkty „gdyby się teraz skończyło” (z jokerem ×2), strzałki ▲/▼ względem oficjalnej.
 
 ### ◐ Grywalizacja (z umiarem)
 - ✅ *(etap 4, 01.11)* **Joker:** raz na kupon podwójne punkty za wybrany mecz (tylko w lidze w trybie

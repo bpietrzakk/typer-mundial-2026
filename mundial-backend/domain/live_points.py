@@ -73,3 +73,25 @@ def member_provisional_totals(matches: list[dict], multiplier: int = JOKER_MULTI
             if points is not None:
                 totals[p["user_id"]] = totals.get(p["user_id"], 0) + points
     return totals
+
+
+def league_live_points(rows: list[dict], rules_by_season: dict, multiplier: int = 1) -> dict[int, int]:
+    # live league table: user id -> provisional points from live matches.
+    # rows = one per (live match, member pick), user_id None = nobody typed it.
+    # a joker pick counts with the multiplier (1 = league without jokers)
+    totals: dict[int, int] = {}
+    for r in rows:
+        if r.get("user_id") is None:
+            continue
+        rule = _match_rule({"season_id": r.get("season_id"), "round": {"phase": r.get("phase")}}, rules_by_season)
+        if rule is None:
+            continue
+        score = provisional_score(
+            r["status"], r.get("pred_home"), r.get("pred_away"),
+            r.get("home_goals"), r.get("away_goals"), rule,
+        )
+        if score is None:
+            continue
+        points = joker_points(score["points"], bool(r.get("is_joker")), multiplier)
+        totals[r["user_id"]] = totals.get(r["user_id"], 0) + points
+    return totals

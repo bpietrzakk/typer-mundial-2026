@@ -486,6 +486,14 @@ class SeasonRankingEntry(BaseModel):
     scored_predictions: int
 
 
+class LeagueRankingEntry(SeasonRankingEntry):
+    # private league ranking: official fields + the live table while a match
+    # in the league is live. live_total / live_rank None = nothing live
+    live_points: int = 0          # provisional, from live matches only
+    live_total: int | None = None  # total_points + live_points
+    live_rank: int | None = None   # place by live_total, not final
+
+
 class PredictionResult(PredictionResponse):
     # POST /predictions: the old fields + which tier was hit
     hit_type: str | None = None
@@ -579,12 +587,34 @@ class CouponMemberPrediction(BaseModel):
     is_joker: bool = False
 
 
+class PickScore(BaseModel):
+    home: int
+    away: int
+
+
+class LeaguePickSummary(BaseModel):
+    # "średni typ ligi" for a started match (domain/league_picks.py)
+    count: int
+    avg_home: float
+    avg_away: float
+    home_wins: int
+    draws: int
+    away_wins: int
+    home_pct: int
+    draw_pct: int
+    away_pct: int
+    top_scores: list[PickScore]  # most common exact score(s), empty when every pick differs
+    top_count: int
+
+
 class CouponMatch(CompetitionMatch):
     # Match + how the league is doing with it
     typed_count: int        # league members who typed this match
     member_count: int
     predictions_visible: bool  # true once the match kicked off
     member_predictions: list[CouponMemberPrediction]
+    # average / split / most common score of the picks, only with picks visible
+    league_summary: LeaguePickSummary | None = None
 
 
 class CouponMember(BaseModel):

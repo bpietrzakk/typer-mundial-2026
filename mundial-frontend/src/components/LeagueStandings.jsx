@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getLeagueStandings } from '../api/leagues';
+import useLivePolling from '../hooks/useLivePolling';
 import { useToast } from '../hooks/useToast';
 import { apiErrorMessage } from '../utils/apiError';
 import { competitionLabel } from '../utils/matchUi';
@@ -30,6 +31,8 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
   const [result, setResult] = useState({ key: null, entries: [], error: '' });
   const [archivePick, setArchivePick] = useState(null); // archived season picked for the player
   const [userPicked, setUserPicked] = useState(false);
+  const [pollTick, setPollTick] = useState(0); // silent refresh while live, no loading state
+  const [showLive, setShowLive] = useState(true); // live table first when a match is on
 
   const options = useMemo(() => buildSeasonOptions(scope, competitions), [scope, competitions]);
 
@@ -59,7 +62,7 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
         }
       });
     return () => { cancelled = true; };
-  }, [leagueId, activeSeasonId, requestKey, addToast]);
+  }, [leagueId, activeSeasonId, requestKey, addToast, pollTick]);
 
   // combined view with zeros everywhere -> look for an archived season with points
   const archivedKey = options.filter((o) => o.archived).map((o) => o.id).join(',');
@@ -94,10 +97,39 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
   const hasData = result.key !== null;
   const loading = result.key !== requestKey;
 
+  // a match in the league is live -> the api adds live_rank / live_total
+  const isLive = !result.error && result.entries.some((e) => e.live_rank != null);
+  const liveView = isLive && showLive;
+  const pollRanking = useCallback(() => setPollTick((t) => t + 1), []);
+  useLivePolling(isLive, pollRanking);
+
   return (
     <section className="glass-card overflow-hidden mb-2" aria-labelledby="league-ranking-title">
       <div className="px-5 py-4 border-b border-surface-500/20 flex items-center justify-between gap-3 flex-wrap">
-        <h2 id="league-ranking-title" className="text-lg font-semibold text-gray-200">Ranking ligi</h2>
+        <div className="flex items-center gap-2 flex-wrap">
+          <h2 id="league-ranking-title" className="text-lg font-semibold text-gray-200">Ranking ligi</h2>
+          {isLive && (
+            <div className="flex items-center rounded-full border border-surface-500/30 p-0.5 text-xs font-semibold" role="group" aria-label="Widok rankingu">
+              <button
+                type="button"
+                onClick={() => setShowLive(true)}
+                aria-pressed={liveView}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-colors ${liveView ? 'bg-mundial-red/15 text-mundial-red' : 'text-gray-400 hover:text-gray-200'}`}
+              >
+                <span className="w-1.5 h-1.5 bg-mundial-red rounded-full animate-pulse" aria-hidden="true" />
+                Na żywo
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowLive(false)}
+                aria-pressed={!liveView}
+                className={`px-2.5 py-1 rounded-full transition-colors ${!liveView ? 'bg-surface-600/60 text-gray-100' : 'text-gray-400 hover:text-gray-200'}`}
+              >
+                Oficjalny
+              </button>
+            </div>
+          )}
+        </div>
         <div className="w-full sm:w-80">
           <label htmlFor="league-season" className="sr-only">Sezon rankingu</label>
           <select
@@ -142,9 +174,17 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
         </div>
       )}
 
+      {liveView && hasData && (
+        <p className="px-5 py-2.5 border-b border-surface-500/20 bg-mundial-red/5 text-xs text-gray-300">
+          <span className="font-semibold text-mundial-red">Tabela na żywo</span> — oficjalne punkty plus punkty z trwających
+          meczów, gdyby skończyły się teraz. To jeszcze nie jest wynik końcowy; strzałki pokazują zmianę względem
+          oficjalnej tabeli.
+        </p>
+      )}
+
       {hasData && !result.error && (
         <div className={loading ? 'opacity-50 transition-opacity' : 'transition-opacity'} aria-busy={loading}>
-          <LeagueRankingTable entries={result.entries} onSelectUser={onSelectUser} />
+          <LeagueRankingTable entries={result.entries} onSelectUser={onSelectUser} live={liveView} />
         </div>
       )}
 

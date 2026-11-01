@@ -1,4 +1,4 @@
-from domain.ranking import sort_ranking
+from domain.ranking import sort_ranking, with_live_ranking
 
 
 def row(user_id, nick, total, exact=0, diff=0):
@@ -83,3 +83,43 @@ def test_none_counts_are_treated_as_zero():
     result = sort_ranking(rows)
     assert ids(result) == [2, 1]
     assert ranks(result) == [1, 2]
+
+
+# --- live table: official ranking + provisional points from live matches ---
+
+def test_live_ranking_without_live_matches_has_no_live_fields():
+    official = sort_ranking([row(1, "ala", 10), row(2, "ola", 5)])
+    out = with_live_ranking(official, {}, is_live=False)
+    assert [(r["live_points"], r["live_total"], r["live_rank"]) for r in out] == [(0, None, None), (0, None, None)]
+    # official data stays as it was
+    assert [(r["user_id"], r["rank"], r["total_points"]) for r in out] == [(1, 1, 10), (2, 2, 5)]
+
+
+def test_live_ranking_adds_live_points_and_moves_positions():
+    official = sort_ranking([row(1, "ala", 10), row(2, "ola", 8), row(3, "ela", 4)])
+    out = with_live_ranking(official, {2: 5, 3: 3}, is_live=True)
+    # official order kept, live fields next to it
+    assert ids(out) == [1, 2, 3]
+    assert [(r["live_points"], r["live_total"], r["live_rank"]) for r in out] == [
+        (0, 10, 2), (5, 13, 1), (3, 7, 3),
+    ]
+
+
+def test_live_ranking_live_but_nobody_scores_keeps_the_order():
+    official = sort_ranking([row(1, "ala", 10), row(2, "ola", 8)])
+    out = with_live_ranking(official, {}, is_live=True)
+    assert [(r["live_total"], r["live_rank"]) for r in out] == [(10, 1), (8, 2)]
+
+
+def test_live_ranking_ties_use_the_same_tiebreak_as_official():
+    # equal live total -> more exact hits first, full tie -> shared rank
+    official = sort_ranking([row(1, "ala", 10, exact=1), row(2, "ola", 7, exact=2), row(3, "ela", 9, exact=2)])
+    out = with_live_ranking(official, {2: 3, 3: 1}, is_live=True)
+    live = {r["user_id"]: r["live_rank"] for r in out}
+    assert live == {2: 1, 3: 1, 1: 3}
+
+
+def test_live_ranking_does_not_touch_the_input():
+    official = sort_ranking([row(1, "ala", 10)])
+    with_live_ranking(official, {1: 3}, is_live=True)
+    assert "live_total" not in official[0]

@@ -1,18 +1,9 @@
 import { useId, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import HitBadge from './HitBadge';
+import LeaguePickSummary from './LeaguePickSummary';
 import { HIT_META } from '../utils/matchUi';
-
-// share of home wins / draws / away wins among the predictions, in %
-function distribution(preds) {
-  const n = preds.length;
-  const home = preds.filter((p) => p.pred_home > p.pred_away).length;
-  const away = preds.filter((p) => p.pred_home < p.pred_away).length;
-  const pct = (x) => Math.round((x / n) * 100);
-  const homePct = pct(home);
-  const awayPct = pct(away);
-  return { home: homePct, draw: 100 - homePct - awayPct, away: awayPct };
-}
+import { decimalPl } from '../utils/format';
 
 // "Typy ligi" under a coupon row — visible once the match kicked off
 export default function LeagueMatchPredictions({ match }) {
@@ -26,7 +17,7 @@ export default function LeagueMatchPredictions({ match }) {
     return <p className="mt-1 pl-[2.5rem] sm:pl-[3.75rem] text-[11px] text-gray-500">Nikt z ligi nie typował tego meczu</p>;
   }
 
-  const dist = distribution(preds);
+  const summary = match.league_summary;
   // best points first (live: points if it ended now), then nick
   const pts = (p) => p.points_awarded ?? p.provisional_points ?? -1;
   const sorted = [...preds].sort((a, b) => pts(b) - pts(a) || a.nick.localeCompare(b.nick));
@@ -41,6 +32,9 @@ export default function LeagueMatchPredictions({ match }) {
         className="inline-flex items-center gap-1 text-[11px] font-semibold text-mundial-teal hover:text-mundial-teal/80"
       >
         Typy ligi ({preds.length})
+        {summary && (
+          <span className="font-normal text-gray-400">· śr. {decimalPl(summary.avg_home)}:{decimalPl(summary.avg_away)}</span>
+        )}
         <svg className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
@@ -48,17 +42,7 @@ export default function LeagueMatchPredictions({ match }) {
 
       {open && (
         <div id={panelId} className="mt-2 mb-1 rounded-xl bg-surface-700/40 border border-surface-500/20 p-3 animate-fade-in">
-          {/* 1 / X / 2 split */}
-          <div className="flex h-1.5 rounded-full overflow-hidden mb-1.5" aria-hidden="true">
-            <div className="bg-mundial-teal" style={{ width: `${dist.home}%` }} />
-            <div className="bg-gray-500" style={{ width: `${dist.draw}%` }} />
-            <div className="bg-mundial-red" style={{ width: `${dist.away}%` }} />
-          </div>
-          <p className="text-[11px] text-gray-400 mb-2">
-            <span className="text-mundial-teal font-semibold">{dist.home}%</span> gospodarze ·{' '}
-            <span className="text-gray-300 font-semibold">{dist.draw}%</span> remis ·{' '}
-            <span className="text-mundial-red font-semibold">{dist.away}%</span> goście
-          </p>
+          {summary && <LeaguePickSummary summary={summary} />}
           <ul className="divide-y divide-surface-500/10">
             {sorted.map((p) => {
               const isMe = p.user_id === user?.id;

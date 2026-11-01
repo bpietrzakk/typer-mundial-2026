@@ -32,14 +32,15 @@ from schemas.models import (
     CreateLeagueRequest,
     JoinLeagueRequest,
     LeagueDetailResponse,
+    LeagueRankingEntry,
     LeaguePreviewResponse,
     LeagueScopeRequest,
     LeagueScopeResponse,
     LeagueSummary,
     ResetCodeResponse,
-    SeasonRankingEntry,
     UpdateLeagueSettingsRequest,
 )
+from services.live_points import add_live_ranking
 
 
 router = APIRouter(prefix="/leagues", tags=["leagues"])
@@ -281,7 +282,7 @@ def set_league_scope(
     return _scope_response(league_id)
 
 
-@router.get("/{league_id}/ranking", response_model=list[SeasonRankingEntry])
+@router.get("/{league_id}/ranking", response_model=list[LeagueRankingEntry])
 def get_league_scoped_ranking(
     league_id: int,
     season_id: int | None = Query(default=None),
@@ -290,7 +291,8 @@ def get_league_scoped_ranking(
     # members only. with season_id: that season (must be in the league scope),
     # without it: every active season in the scope added up.
     # league bonus answers of the chosen seasons are included either way.
-    # ranking_mode 'coupon': match points only from this league's weekly coupons
+    # ranking_mode 'coupon': match points only from this league's weekly coupons.
+    # while a match is live: live_points / live_total / live_rank (not final)
     detail = _require_member(league_id, current_user["id"])
 
     if season_id is not None:
@@ -305,7 +307,11 @@ def get_league_scoped_ranking(
     else:
         season_ids = list_active_season_ids_in_league_scope(league_id)
 
-    if detail.get("ranking_mode") == "coupon":
+    mode = detail.get("ranking_mode") or "scope"
+    if mode == "coupon":
         # each member's joker match counts double (domain/joker.py)
-        return sort_ranking(get_league_coupon_ranking(league_id, season_ids, joker_multiplier("coupon")))
-    return sort_ranking(get_league_season_ranking(league_id, season_ids))
+        ranking = sort_ranking(get_league_coupon_ranking(league_id, season_ids, joker_multiplier("coupon")))
+    else:
+        ranking = sort_ranking(get_league_season_ranking(league_id, season_ids))
+    # official order stays, live matches only add the live_* fields
+    return add_live_ranking(ranking, league_id, season_ids, mode)

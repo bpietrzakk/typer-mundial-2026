@@ -1,7 +1,12 @@
 # "if it ended now" points for live matches (domain/live_points.py)
 # never saved anywhere — only shown next to the live score
 
-from domain.live_points import member_provisional_totals, provisional_score, with_provisional
+from domain.live_points import (
+    league_live_points,
+    member_provisional_totals,
+    provisional_score,
+    with_provisional,
+)
 
 GROUP = {"exact_pts": 5, "diff_pts": 3, "tendency_pts": 2}
 FINAL = {"exact_pts": 15, "diff_pts": 8, "tendency_pts": 6}
@@ -84,3 +89,45 @@ def test_joker_pick_counts_double_in_member_totals():
     assert member_provisional_totals(out) == {3: 10, 4: 3}
     # scope league: no doubling
     assert member_provisional_totals(out, multiplier=1) == {3: 5, 4: 3}
+
+
+# --- live league ranking: provisional points per member from live matches ---
+
+def _live_row(user_id, pred=(2, 1), goals=(1, 0), season_id=5, phase="regular", is_joker=False, status="live"):
+    return {
+        "match_id": 100, "season_id": season_id, "phase": phase, "status": status,
+        "home_goals": goals[0], "away_goals": goals[1],
+        "user_id": user_id, "pred_home": pred[0] if pred else None,
+        "pred_away": pred[1] if pred else None, "is_joker": is_joker,
+    }
+
+
+def test_league_live_points_sums_per_member_over_live_matches():
+    rows = [
+        _live_row(1, pred=(1, 0)),                          # exact 5
+        {**_live_row(1, pred=(0, 0), goals=(0, 0)), "match_id": 101},  # exact 5
+        _live_row(2, pred=(2, 1)),                          # diff 3
+        _live_row(3, pred=(0, 1)),                          # miss 0
+    ]
+    assert league_live_points(rows, {5: PROFILE}) == {1: 10, 2: 3, 3: 0}
+
+
+def test_league_live_points_uses_the_phase_rule():
+    assert league_live_points([_live_row(1, pred=(1, 0), phase="final")], {5: PROFILE}) == {1: 15}
+
+
+def test_league_live_points_joker_counts_with_the_multiplier():
+    rows = [_live_row(1, pred=(1, 0), is_joker=True), _live_row(2, pred=(1, 0), is_joker=True)]
+    assert league_live_points(rows, {5: PROFILE}, multiplier=2) == {1: 10, 2: 10}
+    # scope league: multiplier 1, joker ignored
+    assert league_live_points(rows, {5: PROFILE}, multiplier=1) == {1: 5, 2: 5}
+
+
+def test_league_live_points_skips_rows_without_pick_rules_or_score():
+    rows = [
+        _live_row(None, pred=None),                 # live match nobody typed
+        _live_row(1, season_id=9),                  # season without rules
+        _live_row(2, goals=(None, None)),           # live without a score yet
+        _live_row(3, status="finished"),            # not live anymore
+    ]
+    assert league_live_points(rows, {5: PROFILE}) == {}

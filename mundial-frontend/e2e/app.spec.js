@@ -88,6 +88,33 @@ test('league page shows the weekly coupon and members', async ({ page }) => {
   await expect(ranking.getByText('bartek', { exact: true }).first()).toBeVisible();
 });
 
+test('live match: league table na żywo and the league average pick', async ({ page }) => {
+  await mockApi(page, { loggedIn: true, live: true });
+  await page.goto('/leagues/1');
+
+  // live table first, bartek moved up from 2nd
+  const ranking = page.getByRole('region', { name: 'Ranking ligi' });
+  await expect(ranking.getByText('Tabela na żywo')).toBeVisible();
+  await expect(ranking.getByRole('button', { name: 'Na żywo' })).toHaveAttribute('aria-pressed', 'true');
+  const rows = ranking.locator('tbody tr');
+  await expect(rows.first()).toContainText('bartek');
+  await expect(rows.first()).toContainText('14');
+  await expect(rows.first()).toContainText('+7 na żywo');
+  await expect(rows.first().getByText('w górę o 1')).toBeAttached();
+
+  // back to the official order
+  await ranking.getByRole('button', { name: 'Oficjalny' }).click();
+  await expect(rows.first()).toContainText('ola');
+  await expect(ranking.getByText('Tabela na żywo')).toHaveCount(0);
+
+  // picks of the league with the average once the match started
+  const coupon = page.getByRole('region', { name: 'Kupon tygodnia' });
+  await coupon.getByRole('button', { name: /Typy ligi \(2\)/ }).click();
+  await expect(coupon.getByText('Średni typ ligi')).toBeVisible();
+  await expect(coupon.getByText('1,0 : 1,0')).toBeVisible();
+  await expect(coupon.getByText(/50%/).first()).toBeVisible();
+});
+
 test('invite link survives the detour through login', async ({ page }) => {
   const api = await mockApi(page);
   await page.goto(`/join/${INVITE_CODE}`);

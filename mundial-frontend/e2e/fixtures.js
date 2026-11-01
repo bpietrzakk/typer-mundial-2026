@@ -122,7 +122,15 @@ const member = (rank, userId, nick, points) => ({
   scored_predictions: 0,
 });
 
-export const LEAGUE_RANKING = [member(1, 3, 'ola', 12), member(2, 1, 'bartek', 7)];
+// official ranking: nothing live -> live fields empty
+const official = (row) => ({ ...row, live_points: 0, live_total: null, live_rank: null });
+export const LEAGUE_RANKING = [official(member(1, 3, 'ola', 12)), official(member(2, 1, 'bartek', 7))];
+
+// a match is live: bartek's +7 takes him past ola (12 vs 14)
+export const LEAGUE_RANKING_LIVE = [
+  { ...member(1, 3, 'ola', 12), live_points: 0, live_total: 12, live_rank: 2 },
+  { ...member(2, 1, 'bartek', 7), live_points: 7, live_total: 14, live_rank: 1 },
+];
 
 export const LEAGUE_COUPON = {
   league_id: 1,
@@ -142,9 +150,35 @@ export const LEAGUE_COUPON = {
     member_count: 2,
     predictions_visible: false,
     member_predictions: [],
+    league_summary: null,
   }],
   members: [
     { ...member(1, 3, 'ola', 0), typed: 1, total: 1, provisional_points: null },
     { ...member(2, 1, 'bartek', 0), typed: 0, total: 1, provisional_points: null },
   ],
+};
+
+// same coupon, but the match kicked off an hour ago and is live 1:0
+export const LEAGUE_COUPON_LIVE = {
+  ...LEAGUE_COUPON,
+  matches: [{
+    ...LEAGUE_COUPON.matches[0],
+    status: 'live',
+    kickoff_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+    home_goals: 1,
+    away_goals: 0,
+    can_predict: false,
+    typed_count: 2,
+    predictions_visible: true,
+    member_predictions: [
+      { user_id: 3, nick: 'ola', pred_home: 0, pred_away: 1, points_awarded: null, hit_type: null,
+        provisional_points: 0, provisional_hit_type: 'miss', is_joker: false },
+      { user_id: 1, nick: 'bartek', pred_home: 2, pred_away: 1, points_awarded: null, hit_type: null,
+        provisional_points: 3, provisional_hit_type: 'diff', is_joker: false },
+    ],
+    league_summary: {
+      count: 2, avg_home: 1, avg_away: 1, home_wins: 1, draws: 0, away_wins: 1,
+      home_pct: 50, draw_pct: 0, away_pct: 50, top_scores: [], top_count: 1,
+    },
+  }],
 };

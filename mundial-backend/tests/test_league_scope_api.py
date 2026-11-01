@@ -11,6 +11,7 @@ from domain.auth import create_access_token  # noqa: E402
 from main import app  # noqa: E402
 from routers import deps as deps_module  # noqa: E402
 from routers import leagues as leagues_module  # noqa: E402
+from services import live_points as live_service  # noqa: E402
 
 
 SECRET = os.environ["JWT_SECRET"]
@@ -215,8 +216,17 @@ def _row(uid, nick, pts, exact=0, diff=0, scored=0):
     }
 
 
-def _stub_ranking(monkeypatch, rows=None, active_seasons=(5,), in_scope=True, season_exists=True):
+def _stub_ranking(monkeypatch, rows=None, active_seasons=(5,), in_scope=True, season_exists=True, live=()):
     seen = {}
+    # live league table: live match picks + their season rules
+    monkeypatch.setattr(
+        live_service, "list_league_live_predictions",
+        lambda lid, sids, coupon_only: seen.update(live_coupon_only=coupon_only) or list(live),
+    )
+    monkeypatch.setattr(
+        live_service, "list_season_scoring_rules",
+        lambda sids: {5: {"default": {"exact_pts": 5, "diff_pts": 3, "tendency_pts": 2}}},
+    )
     monkeypatch.setattr(
         leagues_module, "get_season", lambda sid: {"id": sid} if season_exists else None,
     )
@@ -235,13 +245,52 @@ def test_ranking_for_a_season(monkeypatch):
     seen = _stub_ranking(monkeypatch, rows=[_row(1, "bartek", 12, 1, 2, 5), _row(2, "daniel", 30, 3, 1, 8)])
     resp = client.get("/leagues/10/ranking?season_id=5", cookies=_cookie(MEMBER))
     assert resp.status_code == 200
-    assert seen == {"league_id": 10, "season_ids": [5]}
+    assert seen == {"league_id": 10, "season_ids": [5], "live_coupon_only": False}
+    # nothing live -> live fields empty
     assert resp.json() == [
         {"rank": 1, "user_id": 2, "nick": "daniel", "total_points": 30,
-         "exact_hits": 3, "diff_hits": 1, "scored_predictions": 8},
+         "exact_hits": 3, "diff_hits": 1, "scored_predictions": 8,
+         "live_points": 0, "live_total": None, "live_rank": None},
         {"rank": 2, "user_id": 1, "nick": "bartek", "total_points": 12,
-         "exact_hits": 1, "diff_hits": 2, "scored_predictions": 5},
+         "exact_hits": 1, "diff_hits": 2, "scored_predictions": 5,
+         "live_points": 0, "live_total": None, "live_rank": None},
     ]
+
+
+def _live(uid, pred, goals=(1, 0), is_joker=False):
+    return {
+        "match_id": 100, "season_id": 5, "phase": "regular", "status": "live",
+        "home_goals": goals[0], "away_goals": goals[1],
+        "user_id": uid, "pred_home": pred[0], "pred_away": pred[1], "is_joker": is_joker,
+    }
+
+
+def test_ranking_while_a_match_is_live_adds_the_live_table(monkeypatch):
+    # bartek exact on the live match (+5) overtakes daniel, official order stays
+    _stub_ranking(
+        monkeypatch, rows=[_row(1, "bartek", 12), _row(2, "daniel", 14)],
+        live=[_live(1, (1, 0)), _live(2, (0, 2))],
+    )
+    resp = client.get("/leagues/10/ranking", cookies=_cookie(MEMBER))
+    assert resp.status_code == 200
+    assert [(e["nick"], e["rank"], e["total_points"], e["live_points"], e["live_total"], e["live_rank"])
+            for e in resp.json()] == [("daniel", 1, 14, 0, 14, 2), ("bartek", 2, 12, 5, 17, 1)]
+
+
+def test_live_table_in_a_coupon_league_counts_coupon_matches_and_jokers(monkeypatch):
+    monkeypatch.setattr(
+        leagues_module, "get_league_with_owner", lambda lid: {**LEAGUE, "ranking_mode": "coupon"},
+    )
+    monkeypatch.setattr(leagues_module, "get_league_coupon_ranking", lambda lid, sids, mult: [
+        _row(1, "bartek", 12), _row(2, "daniel", 14),
+    ])
+    seen = _stub_ranking(monkeypatch, live=[_live(1, (2, 1), is_joker=True), _live(2, (2, 1))])
+    resp = client.get("/leagues/10/ranking", cookies=_cookie(MEMBER))
+    assert resp.status_code == 200
+    assert seen["live_coupon_only"] is True
+    # diff 3 each, bartek's joker doubles it -> 12 + 6 = 18 vs 14 + 3 = 17
+    by_nick = {e["nick"]: (e["live_points"], e["live_total"], e["live_rank"]) for e in resp.json()}
+    assert by_nick == {"bartek": (6, 18, 1), "daniel": (3, 17, 2)}
 
 
 def test_ranking_without_season_adds_up_active_seasons_in_scope(monkeypatch):

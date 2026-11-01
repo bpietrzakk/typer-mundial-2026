@@ -52,3 +52,6 @@ export function formatRunDuration(startIso, endIso) {
   if (rounded < 60) return `${rounded} s`;
   return `${Math.floor(rounded / 60)} min ${rounded % 60} s`;
 }
+
+// 1.8 -> "1,8" (polish decimal comma, one digit)
+export const decimalPl = (n) => Number(n).toFixed(1).replace('.', ',');

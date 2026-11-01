@@ -261,3 +261,56 @@ def get_league_season_ranking(league_id: int, season_ids: list[int]) -> list[dic
                 return _ranking_rows(cur.fetchall())
     finally:
         release_conn(conn)
+
+
+# live league table: every LIVE match in the given seasons with the picks of
+# league members (LEFT JOIN, so a live match nobody typed still comes back
+# with user_id NULL). coupon_only = 'coupon' league: only matches on any coupon
+# of this league. is_joker = the member's joker on a coupon of this league.
+# params: league, league, season ids, coupon_only, league
+SQL_LIST_LEAGUE_LIVE_PREDICTIONS = """
+    SELECT m.id AS match_id, m.season_id, r.phase, m.status,
+           m.home_goals, m.away_goals,
+           mp.user_id, mp.pred_home, mp.pred_away,
+           EXISTS (
+               SELECT 1
+               FROM league_coupon_jokers j
+               JOIN league_coupons jc ON jc.id = j.coupon_id
+               WHERE jc.private_league_id = %s
+                 AND j.user_id = mp.user_id AND j.match_id = m.id
+           ) AS is_joker
+    FROM matches m
+    JOIN rounds r ON r.id = m.round_id
+    LEFT JOIN (
+        SELECT p.match_id, p.user_id, p.pred_home, p.pred_away
+        FROM predictions p
+        JOIN private_league_members plm
+            ON plm.user_id = p.user_id AND plm.private_league_id = %s
+    ) mp ON mp.match_id = m.id
+    WHERE m.status = 'live'
+      AND m.season_id = ANY(%s::bigint[])
+      AND (NOT %s OR EXISTS (
+          SELECT 1
+          FROM league_coupon_matches lcm
+          JOIN league_coupons lc ON lc.id = lcm.coupon_id
+          WHERE lcm.match_id = m.id AND lc.private_league_id = %s
+      ))
+    ORDER BY m.id ASC, mp.user_id ASC
+"""
+
+
+def list_league_live_predictions(league_id: int, season_ids: list[int], coupon_only: bool) -> list[dict]:
+    # rows for domain.live_points.league_live_points, empty when nothing is live
+    if not season_ids:
+        return []
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    SQL_LIST_LEAGUE_LIVE_PREDICTIONS,
+                    (league_id, league_id, season_ids, coupon_only, league_id),
+                )
+                return [dict(r) for r in cur.fetchall()]
+    finally:
+        release_conn(conn)
