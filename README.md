@@ -1,100 +1,40 @@
-<div align="center">
+# czutka
 
-# ⚽ czutka
+Typer piłkarski dla znajomych: zakładasz prywatną ligę, co tydzień typujecie wyniki meczów,
+punkty liczą się same. Działa na [czutka.uk](https://www.czutka.uk).
 
-**Typuj wyniki meczów ze znajomymi.**
-Prywatne ligi, kupon tygodnia, ranking na żywo i odznaki. Bez reklam i bez hazardu.
+Zaczęło się jako typer na Mundial 2026. Ta wersja jest na branchu `mundial-2026`.
 
-[**czutka.uk**](https://www.czutka.uk) · [Dokumentacja](docs/README.md) · [API](docs/api-contract.md)
+## Funkcje
 
-![CI](https://github.com/bpietrzakk/typer-mundial-2026/actions/workflows/ci.yml/badge.svg)
+- prywatne ligi z kodem albo linkiem zaproszenia
+- kupon tygodnia: kilka meczów, które typuje cała liga, i joker za podwójne punkty
+- Liga Mistrzów i pięć największych lig europejskich, wyniki z football-data.org
+- typy znajomych widoczne po rozpoczęciu meczu
+- punkty i tabela ligi na żywo w trakcie meczów
+- pytania bonusowe, serie i odznaki sezonu
 
-</div>
+Punktacja: 5 pkt za dokładny wynik, 3 za różnicę bramek, 2 za zwycięzcę. W fazie pucharowej
+więcej. Szczegóły w [docs/scoring.md](docs/scoring.md).
 
----
-
-## Jak to działa
-
-1. **Zakładasz ligę** i wysyłasz znajomym link na grupę.
-2. **Co tydzień liga dostaje kupon**: kilka najciekawszych meczów z wybranych rozgrywek.
-3. **Typujesz wyniki** do pierwszego gwizdka, zapis jest automatyczny.
-4. **Punkty liczą się same** po meczu, a w trakcie widać „gdyby się teraz skończyło”.
-
-## Co jest w środku
-
-| | |
-|---|---|
-| 🏆 **Rozgrywki** | Liga Mistrzów, Premier League, LaLiga, Serie A, Bundesliga, Ligue 1 i archiwum Mundialu 2026 |
-| 🎟️ **Kupon tygodnia** | mecze tygodnia dla całej ligi, joker ×2 raz na kupon |
-| 👀 **Po gwizdku** | typy znajomych, średni typ ligi i reakcje emoji |
-| 📈 **Na żywo** | prowizoryczne punkty i tabela ligi ze strzałkami ▲▼ |
-| 🔥 **Grywalizacja** | serie bez pudła i odznaki sezonu (Król dokładnych, Prorok, Maruda…) |
-| ❓ **Pytania bonusowe** | mistrz sezonu albo własne pytanie organizatora |
-| 📱 **PWA** | instalacja na telefonie jak zwykła aplikacja |
-
-## Punktacja
-
-| Trafienie | Przykład (typ 2:1) | Punkty |
-|---|---|:---:|
-| Dokładny wynik | 2:1 | **5** |
-| Różnica bramek | 3:2 | **3** |
-| Zwycięzca | 4:0 | **2** |
-
-Mecze pucharowe są warte więcej (np. finał 15 · 8 · 6). Szczegóły w [docs/scoring.md](docs/scoring.md).
-
-## Uruchomienie lokalnie
-
-Potrzebujesz Dockera.
+## Uruchomienie
 
 ```bash
-cp mundial-backend/.env.example mundial-backend/.env   # uzupełnij JWT_SECRET
+cp mundial-backend/.env.example mundial-backend/.env   # ustaw JWT_SECRET
 docker compose up --build
 ```
 
-- aplikacja: http://localhost:8080
-- Swagger API: http://localhost:8000/docs
-
-Praca z hot-reloadem (backend i front osobno) jest opisana w [CLAUDE.md](CLAUDE.md#jak-odpalić-lokalnie).
+Aplikacja wstaje na http://localhost:8080, Swagger backendu na http://localhost:8000/docs.
+Migracje odpalają się same przy starcie.
 
 ## Testy
 
 ```bash
-cd mundial-backend && uv run pytest        # backend (RUN_DB_TESTS=1 z bazą testową)
-cd mundial-frontend && npm run lint        # lint frontu
-cd mundial-frontend && npm run test:e2e    # Playwright, główne ścieżki
+cd mundial-backend && uv run pytest
+cd mundial-frontend && npm run lint && npm run test:e2e
 ```
-
-Wszystko odpala się też w GitHub Actions przy każdym pushu.
 
 ## Stack
 
-| Warstwa | Technologia |
-|---|---|
-| Frontend | React 19, Vite, Tailwind, React Router |
-| Backend | FastAPI, psycopg2 (czysty SQL), pytest |
-| Baza | PostgreSQL 16 (Neon) |
-| Dane meczów | [football-data.org](https://www.football-data.org) |
-| Hosting | Vercel (front), Render (backend), Neon (baza) |
-
-Jak zmiana trafia na produkcję: [docs/ci-cd.md](docs/ci-cd.md).
-
-<details>
-<summary><b>Jak wyglądał Mundial Typer 2026</b> (pierwsza wersja)</summary>
-
-<br>
-
-Wersja z Mundialu jest zachowana na branchu `mundial-2026` i tagu `mundial-2026-final`.
-
-| Start | Mecze | Ranking |
-|---|---|---|
-| ![Start](docs/screenshots/homepage.png) | ![Mecze](docs/screenshots/mecze-grupy.png) | ![Ranking](docs/screenshots/ranking_globalny.png) |
-
-</details>
-
----
-
-<div align="center">
-
-Robione po godzinach przez **bartka** i **Daniela**.
-
-</div>
+React + Vite + Tailwind na froncie, FastAPI z czystym SQL (psycopg2) na backendzie, PostgreSQL.
+Produkcja: Vercel, Render i Neon. Więcej o architekturze i decyzjach w [docs/](docs/).
