@@ -116,6 +116,7 @@ from db.queries.predictions import (
     upsert_prediction,
 )
 from db.queries.ranking import (
+    _ranking_rows,
     SQL_GLOBAL_RANKING,
     SQL_LEAGUE_RANKING,
     get_global_ranking,
@@ -247,6 +248,7 @@ __all__ = [
     "get_coupon",
     "get_league_coupon_config",
     "get_league_coupon_ranking",
+    "_ranking_rows",
     "get_member_admin_flag",
     "list_coupon_match_checks",
     "list_coupons_match_ids",

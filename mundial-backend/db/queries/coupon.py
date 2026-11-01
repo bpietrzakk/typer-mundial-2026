@@ -9,7 +9,7 @@ from psycopg2.extras import RealDictCursor
 
 from db.connection import get_conn, release_conn
 from db.queries.competitions import _SQL_MATCH_SELECT, _row_to_competition_match, _utc
-from db.queries.ranking import _ranking_rows
+from db.queries.ranking import _season_rows
 
 # --- league coupon settings ---
 
@@ -550,7 +550,7 @@ def list_member_coupon_progress(league_id: int, coupon_id: int | None, joker_mul
     rows = _fetch_all(SQL_LIST_MEMBER_COUPON_PROGRESS, (joker_multiplier, coupon_id, league_id))
     # ranking columns as plain ints + the typed counter
     typed = {r["user_id"]: int(r["typed"]) for r in rows}
-    return [{**r, "typed": typed[r["user_id"]]} for r in _ranking_rows(rows)]
+    return [{**r, "typed": typed[r["user_id"]]} for r in _season_rows(rows)]
 
 
 def list_started_member_predictions(league_id: int, coupon_id: int, now: datetime) -> list[dict]:
@@ -568,7 +568,7 @@ def get_league_coupon_ranking(
         (league_id, joker_multiplier, season_ids, league_id, season_ids, flag, season_ids, flag,
          league_id, season_ids, league_id),
     )
-    return _ranking_rows(rows)
+    return _season_rows(rows)
 
 
 # --- joker ---

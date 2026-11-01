@@ -173,6 +173,8 @@ class RankingEntry(BaseModel):
     user_id: int
     nick: str
     total_points: int
+    match_points: int = 0
+    bonus_points: int = 0
 
 
 # --- private leagues ---

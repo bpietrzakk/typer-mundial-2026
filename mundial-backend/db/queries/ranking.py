@@ -17,7 +17,9 @@ SQL_GLOBAL_RANKING = """
         u.id,
         u.nick,
         COALESCE(pp.total, 0) + COALESCE(bp.total, 0) + COALESCE(gap.total, 0)
-            AS total_points
+            AS total_points,
+        COALESCE(pp.total, 0) AS match_points,
+        COALESCE(bp.total, 0) + COALESCE(gap.total, 0) AS bonus_points
     FROM users u
     LEFT JOIN (
         SELECT p.user_id, SUM(p.points_awarded) AS total
@@ -50,7 +52,9 @@ SQL_LEAGUE_RANKING = """
         u.id,
         u.nick,
         COALESCE(pp.total, 0) + COALESCE(bp.total, 0) + COALESCE(gap.total, 0)
-            AS total_points
+            AS total_points,
+        COALESCE(pp.total, 0) AS match_points,
+        COALESCE(bp.total, 0) + COALESCE(gap.total, 0) AS bonus_points
     FROM users u
     JOIN private_league_members plm
         ON plm.user_id = u.id AND plm.private_league_id = %s
@@ -78,53 +82,45 @@ SQL_LEAGUE_RANKING = """
 
 # --- ranking queries ---
 
-def get_global_ranking() -> list[dict]:
-    # returns every user (even with 0 points) so the frontend can show
-    # "you are dead last" too. rank is computed in python — enumerate over
-    # the already-sorted rows. ties get sequential ranks (1, 2, 3) for now.
+def _ranking_rows(rows, bonuses: bool = True) -> list[dict]:
+    # legacy mundial ranking: bonuses=False ranks by match points only
+    entries = []
+    for r in rows:
+        match_pts = int(r["match_points"])
+        bonus_pts = int(r["bonus_points"])
+        entries.append({
+            "user_id": r["id"],
+            "nick": r["nick"],
+            "match_points": match_pts,
+            "bonus_points": bonus_pts,
+            "total_points": match_pts + bonus_pts if bonuses else match_pts,
+        })
+    entries.sort(key=lambda e: (-e["total_points"], e["nick"]))
+    for i, e in enumerate(entries):
+        e["rank"] = i + 1
+    return entries
+
+
+def get_global_ranking(bonuses: bool = True) -> list[dict]:
+    # every user (even with 0 points), rank computed in python
     conn = get_conn()
     try:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(SQL_GLOBAL_RANKING)
-                rows = cur.fetchall()
-                return [
-                    {
-                        "rank": i + 1,
-                        "user_id": r["id"],
-                        "nick": r["nick"],
-                        "total_points": int(r["total_points"]),
-            # breakdown, queries without it (coupon progress) = all match points
-            "match_points": int(r.get("match_points", r["total_points"])),
-            "bonus_points": int(r.get("bonus_points", 0)),
-                    }
-                    for i, r in enumerate(rows)
-                ]
+                return _ranking_rows(cur.fetchall(), bonuses)
     finally:
         release_conn(conn)
 
 
-def get_league_ranking(league_id: int) -> list[dict]:
-    # same shape as global ranking but restricted to league members.
-    # bonuses are global per user (decisions #009), so just one param.
+def get_league_ranking(league_id: int, bonuses: bool = True) -> list[dict]:
+    # same shape as global ranking but restricted to league members
     conn = get_conn()
     try:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(SQL_LEAGUE_RANKING, (league_id,))
-                rows = cur.fetchall()
-                return [
-                    {
-                        "rank": i + 1,
-                        "user_id": r["id"],
-                        "nick": r["nick"],
-                        "total_points": int(r["total_points"]),
-            # breakdown, queries without it (coupon progress) = all match points
-            "match_points": int(r.get("match_points", r["total_points"])),
-            "bonus_points": int(r.get("bonus_points", 0)),
-                    }
-                    for i, r in enumerate(rows)
-                ]
+                return _ranking_rows(cur.fetchall(), bonuses)
     finally:
         release_conn(conn)
 
@@ -234,7 +230,7 @@ SQL_LEAGUE_SEASONS_RANKING = (
 )
 
 
-def _ranking_rows(rows) -> list[dict]:
+def _season_rows(rows) -> list[dict]:
     # plain ints (SUM/COUNT may come back as Decimal/long), no rank yet
     return [
         {
@@ -262,7 +258,7 @@ def get_season_ranking(season_id: int, include_bonuses: bool = True) -> list[dic
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(SQL_SEASON_RANKING, (ids, ids, flag, ids, flag) * 2)
-                return _ranking_rows(cur.fetchall())
+                return _season_rows(cur.fetchall())
     finally:
         release_conn(conn)
 
@@ -282,7 +278,7 @@ def get_league_season_ranking(
                     (season_ids, season_ids, bool(include_bonuses), season_ids, bool(include_bonuses),
                      league_id, season_ids, league_id),
                 )
-                return _ranking_rows(cur.fetchall())
+                return _season_rows(cur.fetchall())
     finally:
         release_conn(conn)
 
