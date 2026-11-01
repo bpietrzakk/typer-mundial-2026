@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
 from db.queries import (
     AlreadyMember,
@@ -15,7 +15,9 @@ from db.queries import (
     update_prize_pool,
 )
 from db.queries.competitions import get_season
+from db.queries.coupon import get_league_coupon_ranking, update_league_coupon_settings
 from db.queries.leagues import (
+    get_league_preview_by_code,
     is_season_in_league_scope,
     list_active_season_ids_in_league_scope,
     list_existing_competition_ids,
@@ -29,6 +31,7 @@ from schemas.models import (
     CreateLeagueRequest,
     JoinLeagueRequest,
     LeagueDetailResponse,
+    LeaguePreviewResponse,
     LeagueScopeRequest,
     LeagueScopeResponse,
     LeagueSummary,
@@ -53,6 +56,10 @@ def _league_to_response(league: dict, members: list[dict]) -> dict:
         "created_at": league["created_at"],
         "members": members,
         "prize_pool_per_person": league.get("prize_pool_per_person"),
+        # weekly coupon settings (008), defaults when an older row shape comes in
+        "ranking_mode": league.get("ranking_mode") or "scope",
+        "coupon_size": league.get("coupon_size") or 10,
+        "coupon_auto": league.get("coupon_auto", True),
     }
 
 
@@ -73,8 +80,23 @@ def create_new_league(
     body: CreateLeagueRequest,
     current_user: dict = Depends(get_current_user),
 ) -> dict:
+    # optional scope at creation: unknown competitions -> 422 before anything is written
+    competition_ids = list(dict.fromkeys(body.competition_ids or []))
+    if competition_ids:
+        unknown = set(competition_ids) - list_existing_competition_ids(competition_ids)
+        if unknown:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Nieznane rozgrywki: " + ", ".join(str(i) for i in sorted(unknown)),
+            )
+
     # creator becomes the owner AND first admin member, both in one transaction
     league = create_league(body.name, current_user["id"])
+    # coupon settings + scope go right after (left out = database defaults)
+    if body.ranking_mode is not None or body.coupon_size is not None:
+        update_league_coupon_settings(league["id"], body.ranking_mode, body.coupon_size, None)
+    if competition_ids:
+        replace_league_competitions(league["id"], competition_ids)
     # re-fetch with owner_nick joined; members list has just the creator
     detail = get_league_with_owner(league["id"])
     members = list_league_members(league["id"])
@@ -104,6 +126,20 @@ def join_existing_league(
     detail = get_league_with_owner(league["id"])
     members = list_league_members(league["id"])
     return _league_to_response(detail, members)
+
+
+# public, no login — the invite link shows what you are joining.
+# registered before the /{league_id} routes so e.g. code "ranking" never
+# lands in /{league_id}/ranking
+@router.get("/preview/{code}", response_model=LeaguePreviewResponse)
+def preview_league(code: str = Path(min_length=1, max_length=32)) -> dict:
+    preview = get_league_preview_by_code(code)
+    if preview is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nie znaleziono ligi z tym kodem",
+        )
+    return preview
 
 
 @router.get("/{league_id}", response_model=LeagueDetailResponse)
@@ -177,7 +213,11 @@ def update_league_settings(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Liga nie istnieje")
     if detail["owner_user_id"] != current_user["id"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tylko właściciel może edytować ligę")
-    update_prize_pool(league_id, current_user["id"], body.prize_pool_per_person)
+    # partial update: only what the body sends changes (null prize pool = no pool)
+    if "prize_pool_per_person" in body.model_fields_set:
+        update_prize_pool(league_id, current_user["id"], body.prize_pool_per_person)
+    if body.ranking_mode is not None or body.coupon_size is not None or body.coupon_auto is not None:
+        update_league_coupon_settings(league_id, body.ranking_mode, body.coupon_size, body.coupon_auto)
 
 
 # --- league scope and ranking (multi-competition) ---
@@ -248,8 +288,9 @@ def get_league_scoped_ranking(
 ) -> list[dict]:
     # members only. with season_id: that season (must be in the league scope),
     # without it: every active season in the scope added up.
-    # league bonus answers of the chosen seasons are included either way
-    _require_member(league_id, current_user["id"])
+    # league bonus answers of the chosen seasons are included either way.
+    # ranking_mode 'coupon': match points only from this league's weekly coupons
+    detail = _require_member(league_id, current_user["id"])
 
     if season_id is not None:
         if get_season(season_id) is None:
@@ -263,4 +304,6 @@ def get_league_scoped_ranking(
     else:
         season_ids = list_active_season_ids_in_league_scope(league_id)
 
+    if detail.get("ranking_mode") == "coupon":
+        return sort_ranking(get_league_coupon_ranking(league_id, season_ids))
     return sort_ranking(get_league_season_ranking(league_id, season_ids))

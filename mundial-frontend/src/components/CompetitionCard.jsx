@@ -15,16 +15,16 @@ const STATUS_CLS = {
   archived: 'bg-surface-600/40 text-gray-400 border-surface-500/30',
 };
 
-// competition card: code badge, season, follow toggle, links
+// competition card: logo tile, season, follow toggle, links
 export default function CompetitionCard({ competition, busy, onToggleFollow }) {
-  const { id, code, name, country, kind, is_followed: followed, current_season: season } = competition;
+  const { id, code, name, country, kind, logo_url: logoUrl, is_followed: followed, current_season: season } = competition;
   const archive = isArchiveCompetition(competition);
   const seasonQuery = season ? `&season=${season.id}` : '';
 
   return (
     <div className={`glass-card p-5 flex flex-col gap-4 ${followed && !archive ? '!border-mundial-teal/40' : ''}`}>
       <div className="flex items-start gap-4">
-        <CompetitionBadge code={code} size="lg" />
+        <CompetitionBadge code={code} name={name} logoUrl={logoUrl} size="lg" />
         <div className="min-w-0 flex-1">
           <h3 className="text-lg font-bold text-gray-100 leading-tight">{name}</h3>
           <p className="text-sm text-gray-500 mt-0.5">

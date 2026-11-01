@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { competitionLabel } from '../utils/matchUi';
 
 // scope = { all, competitions } from GET /leagues/{id}/competitions, optional (loads after the list)
 export default function LeagueCard({ league, scope }) {
@@ -28,7 +29,7 @@ export default function LeagueCard({ league, scope }) {
                     title={c.name}
                     className="px-2 py-0.5 rounded-md bg-mundial-teal/10 text-[11px] font-semibold text-mundial-teal"
                   >
-                    {c.code}
+                    {competitionLabel(c.code, c.name)}
                   </span>
                 ))
               )}

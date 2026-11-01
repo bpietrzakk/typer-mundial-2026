@@ -19,6 +19,7 @@ from db.queries import sync as q
 from db.queries.results import score_match, void_match_predictions
 from domain import sync_plan as plan
 from domain.rescore import RESCORE_WINDOW_HOURS
+from services.coupons import coupon_tick
 from services.providers import get_provider
 
 logger = logging.getLogger(__name__)
@@ -496,4 +497,9 @@ async def run_scheduler(tick_seconds: int = SCHEDULER_TICK_SECONDS, start_delay:
             await asyncio.to_thread(scheduler_tick)
         except Exception:
             logger.exception("sync scheduler tick failed")
+        try:
+            # weekly coupons: hourly check from monday 06:00 (polish time)
+            await asyncio.to_thread(coupon_tick)
+        except Exception:
+            logger.exception("weekly coupon tick failed")
         await asyncio.sleep(tick_seconds)

@@ -21,6 +21,8 @@ import Competitions from './pages/Competitions';
 import Rules from './pages/Rules';
 import JoinByLink from './pages/JoinByLink';
 import NotFound from './pages/NotFound';
+import Landing from './pages/Landing';
+import HomeRoute from './components/HomeRoute';
 
 // layout wrapper — navbar + page content for authenticated routes
 function AppLayout({ children }) {
@@ -47,15 +49,17 @@ export default function App() {
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/verify-pending" element={<VerifyPending />} />
 
-          {/* protected routes — with navbar */}
+          {/* start: landing page for guests, dashboard when logged in */}
           <Route
             path="/"
             element={
-              <ProtectedRoute>
+              <HomeRoute guest={<Landing />}>
                 <AppLayout><Dashboard /></AppLayout>
-              </ProtectedRoute>
+              </HomeRoute>
             }
           />
+
+          {/* protected routes — with navbar */}
           <Route
             path="/matches"
             element={

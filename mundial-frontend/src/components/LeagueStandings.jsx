@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getLeagueStandings } from '../api/leagues';
 import { useToast } from '../context/ToastContext';
 import { apiErrorMessage } from '../utils/apiError';
+import { competitionLabel } from '../utils/matchUi';
 import LeagueRankingTable from './LeagueRankingTable';
 
 // seasons the league can show: current season of each competition in the scope
@@ -14,17 +15,21 @@ function buildSeasonOptions(scope, competitions) {
     .filter((c) => c.current_season)
     .map((c) => ({
       id: c.current_season.id,
-      label: `${c.name} ${c.current_season.label}`,
+      label: `${competitionLabel(c.code, c.name)} ${c.current_season.label}`,
       archived: c.current_season.status === 'archived',
     }));
 }
 
-// league ranking with a season selector (default: sum of active seasons)
-export default function LeagueStandings({ leagueId, scope, competitions, onSelectUser }) {
+// league ranking with a season selector (default: sum of active seasons).
+// when nobody has points in the active seasons but an archived season has
+// (e.g. Mundial 2026), that season is shown first so the league doesn't look empty
+export default function LeagueStandings({ leagueId, scope, competitions, rankingMode, onSelectUser }) {
   const { addToast } = useToast();
   const [seasonId, setSeasonId] = useState(null); // null = combined view
   const [reloadKey, setReloadKey] = useState(0);
   const [result, setResult] = useState({ key: null, entries: [], error: '' });
+  const [archivePick, setArchivePick] = useState(null); // archived season picked for the player
+  const [userPicked, setUserPicked] = useState(false);
 
   const options = useMemo(() => buildSeasonOptions(scope, competitions), [scope, competitions]);
 
@@ -35,7 +40,7 @@ export default function LeagueStandings({ leagueId, scope, competitions, onSelec
 
   // scope changes the combined ranking, so it is part of the request key
   const scopeKey = !scope ? 'none' : scope.all ? 'all' : scope.competitions.map((c) => c.id).join(',');
-  const requestKey = `${leagueId}|${activeSeasonId ?? 'all'}|${scopeKey}|${reloadKey}`;
+  const requestKey = `${leagueId}|${activeSeasonId ?? 'all'}|${scopeKey}|${rankingMode}|${reloadKey}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -56,6 +61,36 @@ export default function LeagueStandings({ leagueId, scope, competitions, onSelec
     return () => { cancelled = true; };
   }, [leagueId, activeSeasonId, requestKey, addToast]);
 
+  // combined view with zeros everywhere -> look for an archived season with points
+  const archivedKey = options.filter((o) => o.archived).map((o) => o.id).join(',');
+  const combinedEmpty = result.key === requestKey && activeSeasonId === null && !result.error
+    && result.entries.every((e) => e.total_points === 0);
+  useEffect(() => {
+    if (!combinedEmpty || userPicked || archivePick || !archivedKey) return undefined;
+    let cancelled = false;
+    (async () => {
+      for (const id of archivedKey.split(',').map(Number)) {
+        try {
+          const entries = await getLeagueStandings(leagueId, id);
+          if (cancelled) return;
+          if (entries.some((e) => e.total_points > 0)) {
+            setArchivePick(options.find((o) => o.id === id) || null);
+            setSeasonId(id);
+            return;
+          }
+        } catch {
+          // no luck with this season, try the next one
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [combinedEmpty, userPicked, archivePick, archivedKey, leagueId, options]);
+
+  const pickSeason = (id) => {
+    setUserPicked(true);
+    setSeasonId(id);
+  };
+
   const hasData = result.key !== null;
   const loading = result.key !== requestKey;
 
@@ -68,7 +103,7 @@ export default function LeagueStandings({ leagueId, scope, competitions, onSelec
           <select
             id="league-season"
             value={activeSeasonId ?? 'all'}
-            onChange={(e) => setSeasonId(e.target.value === 'all' ? null : Number(e.target.value))}
+            onChange={(e) => pickSeason(e.target.value === 'all' ? null : Number(e.target.value))}
             className="input-field input-select !py-2 text-sm"
           >
             <option value="all">Łącznie (aktywne sezony)</option>
@@ -78,6 +113,19 @@ export default function LeagueStandings({ leagueId, scope, competitions, onSelec
           </select>
         </div>
       </div>
+
+      {archivePick && activeSeasonId === archivePick.id && (
+        <div className="px-5 py-3 border-b border-surface-500/20 bg-mundial-gold/10 flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-sm text-gray-200">
+            <span aria-hidden="true">🏆 </span>
+            {archivePick.label} – końcowa tabela.
+            <span className="text-gray-400"> W bieżących sezonach nikt nie ma jeszcze punktów.</span>
+          </p>
+          <button type="button" onClick={() => pickSeason(null)} className="text-xs font-semibold text-mundial-teal hover:text-mundial-teal/80">
+            Pokaż bieżące sezony
+          </button>
+        </div>
+      )}
 
       {!hasData && (
         <div className="p-5 grid gap-3" aria-label="Ładuję ranking">
@@ -109,7 +157,7 @@ export default function LeagueStandings({ leagueId, scope, competitions, onSelec
         ) : (
           <p>
             Widok łączny sumuje punkty z meczów aktywnych sezonów w zakresie ligi oraz punkty z pytań
-            bonusowych ligi. Sezony archiwalne wybierzesz z listy.
+            bonusowych ligi.{rankingMode === 'coupon' && ' Liczą się tylko mecze z kuponów ligi.'} Sezony archiwalne wybierzesz z listy.
           </p>
         )}
         {!selected && scope && !hasActiveSeason && (

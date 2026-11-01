@@ -3,7 +3,8 @@ import { updateLeagueSettings } from '../api/leagues';
 import { useToast } from '../context/ToastContext';
 import { apiErrorMessage } from '../utils/apiError';
 
-// prize pool per person + 50/30/20 split; only the owner can edit
+// "Na co gramy?" — stake per person + 50/30/20 split, only the owner can edit.
+// the app never takes or pays out money, friends settle it themselves
 export default function LeaguePrizePool({ league, memberCount, isOwner, onChanged }) {
   const { addToast } = useToast();
   const [editing, setEditing] = useState(false);
@@ -26,7 +27,7 @@ export default function LeaguePrizePool({ league, memberCount, isOwner, onChange
       await updateLeagueSettings(league.id, amount);
       onChanged(amount);
       setEditing(false);
-      addToast(amount ? `Pula ustawiona: ${amount} zł/os.` : 'Pula nagród usunięta');
+      addToast(amount ? `Zapisano: ${amount} zł/os.` : 'Usunięto stawkę');
     } catch (err) {
       addToast(apiErrorMessage(err, 'Nie udało się zapisać'), 'error');
     } finally {
@@ -38,7 +39,7 @@ export default function LeaguePrizePool({ league, memberCount, isOwner, onChange
     <div className="glass-card p-5 mb-6">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <p className="text-sm font-semibold text-gray-200 mb-0.5">Pula nagród</p>
+          <p className="text-sm font-semibold text-gray-200 mb-0.5">Na co gramy?</p>
           {perPerson ? (
             <div className="space-y-0.5">
               <p className="text-xs text-gray-400">
@@ -52,14 +53,14 @@ export default function LeaguePrizePool({ league, memberCount, isOwner, onChange
               </div>
             </div>
           ) : (
-            <p className="text-xs text-gray-400">Nie ustawiona</p>
+            <p className="text-xs text-gray-400">Nic nie ustalono — np. pizza dla zwycięzcy albo symboliczna składka.</p>
           )}
         </div>
 
         {isOwner && (
           editing ? (
             <div className="flex items-center gap-2">
-              <label htmlFor="prize-pool" className="sr-only">Pula nagród na osobę</label>
+              <label htmlFor="prize-pool" className="sr-only">Składka na osobę</label>
               <input
                 id="prize-pool"
                 type="number"
@@ -93,6 +94,9 @@ export default function LeaguePrizePool({ league, memberCount, isOwner, onChange
           )
         )}
       </div>
+      <p className="text-[11px] text-gray-500 mt-3">
+        czutka nie przyjmuje ani nie wypłaca pieniędzy — to tylko notatka dla ligi, rozliczacie się sami.
+      </p>
     </div>
   );
 }

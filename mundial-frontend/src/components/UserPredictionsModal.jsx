@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getUserPredictions } from '../api/predictions';
 import HitBadge from './HitBadge';
-import { HIT_META } from '../utils/matchUi';
+import { HIT_META, competitionLabel } from '../utils/matchUi';
 
 // seasonId (optional) narrows the list to one season — the backend returns
 // all finished predictions of the user, so we filter on our side
@@ -17,7 +17,12 @@ export default function UserPredictionsModal({ userId, nick, onClose, seasonId }
         if (cancelled) return;
         setPredictions(seasonId ? data.filter((p) => p.season_id === seasonId) : data);
       })
-      .catch(() => { if (!cancelled) setError('Nie udało się załadować typów'); })
+      .catch((err) => {
+        if (cancelled) return;
+        // 403 = no shared league with this player, backend says why
+        const detail = err?.response?.status === 403 ? err.response.data?.detail : '';
+        setError(detail || 'Nie udało się załadować typów');
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [userId, seasonId]);
@@ -109,7 +114,7 @@ export default function UserPredictionsModal({ userId, nick, onClose, seasonId }
                         {pred.home_team_name} vs {pred.away_team_name}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {[pred.competition_code, pred.round_name].filter(Boolean).join(' · ')}
+                        {[competitionLabel(pred.competition_code), pred.round_name].filter(Boolean).join(' · ')}
                       </p>
                       <div className="flex items-center gap-4 mt-1.5">
                         <div>

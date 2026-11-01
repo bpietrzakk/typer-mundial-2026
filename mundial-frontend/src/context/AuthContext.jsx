@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import * as authApi from '../api/auth';
+import { isInvitePath } from '../utils/pendingInvite';
 
 const AuthContext = createContext(null);
 
@@ -98,8 +99,10 @@ export function ProtectedRoute({ children }) {
   }
 
   if (!isLoggedIn) {
-    // save where the user wanted to go so we can redirect after login
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    // save where the user wanted to go so we can redirect after login.
+    // invite links go to sign-up first — invited friends rarely have an account
+    const target = isInvitePath(location.pathname) ? '/register' : '/login';
+    return <Navigate to={target} state={{ from: location }} replace />;
   }
 
   return children;

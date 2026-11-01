@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { changeNick, changePassword, deleteAccount } from '../api/settings';
 import PasswordInput from '../components/PasswordInput';
+import UserAvatar from '../components/UserAvatar';
 
 function Section({ title, description, children }) {
   return (
@@ -77,6 +78,11 @@ export default function Settings() {
     }
   };
 
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
+
   const handleDeleteAccount = async (e) => {
     e.preventDefault();
     if (deleteConfirmNick !== user?.nick) {
@@ -100,6 +106,32 @@ export default function Settings() {
       <h1 className="page-title">Ustawienia</h1>
 
       <div className="space-y-6">
+
+        {/* who is logged in + quick links + logout (the only logout on phones) */}
+        <div className="glass-card p-5">
+          <div className="flex items-center gap-3">
+            <UserAvatar nick={user?.nick} className="!w-11 !h-11 !text-lg" />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-gray-100 truncate">{user?.nick}</p>
+              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border border-surface-500/50 text-gray-300 hover:border-mundial-red/50 hover:text-mundial-red transition-colors"
+            >
+              Wyloguj się
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-surface-500/20 text-sm">
+            <Link to="/rules" className="px-3 py-1.5 rounded-lg bg-surface-700/50 text-mundial-teal hover:bg-surface-700 transition-colors">
+              Zasady punktacji
+            </Link>
+            <Link to="/competitions" className="px-3 py-1.5 rounded-lg bg-surface-700/50 text-gray-300 hover:bg-surface-700 transition-colors">
+              Obserwowane rozgrywki
+            </Link>
+          </div>
+        </div>
 
         {/* nick */}
         <Section title="Profil" description="Zmień swoją nazwę widoczną w rankingu">
@@ -208,12 +240,6 @@ export default function Settings() {
           </div>
         </Section>
 
-      </div>
-
-      <div className="mt-6 text-center">
-        <Link to="/rules" className="text-sm text-gray-600 hover:text-gray-400 transition-colors underline underline-offset-2">
-          Zasady punktacji
-        </Link>
       </div>
     </div>
   );

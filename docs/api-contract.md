@@ -90,6 +90,7 @@ Typy meczów `cancelled` / `awarded` nie liczą się nigdzie.
 |---|---|---|
 | GET | `/leagues/{id}/competitions` | Zakres ligi: `{"all": true, "competitions": []}` gdy brak wierszy, inaczej `all=false` i lista `CompetitionRef`. Członek ligi, inaczej 403. |
 | PUT | `/leagues/{id}/competitions` | Body `{"competition_ids": [2, 3]}` (pusta lista = wszystkie). Tylko właściciel (403). Nieznane id → 422. Zwraca to co GET. |
+| GET | `/leagues/preview/{code}` | **Publiczny, bez logowania** — podgląd zaproszenia. Kod porównywany bez względu na wielkość liter. Zwraca `{"name": str, "owner_nick": str, "member_count": int, "competitions": [str]}` (polskie nazwy rozgrywek z zakresu ligi; pusta lista = wszystkie rozgrywki). Bez id, maili i kodu. Nieznany kod → 404 `"Nie znaleziono ligi z tym kodem"`. |
 | GET | `/leagues/{id}/ranking?season_id=` | Członek ligi (403). Z `season_id`: ranking tego sezonu (sezon musi należeć do rozgrywki z zakresu ligi, inaczej 422) + punkty bonusów ligowych tej ligi dla tego sezonu. Bez `season_id`: suma ze wszystkich sezonów `active` w zakresie ligi + bonusy ligowe tych sezonów. Lista `RankingEntry`, wszyscy członkowie (także z 0 pkt). |
 
 ## Bonusy ligowe — agent D
@@ -144,6 +145,66 @@ Rodzaje przebiegów (każdy zapisuje wiersz w `sync_runs`):
 { "id": 12, "kind": "window", "competition_code": null, "status": "ok",
   "started_at": "...", "finished_at": "...", "requests_used": 1,
   "matches_upserted": 14, "matches_scored": 3, "error": null }
+```
+
+## Kupon tygodnia
+
+Specyfikacja: [rozwoj/spec-kupon-tygodnia.md](rozwoj/spec-kupon-tygodnia.md). Tydzień = poniedziałek 00:00 – niedziela 23:59 czasu polskiego (`domain.coupon.week_start`). Dobór meczów: `domain.coupon.pick_coupon`, SQL: `db/queries/coupon.py`, sklejanie: `services/coupons.py`.
+„Organizator” = właściciel ligi albo członek z `is_admin`. Nieznana liga → 404, nie członek → 403, nie organizator → 403.
+
+| Metoda | Ścieżka | Opis |
+|---|---|---|
+| GET | `/leagues/{id}/coupon?week=YYYY-MM-DD` | Członek. `week` = dowolny dzień tygodnia (domyślnie bieżący). Gdy kuponu na **bieżący** tydzień brak, a liga ma `coupon_auto=true`, powstaje w locie (idempotentnie, `UNIQUE (liga, tydzień)`). Tydzień bez meczów = brak kuponu (`coupon_id: null`, `matches: []`) — front pokazuje „przerwa”. Typy członków (`member_predictions`) tylko dla meczów po `kickoff_at` (bez przełożonych). |
+| PUT | `/leagues/{id}/coupon` | Organizator, tylko bieżący tydzień. Body `{"match_ids": [...]}` = pełna nowa lista. 422: rozmiar spoza 5–15 („Kupon musi mieć od 5 do 15 meczów”), nieznany mecz, mecz spoza zakresu ligi, mecz spoza tygodnia. 409: dodanie meczu, który już się zaczął (albo przełożonego), usunięcie meczu, który już się zaczął. Zwraca to co GET (`created_by: "owner"`). |
+| POST | `/leagues/{id}/coupon/regenerate` | Organizator. Automat układa bieżący tydzień od nowa (rozmiar `coupon_size`), rozpoczęte mecze zostają. `created_by: "auto"`. Zwraca to co GET. |
+| GET | `/me/coupon` | Zalogowany. Suma kuponów wszystkich moich lig na bieżący tydzień (brakujące auto-kupony powstają w locie), mecz raz z listą lig. Bez żadnej ligi: „Hity tygodnia” (`source: "hits"`) — `pick_coupon` na obserwowanych rozgrywkach (gdy nic nie obserwuje — wszystkie aktywne), z rozpoczętymi meczami tygodnia, żeby lista nie malała. |
+| PATCH | `/leagues/{id}/settings` | Właściciel. Dochodzą pola `ranking_mode` (`scope`/`coupon`), `coupon_size` (5–15), `coupon_auto`. Zmienia się tylko to, co jest w body (`prize_pool_per_person: null` nadal kasuje pulę). → 204. |
+| POST | `/leagues` | Opcjonalnie `ranking_mode`, `coupon_size`, `competition_ids` (zakres; nieznane id → 422, liga nie powstaje). Bez nich: domyślne z bazy (`scope`, 10). |
+| GET | `/leagues/{id}`, `POST /leagues`, `POST /leagues/join` | Odpowiedź ligi ma pola `ranking_mode`, `coupon_size`, `coupon_auto`. |
+| GET | `/leagues/{id}/ranking` | W trybie `coupon` punkty za mecze liczą się tylko z meczów z kuponów tej ligi (bonusy ligowe bez zmian). |
+
+Generowanie w tle: scheduler synchronizacji (`services/sync.run_scheduler`) co tick woła `services.coupons.coupon_tick`, który najwyżej raz na godzinę, od poniedziałku 06:00 czasu PL, tworzy brakujące kupony lig z `coupon_auto=true`.
+
+```jsonc
+// GET /leagues/{id}/coupon (także odpowiedź PUT i regenerate)
+{
+  "league_id": 1, "week_start": "2026-11-02", "week_end": "2026-11-08",
+  "is_current_week": true,
+  "coupon_id": 7,                // null = brak kuponu w tym tygodniu
+  "created_by": "auto",          // auto | owner | null
+  "ranking_mode": "coupon", "coupon_size": 10, "coupon_auto": true,
+  "can_edit": true,              // organizator i bieżący tydzień
+  "total": 10,
+  "matches": [ Match + {
+      "typed_count": 2,          // ilu członków wytypowało
+      "member_count": 3,
+      "predictions_visible": true,   // mecz się zaczął
+      "member_predictions": [ { "user_id": 3, "nick": "ola", "pred_home": 2, "pred_away": 1,
+                                "points_awarded": 5, "hit_type": "exact" } ]   // [] przed startem
+  } ],
+  "members": [                   // posortowani jak ranking (punkty tygodnia), wszyscy członkowie
+    { "rank": 1, "user_id": 3, "nick": "ola", "typed": 7, "total": 10,
+      "total_points": 12, "exact_hits": 1, "diff_hits": 2, "scored_predictions": 4 }
+  ]
+}
+
+// PUT /leagues/{id}/coupon
+{ "match_ids": [1201, 1202, 1205, 1210, 1213] }
+
+// GET /me/coupon
+{
+  "source": "leagues",           // leagues | hits
+  "week_start": "2026-11-02", "week_end": "2026-11-08",
+  "typed": 3, "total": 10,
+  "next_deadline": "2026-11-04T20:00:00Z",   // najbliższy otwarty mecz bez mojego typu, null gdy brak
+  "matches": [ Match + { "leagues": [ { "id": 1, "name": "Biuro" } ] } ]   // [] dla hits
+}
+
+// PATCH /leagues/{id}/settings (każde pole opcjonalne)
+{ "ranking_mode": "coupon", "coupon_size": 8, "coupon_auto": true, "prize_pool_per_person": 20 }
+
+// POST /leagues
+{ "name": "Biuro", "ranking_mode": "coupon", "coupon_size": 10, "competition_ids": [2, 5] }
 ```
 
 ## Podział plików (żeby agenci się nie zderzali)

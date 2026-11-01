@@ -14,7 +14,8 @@ import useSeasonSelection from '../hooks/useSeasonSelection';
 import { SEASON_STATUS_LABELS, formatDayShort, toId } from '../utils/matchUi';
 
 export default function Matches() {
-  const sel = useSeasonSelection();
+  // no params in the url = competition with the soonest match to predict
+  const sel = useSeasonSelection({ preferNextMatch: true });
   const { params, setParams, competition, seasons, season, seasonId } = sel;
 
   // rounds of the picked season

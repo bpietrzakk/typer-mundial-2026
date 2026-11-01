@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import NavIcon from './NavIcon';
+import UserAvatar from './UserAvatar';
 
 const NAV_LINKS = [
   {
@@ -103,19 +104,21 @@ export default function Navbar() {
                       Admin
                     </Link>
                   )}
-                  <span className="hidden sm:inline text-sm text-gray-400">{user?.nick}</span>
+                  {/* avatar with the nick initial = profile & settings */}
                   <Link
                     to="/settings"
-                    aria-label="Ustawienia"
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-surface-700/30 transition-colors"
+                    aria-label="Profil i ustawienia"
+                    title="Profil i ustawienia"
+                    className={`flex items-center gap-2 rounded-full pl-0.5 sm:pr-3 py-0.5 transition-colors hover:bg-surface-700/40
+                      ${location.pathname.startsWith('/settings') ? 'bg-surface-700/60' : ''}`}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-                    </svg>
+                    <UserAvatar nick={user?.nick} />
+                    <span className="hidden sm:inline text-sm text-gray-300 max-w-[10rem] truncate">{user?.nick}</span>
                   </Link>
+                  {/* on phones logging out lives in the settings page */}
                   <button
                     onClick={handleLogout}
-                    className="text-sm text-gray-400 hover:text-mundial-red transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-700/30"
+                    className="hidden md:inline-flex text-sm text-gray-400 hover:text-mundial-red transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-700/30"
                   >
                     Wyloguj
                   </button>

@@ -3,11 +3,11 @@ import { PLAYERS, countOf } from '../utils/plural';
 
 // my private leagues with my place in the combined standings.
 // leaguesData = { total, items: [{ league, standings }] } | null
-export default function MyLeaguesCard({ leaguesData, loading, userId }) {
+export default function MyLeaguesCard({ leaguesData, loading, userId, title = 'Moje ligi' }) {
   return (
     <div className="glass-card overflow-hidden">
       <div className="px-5 py-4 border-b border-surface-500/20 flex items-center justify-between">
-        <h2 className="font-semibold text-gray-200">Moje ligi</h2>
+        <h2 className="font-semibold text-gray-200">{title}</h2>
         <Link to="/leagues" className="text-xs text-mundial-teal hover:text-mundial-teal/80 transition-colors">
           Wszystkie →
         </Link>
@@ -18,8 +18,8 @@ export default function MyLeaguesCard({ leaguesData, loading, userId }) {
       ) : !leaguesData || leaguesData.items.length === 0 ? (
         <div className="p-5 text-center">
           <p className="text-sm text-gray-400 mb-3">Rywalizuj ze znajomymi w prywatnej lidze.</p>
-          <Link to="/leagues" className="btn-secondary inline-block text-sm !py-2">
-            Dołącz lub stwórz ligę
+          <Link to="/leagues?create=1" className="btn-secondary inline-block text-sm !py-2">
+            Załóż ligę i zaproś znajomych
           </Link>
         </div>
       ) : (
@@ -27,6 +27,8 @@ export default function MyLeaguesCard({ leaguesData, loading, userId }) {
           {leaguesData.items.map(({ league, standings }) => {
             const mine = standings?.find((r) => r.user_id === userId);
             const players = standings ? standings.length : league.member_count;
+            // a rank means nothing until someone has points (everybody would be #1)
+            const ranked = standings?.some((r) => r.total_points > 0);
             return (
               <Link
                 key={league.id}
@@ -40,7 +42,7 @@ export default function MyLeaguesCard({ leaguesData, loading, userId }) {
                 {mine && (
                   <div className="flex items-center gap-4 shrink-0">
                     <div className="text-center">
-                      <p className="text-xl font-black text-mundial-gold tabular-nums">#{mine.rank}</p>
+                      <p className="text-xl font-black text-mundial-gold tabular-nums">{ranked ? `#${mine.rank}` : '–'}</p>
                       <p className="text-[10px] text-gray-500">miejsce</p>
                     </div>
                     <div className="text-center">

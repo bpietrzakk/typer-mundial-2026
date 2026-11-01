@@ -7,7 +7,7 @@ import PredictionSection from '../components/PredictionSection';
 import useAsync from '../hooks/useAsync';
 import useCompetitions from '../hooks/useCompetitions';
 import { countOf } from '../utils/plural';
-import { HIT_META, VOID_STATUSES, isArchiveCompetition, sortCompetitions, toId } from '../utils/matchUi';
+import { HIT_META, VOID_STATUSES, competitionLabel, isArchiveCompetition, sortCompetitions, toId } from '../utils/matchUi';
 
 const fetchAllPredictions = () => getMyPredictions();
 
@@ -86,7 +86,7 @@ export default function MyPredictions() {
     predictions.forEach((p) => {
       if (seen.has(p.season_id)) return;
       seen.add(p.season_id);
-      chips.push({ id: p.season_id, label: `${p.competition_code} (wcześniejszy sezon)`, count: counts.get(p.season_id) || 0 });
+      chips.push({ id: p.season_id, label: `${competitionLabel(p.competition_code)} (wcześniejszy sezon)`, count: counts.get(p.season_id) || 0 });
     });
     // empty seasons stay hidden, except the one picked in the URL
     return chips.filter((c) => c.count > 0 || c.id === seasonFilter);

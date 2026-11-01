@@ -1,19 +1,26 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { getLeague, getLeagueScope } from '../api/leagues';
 import { getCompetitions } from '../api/competitions';
 import { useAuth } from '../context/AuthContext';
+import AdminCollapsible from './AdminCollapsible';
 import LeagueBonusQuestions from './LeagueBonusQuestions';
+import LeagueCoupon from './LeagueCoupon';
+import LeagueCouponSettings from './LeagueCouponSettings';
 import LeagueDangerZone from './LeagueDangerZone';
 import LeagueInviteCard from './LeagueInviteCard';
 import LeaguePrizePool from './LeaguePrizePool';
 import LeagueScopeEditor from './LeagueScopeEditor';
+import LeagueShareCard from './LeagueShareCard';
 import LeagueStandings from './LeagueStandings';
 import UserPredictionsModal from './UserPredictionsModal';
 
-// private league page: info, scope, ranking by season, bonus questions
+// private league page: weekly coupon first, then ranking, bonus questions and settings.
+// router state { created } / { joined } comes from the create form / invite link
 export default function LeagueDetail({ leagueId }) {
   const { user } = useAuth();
+  const location = useLocation();
+  const [shareDismissed, setShareDismissed] = useState(false);
   const [league, setLeague] = useState(null);
   const [scope, setScope] = useState(null); // null = not loaded / failed
   const [competitions, setCompetitions] = useState(null);
@@ -95,6 +102,12 @@ export default function LeagueDetail({ leagueId }) {
 
   const isOwner = user?.id === league.owner_user_id;
   const memberCount = league.members?.length ?? 0;
+  const justCreated = Boolean(location.state?.created);
+  const justJoined = Boolean(location.state?.joined);
+  // a fresh league needs friends first
+  const showShare = isOwner && !shareDismissed && (justCreated || memberCount <= 1);
+  // new coupon settings -> the coupon section loads again
+  const couponKey = `${league.ranking_mode}|${league.coupon_size}|${league.coupon_auto}`;
 
   return (
     <div className="page-container">
@@ -108,7 +121,34 @@ export default function LeagueDetail({ leagueId }) {
         </svg>
         Ligi
       </Link>
-      <h1 className="page-title">{league.name}</h1>
+      <h1 className="page-title !mb-6">{league.name}</h1>
+
+      {showShare && <LeagueShareCard league={league} onDismiss={() => setShareDismissed(true)} />}
+
+      <LeagueCoupon
+        key={couponKey}
+        league={league}
+        scope={scope}
+        competitions={competitions}
+        welcome={justJoined}
+      />
+
+      <LeagueStandings
+        leagueId={leagueId}
+        scope={scope}
+        competitions={competitions}
+        rankingMode={league.ranking_mode}
+        onSelectUser={setSelectedUser}
+      />
+
+      <LeagueBonusQuestions
+        leagueId={leagueId}
+        isOwner={isOwner}
+        scope={scope}
+        competitions={competitions}
+      />
+
+      <h2 className="text-lg font-semibold text-gray-200 mt-8 mb-3">Liga i ustawienia</h2>
 
       <LeagueInviteCard
         league={league}
@@ -117,11 +157,10 @@ export default function LeagueDetail({ leagueId }) {
         onCodeReset={(joinCode) => setLeague((l) => ({ ...l, join_code: joinCode }))}
       />
 
-      <LeaguePrizePool
+      <LeagueCouponSettings
         league={league}
-        memberCount={memberCount}
         isOwner={isOwner}
-        onChanged={(amount) => setLeague((l) => ({ ...l, prize_pool_per_person: amount }))}
+        onChanged={(patch) => setLeague((l) => ({ ...l, ...patch }))}
       />
 
       <LeagueScopeEditor
@@ -133,19 +172,19 @@ export default function LeagueDetail({ leagueId }) {
         onRetry={reloadScope}
       />
 
-      <LeagueStandings
-        leagueId={leagueId}
-        scope={scope}
-        competitions={competitions}
-        onSelectUser={setSelectedUser}
+      <LeaguePrizePool
+        league={league}
+        memberCount={memberCount}
+        isOwner={isOwner}
+        onChanged={(amount) => setLeague((l) => ({ ...l, prize_pool_per_person: amount }))}
       />
 
-      <LeagueBonusQuestions
-        leagueId={leagueId}
-        isOwner={isOwner}
-        scope={scope}
-        competitions={competitions}
-      />
+      <AdminCollapsible
+        title="Ustawienia zaawansowane"
+        description={isOwner ? 'Usunięcie ligi' : 'Opuszczenie ligi'}
+      >
+        <LeagueDangerZone league={league} isOwner={isOwner} embedded />
+      </AdminCollapsible>
 
       {selectedUser && (
         <UserPredictionsModal
@@ -154,8 +193,6 @@ export default function LeagueDetail({ leagueId }) {
           onClose={() => setSelectedUser(null)}
         />
       )}
-
-      <LeagueDangerZone league={league} isOwner={isOwner} />
     </div>
   );
 }

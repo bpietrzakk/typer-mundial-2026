@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.connection import PoolBusy
+from db.queries.health import ping_db
 from domain.sync_plan import is_sync_enabled
 from routers import admin as admin_router
 from routers import admin_bonus as admin_bonus_router
@@ -17,6 +18,7 @@ from routers import admin_users as admin_users_router
 from routers import auth as auth_router
 from routers import bonus as bonus_router
 from routers import competitions as competitions_router
+from routers import coupon as coupon_router
 from routers import league_bonus as league_bonus_router
 from routers import leagues as leagues_router
 from routers import matches as matches_router
@@ -100,7 +102,13 @@ async def pool_busy_handler(_request: Request, _exc: PoolBusy) -> JSONResponse:
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    # touch the db too, so keep-alive pings also keep Neon awake
+    try:
+        ping_db()
+    except Exception:
+        logger.exception("health check: database is not reachable")
+        return JSONResponse(status_code=503, content={"status": "degraded", "db": "error"})
+    return {"status": "ok", "db": "ok"}
 
 
 app.include_router(auth_router.router)
@@ -115,3 +123,4 @@ app.include_router(leagues_router.router)
 app.include_router(bonus_router.router)
 app.include_router(league_bonus_router.router)
 app.include_router(competitions_router.router)
+app.include_router(coupon_router.router)

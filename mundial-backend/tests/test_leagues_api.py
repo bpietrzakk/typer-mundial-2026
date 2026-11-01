@@ -224,3 +224,63 @@ def test_get_missing_league_returns_404(monkeypatch):
 
     resp = client.get("/leagues/9999", cookies=_cookie_for(USER))
     assert resp.status_code == 404
+
+
+# --- GET /leagues/preview/{code} (public) ---
+
+def test_preview_works_without_login(monkeypatch):
+    captured = {}
+    def fake_preview(code):
+        captured["code"] = code
+        return {
+            "name": "Mundial znajomi", "owner_nick": "bartek",
+            "member_count": 3, "competitions": ["Mistrzostwa Świata"],
+        }
+    monkeypatch.setattr(leagues_module, "get_league_preview_by_code", fake_preview)
+
+    resp = client.get("/leagues/preview/abcd2345")
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "name": "Mundial znajomi", "owner_nick": "bartek",
+        "member_count": 3, "competitions": ["Mistrzostwa Świata"],
+    }
+    # case is handled by the query, router passes the code as-is
+    assert captured["code"] == "abcd2345"
+
+
+def test_preview_empty_scope_means_all(monkeypatch):
+    monkeypatch.setattr(
+        leagues_module, "get_league_preview_by_code",
+        lambda code: {"name": "X", "owner_nick": "bartek", "member_count": 1, "competitions": []},
+    )
+    resp = client.get("/leagues/preview/ABCD2345")
+    assert resp.status_code == 200
+    assert resp.json()["competitions"] == []
+
+
+def test_preview_does_not_leak_ids_or_emails(monkeypatch):
+    # even if the query returned more, the response model drops it
+    monkeypatch.setattr(
+        leagues_module, "get_league_preview_by_code",
+        lambda code: {
+            "id": 10, "owner_user_id": 1, "email": "b@example.com", "join_code": "ABCD2345",
+            "name": "X", "owner_nick": "bartek", "member_count": 1, "competitions": [],
+        },
+    )
+    body = client.get("/leagues/preview/ABCD2345").json()
+    assert set(body) == {"name", "owner_nick", "member_count", "competitions"}
+
+
+def test_preview_unknown_code_404(monkeypatch):
+    monkeypatch.setattr(leagues_module, "get_league_preview_by_code", lambda code: None)
+    resp = client.get("/leagues/preview/ZZZZ9999")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Nie znaleziono ligi z tym kodem"
+
+
+def test_preview_code_ranking_does_not_hit_league_ranking(monkeypatch):
+    # "ranking" as a code must reach the preview, not /{league_id}/ranking
+    monkeypatch.setattr(leagues_module, "get_league_preview_by_code", lambda code: None)
+    resp = client.get("/leagues/preview/ranking")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Nie znaleziono ligi z tym kodem"

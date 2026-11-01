@@ -4,8 +4,9 @@ import { deleteLeague, leaveLeague } from '../api/leagues';
 import { useToast } from '../context/ToastContext';
 import { apiErrorMessage } from '../utils/apiError';
 
-// delete (owner) or leave (member), both with an inline confirm
-export default function LeagueDangerZone({ league, isOwner }) {
+// delete (owner) or leave (member), both with an inline confirm.
+// embedded = inside the collapsed advanced settings, no own divider
+export default function LeagueDangerZone({ league, isOwner, embedded = false }) {
   const { addToast } = useToast();
   const navigate = useNavigate();
   const [confirming, setConfirming] = useState(false);
@@ -38,7 +39,7 @@ export default function LeagueDangerZone({ league, isOwner }) {
     : `Opuścić ligę "${league.name}"?`;
 
   return (
-    <div className="mt-8 pt-6 border-t border-surface-500/20">
+    <div className={embedded ? 'pt-3' : 'mt-8 pt-6 border-t border-surface-500/20'}>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <p className={`text-sm font-semibold ${isOwner ? 'text-red-400' : 'text-gray-400'}`}>{title}</p>

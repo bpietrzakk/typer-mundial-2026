@@ -20,8 +20,10 @@ api.interceptors.response.use(
   (error) => {
     const url = error.config?.url || '';
     const isAuthCall = url.includes('/auth/');
+    // public calls made on guest pages (invite preview) handle errors themselves
+    const skipRedirect = Boolean(error.config?.skipAuthRedirect);
 
-    if (error.response?.status === 401 && !isAuthCall) {
+    if (error.response?.status === 401 && !isAuthCall && !skipRedirect) {
       window.location.href = '/login';
     }
 

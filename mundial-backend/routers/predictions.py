@@ -9,6 +9,7 @@ from db.queries import (
     upsert_prediction,
 )
 from db.queries.competitions import get_season
+from db.queries.leagues import users_share_league
 from domain.prediction_lock import prediction_block_reason
 from routers.deps import get_current_user
 from schemas.models import (
@@ -49,10 +50,16 @@ def my_predictions(
 @router.get("/user/{user_id}", response_model=list[MyPredictionDetail])
 def user_predictions(
     user_id: int,
-    _current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ) -> list[dict]:
     # another user's predictions, but only for already-played matches —
-    # powers "click a player in the ranking" to see how they typed
+    # powers "click a player in the ranking" to see how they typed.
+    # only visible to people who share a private league with that player
+    if user_id != current_user["id"] and not users_share_league(current_user["id"], user_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Typy tego gracza widzą tylko członkowie wspólnej ligi.",
+        )
     return list_finished_predictions_for_user(user_id)
 
 

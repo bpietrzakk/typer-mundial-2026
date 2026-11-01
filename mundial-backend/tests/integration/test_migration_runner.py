@@ -109,7 +109,22 @@ def test_rollback_restores_schema_and_data(conn, app_pool):
             )
             cur.execute("INSERT INTO sync_runs (kind, status) VALUES ('window', 'ok')")
 
-    # newest first: 007, 006, then 005
+    # a weekly coupon (008) the rollback has to drop too
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO league_coupons (private_league_id, week_start, created_by) "
+                "VALUES (%s, '2026-11-02', 'auto') RETURNING id",
+                (ids["private_league"],),
+            )
+            cur.execute(
+                "INSERT INTO league_coupon_matches (coupon_id, match_id) VALUES (%s, %s)",
+                (cur.fetchone()[0], match_id),
+            )
+
+    # newest first: 008, 007, 006, then 005
+    assert run_rollback(conn, "008") == "008_league_coupons.down.sql"
+    assert "008_league_coupons.sql" not in _ledger(conn)
     assert run_rollback(conn, "007") == "007_sync_run_lock.down.sql"
     assert "007_sync_run_lock.sql" not in _ledger(conn)
     assert run_rollback(conn, "006") == "006_archived_scored_at.down.sql"

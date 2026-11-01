@@ -35,7 +35,8 @@ SQL_GET_LEAGUE_BY_CODE = """
 # a second round-trip
 SQL_GET_LEAGUE_WITH_OWNER = """
     SELECT pl.id, pl.name, pl.owner_user_id, owner.nick AS owner_nick,
-           pl.join_code, pl.created_at, pl.prize_pool_per_person
+           pl.join_code, pl.created_at, pl.prize_pool_per_person,
+           pl.ranking_mode, pl.coupon_size, pl.coupon_auto
     FROM private_leagues pl
     JOIN users owner ON owner.id = pl.owner_user_id
     WHERE pl.id = %s
@@ -394,5 +395,63 @@ def list_active_season_ids_in_league_scope(league_id: int) -> list[int]:
             with conn.cursor() as cur:
                 cur.execute(SQL_LIST_ACTIVE_SEASON_IDS_IN_LEAGUE_SCOPE, (league_id, league_id))
                 return [row[0] for row in cur.fetchall()]
+    finally:
+        release_conn(conn)
+
+
+# --- public invite preview + shared membership ---
+
+# what an invite link shows before login: no ids, no emails, no join code.
+# codes are stored uppercase, but compare case-insensitive anyway
+SQL_GET_LEAGUE_PREVIEW_BY_CODE = """
+    SELECT pl.name, owner.nick AS owner_nick,
+           (SELECT COUNT(*) FROM private_league_members m
+            WHERE m.private_league_id = pl.id) AS member_count,
+           COALESCE(
+               (SELECT ARRAY_AGG(c.name ORDER BY c.sort_order ASC, c.id ASC)
+                FROM private_league_competitions plc
+                JOIN competitions c ON c.id = plc.competition_id
+                WHERE plc.private_league_id = pl.id),
+               '{}'::text[]
+           ) AS competitions
+    FROM private_leagues pl
+    JOIN users owner ON owner.id = pl.owner_user_id
+    WHERE UPPER(pl.join_code) = UPPER(%s)
+"""
+
+# are the two users together in at least one private league?
+SQL_USERS_SHARE_LEAGUE = """
+    SELECT 1
+    FROM private_league_members a
+    JOIN private_league_members b ON b.private_league_id = a.private_league_id
+    WHERE a.user_id = %s AND b.user_id = %s
+    LIMIT 1
+"""
+
+
+def get_league_preview_by_code(join_code: str) -> dict | None:
+    # None when no league has this code
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_GET_LEAGUE_PREVIEW_BY_CODE, (join_code,))
+                row = cur.fetchone()
+                if row is None:
+                    return None
+                preview = dict(row)
+                preview["competitions"] = list(preview["competitions"] or [])
+                return preview
+    finally:
+        release_conn(conn)
+
+
+def users_share_league(user_id: int, other_user_id: int) -> bool:
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(SQL_USERS_SHARE_LEAGUE, (user_id, other_user_id))
+                return cur.fetchone() is not None
     finally:
         release_conn(conn)

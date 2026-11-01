@@ -40,6 +40,20 @@ const COMP_COLOR_DEFAULT = 'bg-mundial-teal/15 text-mundial-teal border-mundial-
 
 export const competitionColor = (code) => COMP_COLORS[code] || COMP_COLOR_DEFAULT;
 
+// readable short names — the codes (SA, L1, LIGA...) mean nothing to a normal player
+const COMP_SHORT_NAMES = {
+  UCL: 'Liga Mistrzów',
+  EPL: 'Premier League',
+  LIGA: 'LaLiga',
+  SA: 'Serie A',
+  BL: 'Bundesliga',
+  L1: 'Ligue 1',
+  WC: 'Mundial',
+};
+
+// short name for badges and lists, falls back to the api name, then the code
+export const competitionLabel = (code, name) => COMP_SHORT_NAMES[code] || name || code || '';
+
 // switched off competitions (Mundial) live in the archive
 export const isArchiveCompetition = (c) =>
   !c.is_active || c.current_season?.status === 'archived';
@@ -54,6 +68,17 @@ export function sortCompetitions(list) {
 export function pickDefaultCompetition(list) {
   if (!list || list.length === 0) return null;
   return sortCompetitions(list)[0];
+}
+
+// competition id of the soonest match still open for a prediction (feed list)
+// only competitions from the list that are not archived count
+export function nextMatchCompetitionId(matches, competitions) {
+  if (!matches || !competitions) return null;
+  const allowed = new Set(competitions.filter((c) => !isArchiveCompetition(c)).map((c) => c.id));
+  const next = matches
+    .filter((m) => m.can_predict && allowed.has(m.competition?.id))
+    .sort((a, b) => new Date(a.kickoff_at) - new Date(b.kickoff_at))[0];
+  return next?.competition.id ?? null;
 }
 
 export const SEASON_STATUS_LABELS = {

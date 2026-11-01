@@ -5,12 +5,14 @@ import { useToast } from '../context/ToastContext';
 import { getSeasonRanking } from '../api/competitions';
 import CompetitionPicker from '../components/CompetitionPicker';
 import EmptyState from '../components/EmptyState';
+import MyLeaguesCard from '../components/MyLeaguesCard';
 import ErrorState from '../components/ErrorState';
 import PodiumCard from '../components/PodiumCard';
 import RankingTable from '../components/RankingTable';
 import SelectField from '../components/SelectField';
 import UserPredictionsModal from '../components/UserPredictionsModal';
 import useAsync from '../hooks/useAsync';
+import useMyLeagues from '../hooks/useMyLeagues';
 import useSeasonSelection from '../hooks/useSeasonSelection';
 import { PLAYERS, countOf } from '../utils/plural';
 import { SEASON_STATUS_LABELS } from '../utils/matchUi';
@@ -21,6 +23,7 @@ export default function Ranking() {
   const sel = useSeasonSelection();
   const { competition, seasons, season, seasonId } = sel;
   const [selectedUser, setSelectedUser] = useState(null);
+  const leaguesQ = useMyLeagues({ many: true });
 
   const rankingFetcher = useMemo(
     () => (seasonId ? () => getSeasonRanking(seasonId) : null),
@@ -41,8 +44,21 @@ export default function Ranking() {
     } catch { /* user cancelled */ }
   };
 
+  // my leagues first — that's the ranking friends care about
   const title = (
-    <h1 className="page-title !mb-6">Ranking</h1>
+    <>
+      <h1 className="page-title !mb-6">Ranking</h1>
+      <div className="mb-8">
+        <MyLeaguesCard
+          title="Rankingi Twoich lig"
+          leaguesData={leaguesQ.data}
+          loading={leaguesQ.loading}
+          userId={user?.id}
+        />
+      </div>
+      <h2 className="text-lg font-semibold text-gray-200">Wszyscy gracze czutki</h2>
+      <p className="text-xs text-gray-400 mb-4">Ranking rozgrywek — wszyscy gracze aplikacji, nie tylko Twoje ligi.</p>
+    </>
   );
 
   if (sel.loading) {

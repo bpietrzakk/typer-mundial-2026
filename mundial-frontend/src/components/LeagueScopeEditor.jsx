@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { setLeagueScope } from '../api/leagues';
 import { useToast } from '../context/ToastContext';
 import { apiErrorMessage } from '../utils/apiError';
+import { competitionLabel } from '../utils/matchUi';
 
 // which competitions count in the league: everyone sees it, the owner can change it
 export default function LeagueScopeEditor({ leagueId, isOwner, scope, competitions, onSaved, onRetry }) {
@@ -73,7 +74,7 @@ export default function LeagueScopeEditor({ leagueId, isOwner, scope, competitio
                   className="px-2.5 py-1 rounded-lg bg-mundial-teal/10 border border-mundial-teal/20 text-xs font-semibold text-mundial-teal"
                   title={c.name}
                 >
-                  {c.name}
+                  {competitionLabel(c.code, c.name)}
                 </li>
               ))}
             </ul>
@@ -137,7 +138,7 @@ export default function LeagueScopeEditor({ leagueId, isOwner, scope, competitio
                         onChange={() => toggleCompetition(c.id)}
                         className="accent-[#00B4D8] w-4 h-4"
                       />
-                      <span className="flex-1 min-w-0 truncate">{c.name}</span>
+                      <span className="flex-1 min-w-0 truncate">{competitionLabel(c.code, c.name)}</span>
                       {!c.is_active && (
                         <span className="text-[10px] uppercase tracking-wider text-gray-400 shrink-0">archiwum</span>
                       )}

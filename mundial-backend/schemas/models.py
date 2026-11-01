@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -179,6 +179,11 @@ class RankingEntry(BaseModel):
 
 class CreateLeagueRequest(BaseModel):
     name: str = Field(min_length=2, max_length=64)
+    # weekly coupon (008): left out = database default ('scope', size 10)
+    ranking_mode: Literal["scope", "coupon"] | None = None
+    coupon_size: int | None = Field(default=None, ge=5, le=15)
+    # league scope at creation, left out / empty = every competition
+    competition_ids: list[Annotated[int, Field(ge=1, le=2**63 - 1)]] | None = Field(default=None, max_length=100)
 
 
 class JoinLeagueRequest(BaseModel):
@@ -191,6 +196,15 @@ class LeagueSummary(BaseModel):
     id: int
     name: str
     member_count: int
+
+
+class LeaguePreviewResponse(BaseModel):
+    # public invite preview — no ids, no emails, no join code
+    # empty competitions = the league counts every competition
+    name: str
+    owner_nick: str
+    member_count: int
+    competitions: list[str]
 
 
 class LeagueMember(BaseModel):
@@ -209,10 +223,18 @@ class LeagueDetailResponse(BaseModel):
     created_at: datetime
     members: list[LeagueMember]
     prize_pool_per_person: int | None = None
+    # weekly coupon settings (008)
+    ranking_mode: str = "scope"  # scope | coupon
+    coupon_size: int = 10
+    coupon_auto: bool = True
 
 
 class UpdateLeagueSettingsRequest(BaseModel):
+    # partial update: only fields sent in the body change
     prize_pool_per_person: int | None = Field(default=None, ge=0, le=10000)
+    ranking_mode: Literal["scope", "coupon"] | None = None
+    coupon_size: int | None = Field(default=None, ge=5, le=15)
+    coupon_auto: bool | None = None
 
 
 class ResetCodeResponse(BaseModel):
@@ -516,3 +538,80 @@ class AdminCompetitionResponse(BaseModel):
 
 class AdminCompetitionUpdateRequest(BaseModel):
     is_active: bool
+
+
+# --- weekly coupon (spec: docs/rozwoj/spec-kupon-tygodnia.md) ---
+
+class CouponMemberPrediction(BaseModel):
+    # shown only after the match kicked off
+    user_id: int
+    nick: str
+    pred_home: int
+    pred_away: int
+    points_awarded: int | None = None
+    hit_type: str | None = None
+
+
+class CouponMatch(CompetitionMatch):
+    # Match + how the league is doing with it
+    typed_count: int        # league members who typed this match
+    member_count: int
+    predictions_visible: bool  # true once the match kicked off
+    member_predictions: list[CouponMemberPrediction]
+
+
+class CouponMember(BaseModel):
+    # one league member: progress on the coupon + points of the week
+    rank: int
+    user_id: int
+    nick: str
+    typed: int
+    total: int
+    total_points: int
+    exact_hits: int
+    diff_hits: int
+    scored_predictions: int
+
+
+class LeagueCouponResponse(BaseModel):
+    league_id: int
+    week_start: date   # monday, polish time
+    week_end: date     # sunday
+    is_current_week: bool
+    coupon_id: int | None = None      # null = no coupon this week (yet)
+    created_by: str | None = None     # auto | owner
+    ranking_mode: str
+    coupon_size: int
+    coupon_auto: bool
+    can_edit: bool                    # owner / admin and the current week
+    total: int
+    matches: list[CouponMatch]
+    members: list[CouponMember]       # ranked by points of the week
+
+
+CouponMatchId = Annotated[int, Field(ge=1, le=2**63 - 1)]
+
+
+class CouponUpdateRequest(BaseModel):
+    # the full new list for the current week, size is checked by the domain (5-15)
+    match_ids: list[CouponMatchId] = Field(max_length=50)
+
+
+class CouponLeagueRef(BaseModel):
+    id: int
+    name: str
+
+
+class MyCouponMatch(CompetitionMatch):
+    # leagues whose coupon has this match, empty for "hits of the week"
+    leagues: list[CouponLeagueRef]
+
+
+class MyCouponResponse(BaseModel):
+    source: Literal["leagues", "hits"]
+    week_start: date
+    week_end: date
+    typed: int
+    total: int
+    next_deadline: datetime | None = None   # earliest kickoff of an open match I did not type
+    matches: list[MyCouponMatch]

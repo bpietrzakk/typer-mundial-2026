@@ -68,6 +68,14 @@ Sama logika liczenia jest w czystych funkcjach w `domain/scoring.py` — opis za
 
 Bonusy są teraz opcją ligi prywatnej: właściciel dodaje pytanie bonusowe (`league_bonus_questions`, na razie rodzaj `champion` — „kto wygra sezon”) z liczbą punktów i terminem, a członkowie odpowiadają w `league_bonus_answers`. Punkty z bonusów liczą się tylko w rankingu tej ligi.
 
+## Kupon tygodnia
+
+Migracja 008 (`008_league_coupons.sql`, rollback w `rollback/008_league_coupons.down.sql`). Liga prywatna dostała trzy ustawienia: `ranking_mode` (`scope` — ranking liczy wszystkie mecze z zakresu ligi, jak wcześniej; `coupon` — tylko mecze z kuponów tej ligi), `coupon_size` (5–15, domyślnie 10) i `coupon_auto` (czy automat układa kupon w poniedziałek). Domyślny `ranking_mode` w bazie to `scope`, żeby istniejące ligi nie zmieniły zasad; nowe ligi front zakłada z `coupon`.
+
+**`league_coupons`** to jeden kupon ligi na tydzień: `week_start` to poniedziałek (data polska), `created_by` mówi, czy kupon ułożył automat (`auto`), czy organizator (`owner`). `UNIQUE (private_league_id, week_start)` sprawia, że automat odpalony dwa razy nie zrobi dwóch kuponów. **`league_coupon_matches`** to mecze na kuponie (`PRIMARY KEY (coupon_id, match_id)`, indeks po `match_id`). Typy się nie zmieniły — nadal jeden typ na użytkownika i mecz w `predictions`, więc mecz z dwóch kuponów typuje się raz. Tydzień bez meczów nie ma wiersza kuponu.
+
+Tabeli ligowej nie trzymamy: miejsca drużyn do doboru meczów liczymy w locie z zakończonych meczów sezonu (fazy `regular`/`league_phase`, 3/1/0, potem bilans i bramki — `domain.coupon.league_table`), a przed trzecią kolejką miejsc nie ma.
+
 ## Synchronizacja
 
 `sync_runs` to dziennik każdego przebiegu synchronizacji z API: rodzaj, rozgrywka, czas, liczba zapytań, ile meczów zaktualizowano i rozliczono, ewentualny błąd. Służy do podglądu w panelu admina i do pilnowania limitu zapytań darmowego planu. Wiersz o statusie `running` jest jednocześnie blokadą: unikalny indeks częściowy (migracja 007) dopuszcza tylko jeden taki wiersz naraz. Jak działa synchronizacja, opisuje [data-source.md](data-source.md#synchronizacja).

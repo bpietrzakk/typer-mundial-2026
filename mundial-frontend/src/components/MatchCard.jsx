@@ -28,7 +28,7 @@ export default function MatchCard({ match, readOnly = false, showCompetition = f
           <div className="flex items-center gap-2 min-w-0">
             {showCompetition && match.competition && (
               <>
-                <CompetitionBadge code={match.competition.code} />
+                <CompetitionBadge code={match.competition.code} name={match.competition.name} logoUrl={match.competition.logo_url} />
                 {match.round?.name && (
                   <span className="text-xs text-gray-400 truncate">{match.round.name}</span>
                 )}

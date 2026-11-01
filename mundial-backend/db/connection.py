@@ -64,12 +64,13 @@ def get_conn():
         raise
 
 
-def release_conn(conn) -> None:
+def release_conn(conn, close: bool = False) -> None:
     # return the connection to the pool so others can reuse it
+    # close=True drops a broken connection instead of handing it out again
     # safe to call even if the pool was never built (no-op then)
     if _pool is None:
         return
-    _pool.putconn(conn)
+    _pool.putconn(conn, close=close)
     if _slots is not None:
         try:
             _slots.release()

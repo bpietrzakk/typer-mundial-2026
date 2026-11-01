@@ -16,7 +16,7 @@ class FakePool:
         self.out += 1
         return object()
 
-    def putconn(self, conn):
+    def putconn(self, conn, close=False):
         self.out -= 1
 
 

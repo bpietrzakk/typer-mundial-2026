@@ -1,6 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { joinLeague } from '../api/leagues';
+import { getLeague, getMyLeagues, joinLeague } from '../api/leagues';
+
+// already a member -> which of my leagues has this code (the list has no codes)
+async function findMyLeagueByCode(code) {
+  const leagues = await getMyLeagues();
+  for (const l of leagues) {
+    const detail = await getLeague(l.id);
+    if (detail.join_code?.toUpperCase() === code.toUpperCase()) return detail.id;
+  }
+  return null;
+}
 
 export default function JoinByLink() {
   const { code } = useParams();
@@ -8,17 +18,25 @@ export default function JoinByLink() {
   const [status, setStatus] = useState('joining'); // 'joining' | 'success' | 'error' | 'already'
   const [error, setError] = useState('');
 
+  const started = useRef(false);
+
   useEffect(() => {
+    // join only once (StrictMode runs effects twice, the 2nd call would say 409)
+    if (started.current) return;
+    started.current = true;
     joinLeague(code)
       .then((league) => {
         setStatus('success');
-        setTimeout(() => navigate(`/leagues/${league.id}`, { replace: true }), 1500);
+        setTimeout(() => navigate(`/leagues/${league.id}`, { replace: true, state: { joined: true } }), 1500);
       })
       .catch((err) => {
         const detail = err.response?.data?.detail || '';
         if (err.response?.status === 409) {
+          // a reminder link (/join/CODE) also brings a member straight to the league
           setStatus('already');
-          setTimeout(() => navigate('/leagues', { replace: true }), 1500);
+          findMyLeagueByCode(code)
+            .catch(() => null)
+            .then((id) => navigate(id ? `/leagues/${id}#kupon` : '/leagues', { replace: true }));
         } else {
           setStatus('error');
           setError(detail || 'Nieprawidłowy lub wygasły kod zaproszenia');
@@ -55,7 +73,7 @@ export default function JoinByLink() {
               </svg>
             </div>
             <p className="text-gray-200 font-semibold">Już jesteś w tej lidze</p>
-            <p className="text-gray-500 text-sm mt-1">Przekierowuję do lig…</p>
+            <p className="text-gray-500 text-sm mt-1">Przekierowuję do ligi…</p>
           </>
         )}
         {status === 'error' && (

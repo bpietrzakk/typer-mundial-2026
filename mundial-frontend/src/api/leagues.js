@@ -1,14 +1,27 @@
 import api from './axios';
 
 // create a new private league
-export const createLeague = async (name) => {
-  const res = await api.post('/leagues', { name });
+// options: { rankingMode: 'scope' | 'coupon', couponSize, competitionIds } — all optional
+export const createLeague = async (name, options = {}) => {
+  const body = { name };
+  if (options.rankingMode) body.ranking_mode = options.rankingMode;
+  if (options.couponSize) body.coupon_size = options.couponSize;
+  if (options.competitionIds?.length) body.competition_ids = options.competitionIds;
+  const res = await api.post('/leagues', body);
   return res.data;
 };
 
 // join a private league with invite code
 export const joinLeague = async (joinCode) => {
   const res = await api.post('/leagues/join', { join_code: joinCode });
+  return res.data;
+};
+
+// public invite preview for guests: { name, owner_nick, member_count, competitions: [names] }
+// empty competitions = all competitions, 404 = unknown code.
+// skipAuthRedirect: a guest must stay on the login / register page
+export const getLeaguePreview = async (code) => {
+  const res = await api.get(`/leagues/preview/${encodeURIComponent(code)}`, { skipAuthRedirect: true });
   return res.data;
 };
 
@@ -27,6 +40,16 @@ export const getMyLeagues = async () => {
 // update league settings (prize pool) — owner only
 export const updateLeagueSettings = async (id, prizePoolPerPerson) =>
   api.patch(`/leagues/${id}/settings`, { prize_pool_per_person: prizePoolPerPerson });
+
+// partial settings update — only the sent fields change, owner only.
+// fields: { rankingMode, couponSize, couponAuto } (prize pool stays untouched)
+export const patchLeagueSettings = async (id, { rankingMode, couponSize, couponAuto } = {}) => {
+  const body = {};
+  if (rankingMode !== undefined) body.ranking_mode = rankingMode;
+  if (couponSize !== undefined) body.coupon_size = couponSize;
+  if (couponAuto !== undefined) body.coupon_auto = couponAuto;
+  return api.patch(`/leagues/${id}/settings`, body);
+};
 
 // reset invite code — owner only
 export const resetLeagueCode = async (id) => {

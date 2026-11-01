@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { getMyLeagues, createLeague, joinLeague, getLeagueScope } from '../api/leagues';
+import { useSearchParams } from 'react-router-dom';
+import { getMyLeagues, joinLeague, getLeagueScope } from '../api/leagues';
 import { apiErrorMessage } from '../utils/apiError';
 import LeagueCard from './LeagueCard';
+import LeagueCreateForm from './LeagueCreateForm';
 
 // all my leagues + join / create forms
 export default function LeagueList() {
@@ -16,11 +18,10 @@ export default function LeagueList() {
   const [joinError, setJoinError] = useState('');
   const [joinLoading, setJoinLoading] = useState(false);
 
-  // create form state
-  const [showCreate, setShowCreate] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [createError, setCreateError] = useState('');
-  const [createLoading, setCreateLoading] = useState(false);
+  // create wizard, ?create=1 opens it (links from the start screen)
+  const [params, setParams] = useSearchParams();
+  const showCreate = params.get('create') === '1';
+  const setShowCreate = (open) => setParams(open ? { create: '1' } : {}, { replace: true });
 
   useEffect(() => {
     let cancelled = false;
@@ -69,26 +70,6 @@ export default function LeagueList() {
       setJoinError(apiErrorMessage(err, 'Nieprawidłowy kod'));
     } finally {
       setJoinLoading(false);
-    }
-  };
-
-  const handleCreate = async (e) => {
-    e.preventDefault();
-    setCreateError('');
-    if (!newName.trim()) {
-      setCreateError('Podaj nazwę ligi');
-      return;
-    }
-    setCreateLoading(true);
-    try {
-      await createLeague(newName.trim());
-      setShowCreate(false);
-      setNewName('');
-      reload();
-    } catch (err) {
-      setCreateError(apiErrorMessage(err, 'Nie udało się utworzyć ligi'));
-    } finally {
-      setCreateLoading(false);
     }
   };
 
@@ -143,28 +124,8 @@ export default function LeagueList() {
         </form>
       )}
 
-      {/* create form */}
-      {showCreate && (
-        <form onSubmit={handleCreate} className="glass-card p-5 mb-6 animate-slide-up">
-          <h3 className="font-semibold text-gray-200 mb-3">Utwórz nową ligę</h3>
-          <div className="flex gap-3">
-            <label htmlFor="league-name" className="sr-only">Nazwa ligi</label>
-            <input
-              id="league-name"
-              type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Nazwa ligi"
-              className="input-field flex-1"
-              maxLength={64}
-            />
-            <button type="submit" disabled={createLoading} className="btn-primary text-sm !py-2">
-              {createLoading ? '...' : 'Utwórz'}
-            </button>
-          </div>
-          {createError && <p className="text-red-400 text-sm mt-2">{createError}</p>}
-        </form>
-      )}
+      {/* create wizard */}
+      {showCreate && <LeagueCreateForm onCancel={() => setShowCreate(false)} />}
 
       {/* error state */}
       {error && (

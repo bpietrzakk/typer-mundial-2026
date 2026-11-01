@@ -207,6 +207,7 @@ def test_user_predictions_returns_finished_only(monkeypatch):
             },
         ]
     monkeypatch.setattr(predictions_module, "list_finished_predictions_for_user", fake_list)
+    monkeypatch.setattr(predictions_module, "users_share_league", lambda a, b: True)
 
     resp = client.get("/predictions/user/99", cookies=_auth_cookie())
     assert resp.status_code == 200
@@ -218,6 +219,7 @@ def test_user_predictions_returns_finished_only(monkeypatch):
 
 def test_user_predictions_empty_when_none(monkeypatch):
     monkeypatch.setattr(predictions_module, "list_finished_predictions_for_user", lambda uid: [])
+    monkeypatch.setattr(predictions_module, "users_share_league", lambda a, b: True)
     resp = client.get("/predictions/user/99", cookies=_auth_cookie())
     assert resp.status_code == 200
     assert resp.json() == []
@@ -226,6 +228,33 @@ def test_user_predictions_empty_when_none(monkeypatch):
 def test_user_predictions_without_auth_returns_401():
     resp = client.get("/predictions/user/99")
     assert resp.status_code == 401
+
+
+def test_user_predictions_403_without_shared_league(monkeypatch):
+    captured = {}
+    def fake_share(a, b):
+        captured["pair"] = (a, b)
+        return False
+    def must_not_run(uid):
+        raise AssertionError("predictions must not be loaded")
+    monkeypatch.setattr(predictions_module, "users_share_league", fake_share)
+    monkeypatch.setattr(predictions_module, "list_finished_predictions_for_user", must_not_run)
+
+    resp = client.get("/predictions/user/99", cookies=_auth_cookie())
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "Typy tego gracza widzą tylko członkowie wspólnej ligi."
+    assert captured["pair"] == (FAKE_USER["id"], 99)
+
+
+def test_user_predictions_own_skip_league_check(monkeypatch):
+    def must_not_run(a, b):
+        raise AssertionError("own predictions need no shared league")
+    monkeypatch.setattr(predictions_module, "users_share_league", must_not_run)
+    monkeypatch.setattr(predictions_module, "list_finished_predictions_for_user", lambda uid: [])
+
+    resp = client.get(f"/predictions/user/{FAKE_USER['id']}", cookies=_auth_cookie())
+    assert resp.status_code == 200
+    assert resp.json() == []
 
 
 # --- lock by match status (multi-competition) ---
