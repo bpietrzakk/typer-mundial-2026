@@ -3,7 +3,8 @@ import axios from 'axios';
 // single axios instance for the whole app
 // withCredentials sends the httpOnly auth cookie automatically
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '',
+  // '/api' = vite dev proxy / vercel rewrite / nginx, all strip the prefix
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -19,8 +20,10 @@ api.interceptors.response.use(
   (error) => {
     const url = error.config?.url || '';
     const isAuthCall = url.includes('/auth/');
+    // public calls made on guest pages (invite preview) handle errors themselves
+    const skipRedirect = Boolean(error.config?.skipAuthRedirect);
 
-    if (error.response?.status === 401 && !isAuthCall) {
+    if (error.response?.status === 401 && !isAuthCall && !skipRedirect) {
       window.location.href = '/login';
     }
 

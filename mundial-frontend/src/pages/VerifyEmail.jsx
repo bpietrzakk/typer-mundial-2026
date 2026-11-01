@@ -5,32 +5,34 @@ import { verifyEmail } from '../api/auth';
 export default function VerifyEmail() {
   const [params] = useSearchParams();
   const token = params.get('token') || '';
-  // status: 'loading' | 'ok' | 'error'
-  const [status, setStatus] = useState('loading');
+  // result of the verify call, remembered per token: { token, status }
+  const [result, setResult] = useState(null);
 
   useEffect(() => {
-    if (!token) {
-      setStatus('error');
-      return;
-    }
+    if (!token) return;
     verifyEmail(token)
-      .then(() => setStatus('ok'))
-      .catch(() => setStatus('error'));
+      .then(() => setResult({ token, status: 'ok' }))
+      .catch(() => setResult({ token, status: 'error' }));
   }, [token]);
+
+  // status: 'loading' | 'ok' | 'error' — no token in the link is an error right away
+  let status = 'loading';
+  if (!token) status = 'error';
+  else if (result?.token === token) status = result.status;
 
   return (
     <div className="auth-bg min-h-screen flex items-center justify-center px-4">
       <div className="relative w-full max-w-md animate-fade-in text-center">
         {status === 'loading' && (
           <div className="glass-card p-10">
-            <div className="w-12 h-12 mx-auto border-4 border-mundial-teal/30 border-t-mundial-teal rounded-full animate-spin" />
+            <div className="w-12 h-12 mx-auto border-4 border-brand/30 border-t-brand rounded-full animate-spin" />
             <p className="text-gray-400 mt-4">Weryfikuję konto…</p>
           </div>
         )}
 
         {status === 'ok' && (
           <div className="glass-card p-10 space-y-4">
-            <h1 className="text-2xl font-extrabold gradient-text">Konto potwierdzone!</h1>
+            <h1 className="text-2xl font-extrabold tracking-tight text-white">Konto potwierdzone!</h1>
             <p className="text-gray-400">Możesz się teraz zalogować.</p>
             <Link to="/login" className="btn-primary inline-block">Zaloguj się</Link>
           </div>

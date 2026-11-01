@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from db.queries import (
     get_match_by_id,
@@ -6,36 +8,62 @@ from db.queries import (
     list_user_predictions,
     upsert_prediction,
 )
-from domain.predictions import is_prediction_allowed
+from db.queries.competitions import get_season
+from db.queries.leagues import users_share_league
+from domain.prediction_lock import prediction_block_reason
 from routers.deps import get_current_user
 from schemas.models import (
-    MyPredictionEntry,
+    MyPredictionDetail,
     PredictionRequest,
-    PredictionResponse,
+    PredictionResult,
 )
 
 
 router = APIRouter(prefix="/predictions", tags=["predictions"])
 
+# why a match is closed for predictions -> message for the user
+_BLOCK_MESSAGES = {
+    "started": "Mecz już się rozpoczął, nie można już typować",
+    "finished": "Mecz już się zakończył, nie można już typować",
+    "postponed": "Mecz jest przełożony lub przerwany, typowanie jest zamknięte",
+    "cancelled": "Mecz został odwołany, nie można go typować",
+    "archived": "Ten sezon jest już w archiwum, nie można typować",
+}
 
-@router.get("/mine", response_model=list[MyPredictionEntry])
-def my_predictions(current_user: dict = Depends(get_current_user)) -> list[dict]:
-    # all of the current user's predictions with match + team info,
-    # ordered by kickoff — empty list if they haven't predicted anything yet
-    return list_user_predictions(current_user["id"])
+
+@router.get("/mine", response_model=list[MyPredictionDetail])
+def my_predictions(
+    season_id: int | None = Query(default=None),
+    current_user: dict = Depends(get_current_user),
+) -> list[dict]:
+    # the current user's predictions with match + team info, ordered by
+    # kickoff — empty list if they haven't predicted anything yet.
+    # season_id narrows it to one season, without it every prediction is listed
+    if season_id is not None and get_season(season_id) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Sezon nie istnieje",
+        )
+    return list_user_predictions(current_user["id"], season_id)
 
 
-@router.get("/user/{user_id}", response_model=list[MyPredictionEntry])
+@router.get("/user/{user_id}", response_model=list[MyPredictionDetail])
 def user_predictions(
     user_id: int,
-    _current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ) -> list[dict]:
     # another user's predictions, but only for already-played matches —
-    # powers "click a player in the ranking" to see how they typed
+    # powers "click a player in the ranking" to see how they typed.
+    # only visible to people who share a private league with that player
+    if user_id != current_user["id"] and not users_share_league(current_user["id"], user_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Typy tego gracza widzą tylko członkowie wspólnej ligi.",
+        )
     return list_finished_predictions_for_user(user_id)
 
 
-@router.post("", response_model=PredictionResponse)
+@router.post("", response_model=PredictionResult)
 def submit_prediction(
     body: PredictionRequest,
     current_user: dict = Depends(get_current_user),
@@ -51,11 +79,16 @@ def submit_prediction(
             detail="Mecz nie istnieje",
         )
 
-    # deadline = kickoff. once the ref blows the whistle, no more changes
-    if not is_prediction_allowed(match["kickoff_at"]):
+    # closed once the match starts, but also while it is postponed, suspended,
+    # finished or cancelled — not only by the clock
+    reason = prediction_block_reason(
+        match["status"], match["kickoff_at"], datetime.now(timezone.utc),
+        season_status=match.get("season_status"),
+    )
+    if reason is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Mecz już się rozpoczął, nie można już typować",
+            detail=_BLOCK_MESSAGES[reason],
         )
 
     return upsert_prediction(

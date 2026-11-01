@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import PasswordInput from '../components/PasswordInput';
+import InviteNotice from '../components/InviteNotice';
+import { clearPendingInvite, inviteCodeFromPath, isInvitePath, readPendingInvite, savePendingInvite } from '../utils/pendingInvite';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -14,7 +16,10 @@ export default function Login() {
   const location = useLocation();
 
   // redirect to where the user came from (or /matches by default)
-  const from = location.state?.from?.pathname || '/';
+  // an invite link (/join/CODE) also survives a detour through register / email verification
+  const from = location.state?.from?.pathname || readPendingInvite() || '/';
+  const invited = isInvitePath(from);
+  savePendingInvite(from);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,6 +33,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(email, password);
+      clearPendingInvite();
       navigate(from, { replace: true });
     } catch (err) {
       // 403 = correct password but email not confirmed yet
@@ -54,12 +60,14 @@ export default function Login() {
       <div className="relative w-full max-w-md animate-fade-in">
         {/* header */}
         <div className="text-center mb-8">
-          <img src="/favicon.svg" alt="Mundial Typer 2026" className="w-16 h-16 mx-auto mb-4 rounded-xl" />
-          <h1 className="text-3xl font-extrabold gradient-text mb-2">
-            Mundial Typer 2026
+          <img src="/favicon.svg" alt="czutka" className="w-16 h-16 mx-auto mb-4 rounded-xl" />
+          <h1 className="text-4xl font-sans font-extrabold tracking-tight text-white mb-2">
+            czutka
           </h1>
-          <p className="text-gray-400">Zaloguj się i typuj wyniki!</p>
+          <p className="text-gray-400">Masz czutkę? Zaloguj się i typuj.</p>
         </div>
+
+        {invited && <InviteNotice code={inviteCodeFromPath(from)} mode="login" />}
 
         {/* login form */}
         <form onSubmit={handleSubmit} className="glass-card p-8 space-y-5">
@@ -115,7 +123,7 @@ export default function Login() {
 
         {/* forgot password */}
         <p className="text-center mt-4 text-sm">
-          <Link to="/forgot-password" className="text-gray-500 hover:text-mundial-teal transition-colors">
+          <Link to="/forgot-password" className="text-gray-500 hover:text-brand transition-colors">
             Nie pamiętasz hasła?
           </Link>
         </p>
@@ -123,7 +131,7 @@ export default function Login() {
         {/* register link */}
         <p className="text-center mt-2 text-gray-500 text-sm">
           Nie masz konta?{' '}
-          <Link to="/register" className="text-mundial-teal hover:text-mundial-teal/80 font-medium transition-colors">
+          <Link to="/register" state={{ from: { pathname: from } }} className="text-brand hover:text-brand/80 font-medium transition-colors">
             Zarejestruj się
           </Link>
         </p>

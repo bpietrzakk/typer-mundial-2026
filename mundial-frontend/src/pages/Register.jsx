@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import PasswordInput from '../components/PasswordInput';
+import InviteNotice from '../components/InviteNotice';
+import { clearPendingInvite, inviteCodeFromPath, isInvitePath, readPendingInvite, savePendingInvite } from '../utils/pendingInvite';
 
 export default function Register() {
   const [nick, setNick] = useState('');
@@ -10,6 +12,12 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const location = useLocation();
+
+  // came from an invite link? go back there after sign-up so the player joins the league
+  const from = location.state?.from?.pathname || readPendingInvite() || null;
+  const invited = isInvitePath(from);
+  savePendingInvite(from);
 
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -40,7 +48,9 @@ export default function Register() {
     try {
       const res = await register(nick, email, password);
       if (res.verified) {
-        navigate('/matches', { replace: true });
+        clearPendingInvite();
+        // invited -> straight to the league, everyone else gets the short onboarding
+        navigate(invited ? from : '/witaj', { replace: true });
       } else {
         // email confirmation required — show the "check your inbox" screen
         navigate('/verify-pending', { state: { email } });
@@ -65,12 +75,26 @@ export default function Register() {
       <div className="relative w-full max-w-md animate-fade-in">
         {/* header */}
         <div className="text-center mb-8">
-          <img src="/favicon.svg" alt="Mundial Typer 2026" className="w-16 h-16 mx-auto mb-4 rounded-xl" />
-          <h1 className="text-3xl font-extrabold gradient-text mb-2">
+          <img src="/favicon.svg" alt="czutka" className="w-16 h-16 mx-auto mb-4 rounded-xl" />
+          <h1 className="text-3xl font-extrabold tracking-tight text-white mb-2">
             Dołącz do gry!
           </h1>
           <p className="text-gray-400">Stwórz konto i rywalizuj ze znajomymi</p>
         </div>
+
+        {invited && (
+          <>
+            <InviteNotice code={inviteCodeFromPath(from)} mode="register" />
+            {/* invited players usually have no account, but make the other way obvious */}
+            <Link
+              to="/login"
+              state={{ from: { pathname: from } }}
+              className="flex items-center justify-center w-full mb-4 px-4 py-2.5 rounded-xl border border-surface-500/50 bg-surface-800/50 text-sm font-semibold text-gray-300 hover:border-brand/50 hover:text-brand transition-colors"
+            >
+              Mam już konto — zaloguj się
+            </Link>
+          </>
+        )}
 
         {/* register form */}
         <form onSubmit={handleSubmit} className="glass-card p-8 space-y-5">
@@ -152,14 +176,14 @@ export default function Register() {
             )}
           </button>
           <p className="text-xs text-gray-500 text-center">
-            Po rejestracji wyślemy link weryfikacyjny na Twój email.
+            Po rejestracji możesz od razu typować.
           </p>
         </form>
 
         {/* login link */}
         <p className="text-center mt-6 text-gray-500 text-sm">
           Masz już konto?{' '}
-          <Link to="/login" className="text-mundial-teal hover:text-mundial-teal/80 font-medium transition-colors">
+          <Link to="/login" state={from ? { from: { pathname: from } } : undefined} className="text-brand hover:text-brand/80 font-medium transition-colors">
             Zaloguj się
           </Link>
         </p>

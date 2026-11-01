@@ -27,7 +27,7 @@ export default function ForgotPassword() {
       <div className="relative w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
           <span className="text-5xl mb-4 block">🔑</span>
-          <h1 className="text-3xl font-extrabold gradient-text mb-2">Reset hasła</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white mb-2">Reset hasła</h1>
           <p className="text-gray-400">Wyślemy Ci link do zmiany hasła</p>
         </div>
 
@@ -66,7 +66,7 @@ export default function ForgotPassword() {
 
         <p className="text-center mt-6 text-gray-500 text-sm">
           Pamiętasz hasło?{' '}
-          <Link to="/login" className="text-mundial-teal hover:text-mundial-teal/80 font-medium transition-colors">
+          <Link to="/login" className="text-brand hover:text-brand/80 font-medium transition-colors">
             Zaloguj się
           </Link>
         </p>

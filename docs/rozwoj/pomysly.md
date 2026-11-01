@@ -1,0 +1,362 @@
+# czutka: pomysły na rozbudowę i przebudowę
+
+Notatki z testu aplikacji (branch `feat/multi-competition`, 28.10.2026), w trzech rundach
+(trzecia, „zwykły gość”, jest w sekcji [„Trzecia runda”](#trzecia-runda-zwykły-gość-który-niczego-nie-zna-2810-wieczór)). W
+pierwszej testowałem jak nowy użytkownik na desktopie (1280 px) i telefonie (390 px). W drugiej
+przeszedłem te same kroki jako różne osoby i sprawdziłem założenia z pierwszej rundy, w tym na
+produkcji. Wyniki drugiej rundy są w sekcji
+[„Druga runda: weryfikacja”](#druga-runda-weryfikacja-i-poprawki-wniosków). Część wniosków się
+potwierdziła, dwa były nieprecyzyjne, trzy nowe problemy są ważniejsze niż cokolwiek z pierwszej rundy.
+
+---
+
+## Diagnoza w skrócie: skąd poczucie „randomowej, vibecodowanej apki”
+
+Technicznie aplikacja działa dobrze: sama pobiera mecze, poprawnie liczy punkty, jest szybka i
+porządnie przetestowana. Problem leży gdzie indziej. **Aplikacja jest zbiorem ekranów, a nie
+doświadczeniem.** Ma sześć zakładek (Start, Mecze, Typy, Ranking, Ligi, Rozgrywki) i każda pokazuje
+trochę tych samych danych z innej strony. Brakuje jednej osi, wokół której wszystko się kręci.
+
+Typer wśród znajomych żyje z trzech rzeczy. Dziś żadnej z nich nie ma:
+
+1. **Rywalizacja z konkretnymi ludźmi.** Przy meczu nie widzę, co wytypowali moi znajomi, kto mnie
+   wyprzedził w tej kolejce, kto zgadł wynik, którego nikt się nie spodziewał. Typy innych da się
+   zobaczyć tylko po kliknięciu gracza w rankingu i tylko dla meczów zakończonych. Ta funkcja jest
+   ukryta, a ranking to suche tabelki.
+2. **Rytm tygodnia.** Piątek: „masz 6 meczów do wytypowania, zamyka się o 20:30”. Poniedziałek:
+   „kolejka 9 dla Bartka, +14 pkt, awans na 2. miejsce”. Aplikacja nie ma przypomnień, podsumowań
+   ani momentów, na które się czeka.
+3. **Emocje na żywo.** W trakcie meczu nic się nie dzieje: brak wyniku na żywo z „gdyby się teraz
+   skończyło, masz +3” i brak reakcji.
+
+Bez tego aplikacja jest formularzem do wpisywania wyników. Wygląda ładnie, ale nie ma powodu,
+żeby do niej wracać inaczej niż z obowiązku.
+
+**Rekomendacja nr 1:** przebudować aplikację wokół **ligi znajomych i bieżącej kolejki**, a nie
+wokół listy rozgrywek. Większość punktów niżej z tego wynika.
+
+---
+
+## Do zrobienia ręcznie (bartek)
+
+- [x] **Keep-alive na cron-job.org** (działa od 01.11) (decyzja 01.11, zamiast płatnego Rendera): job na
+  `https://<backend>.onrender.com/health` co 10 minut. `/health` pinguje też bazę, więc budzi
+  Neona. Sprawdzić w historii jobu, że dostaje 200, a potem zmierzyć pierwsze wejście po kilku godzinach
+  przerwy (było 72 s).
+- [ ] **Sentry** (decyzja 01.11): załóż darmowe konto na sentry.io, dwa projekty (Python/FastAPI
+  i React), skopiuj oba DSN do `.env` / zmiennych na Renderze i Vercelu (nie do repo). Potem
+  Claude podpina SDK (backend `sentry-sdk[fastapi]`, front `@sentry/react`), wyłączone, gdy DSN pusty.
+
+## ✅ Zrobione 01.11.2026: P0
+
+Wdrożone na branchu `feat/multi-competition` (backend + front, testy: 952 z bazą). Szczegóły
+kuponu w [`spec-kupon-tygodnia.md`](spec-kupon-tygodnia.md), kontrakt w `docs/api-contract.md`.
+
+- **Kupon tygodnia** (migracja 008): każda liga ma co tydzień ok. 10 wspólnych meczów, które
+  automat układa z hitów albo układa organizator. Licznik „X z 10” zastąpił „68 meczów czeka”.
+  Gracz bez ligi dostaje „Hity tygodnia”.
+- **Typowanie w kompaktowych wierszach z autozapisem**: jeden mecz w jednym wierszu, bez przycisku „Zapisz”,
+  szara podpowiedź „0” zapisuje się dopiero po wyjściu z wiersza.
+- **Start = kupon moich lig** (z etykietami lig przy meczu), zamiast długiej listy wszystkich meczów.
+- **Liga skupiona na kuponie**: kto już wytypował, przycisk „Przypomnij resztę” (tekst + link
+  na grupę), typy ligi przy meczu po pierwszym gwizdku z rozkładem, wyniki tygodnia ze
+  zwycięzcą i „Udostępnij podsumowanie”, edytor kuponu i ustawienia (tryb rankingu
+  „tylko kupon” albo „wszystkie mecze”, rozmiar, automat).
+- **Kreator ligi „Co typujecie?”** i karta „Wyślij link znajomym” po utworzeniu ligi.
+- **Zaproszenie**: publiczny podgląd (`GET /leagues/preview/{code}`). Ekran mówi, kto zaprasza,
+  do jakiej ligi, ilu graczy i co typują. Dla linku domyślnie otwiera się rejestracja, po
+  dołączeniu jest przycisk „Wytypuj kupon (0/10)”, a członek z linku trafia prosto do kuponu ligi.
+- **Strona startowa dla niezalogowanych** („Masz czutkę? Udowodnij.”) i tagi Open Graph z
+  obrazkiem `og-image.png`.
+- **Ranking ligi dla obecnych graczy**: gdy bieżące sezony mają same zera, ranking sam pokazuje
+  archiwum Mundialu z banerem.
+- **Prywatność**: typy innego gracza widzą tylko członkowie wspólnej ligi (403 w innym przypadku).
+- **`/health` dotyka bazy**, więc keep-alive budzi też Neona.
+- **Drobne**: czytelne nazwy rozgrywek zamiast skrótów (SA, L1, „LIGA”), zakładka Mecze
+  otwiera rozgrywkę z najbliższym meczem, awatar zamiast ikony suwaków, „Wyloguj się” i
+  „Zasady punktacji” w Ustawieniach, „Pula nagród” przemianowana na „Na co gramy?”, „Usuń
+  ligę” schowane w ustawieniach zaawansowanych, rejestracja nie obiecuje już maila, na stronie
+  Ranking najpierw „Rankingi Twoich lig”.
+
+**Znane ograniczenia tego wdrożenia:**
+- Kupon ułożony w niedzielę zawiera tylko niedzielne mecze (reszta tygodnia minęła). Pełny
+  kupon pojawia się w poniedziałek rano.
+- Podgląd linku na Messengerze ma ogólny obrazek. Wersja z nazwą ligi dla `/join/KOD` wymaga
+  renderowania tagów po stronie serwera. Na produkcji `og:image` musi mieć pełny adres URL.
+- Zwykłe karty w zakładce Mecze nadal od razu wpisują 0 po drugiej stronie (szara podpowiedź jest
+  tylko w kuponie).
+- Rozpoczęte mecze z typami ligi i wyniki tygodnia przetestowane na podstawionych danych. Na
+  prawdziwych sprawdzimy po pierwszej kolejce.
+- Do zrobienia przy okazji: `GET /leagues` nie zwraca `join_code` ani `ranking_mode`, a edytor
+  kuponu składa kandydatów z kilku zapytań (przydałby się `GET /leagues/{id}/coupon/candidates`).
+
+---
+
+## P0: co zostało
+
+### 1. Przypomnienia, które wysyłają się same (decyzja 01.11: na razie nie robimy)
+Jest przypomnienie „na grupę” od organizatora. Brakuje automatu: mail lub push „za 3 h
+pierwszy mecz kuponu, nie wytypowałeś 4”. Mail wymaga domeny w Resend, a push działa na iPhonie
+tylko po dodaniu aplikacji do ekranu głównego.
+✅ *(etap 9, 01.11)* Podsumowanie tygodnia jako **obrazek** do wrzucenia na grupę: przycisk
+„Udostępnij obrazek” w wynikach tygodnia rysuje PNG w `<canvas>` (czutka, liga, tydzień, top 5,
+„wyniki wstępne” w trakcie, typ tygodnia), tekst nadal pod „Kopiuj tekst”.
+
+### ✅ 2. Onboarding nowego gracza bez ligi (zrobione 01.11, etap 1)
+Ekran `/witaj` po rejestracji bez zaproszenia: „Co typujesz?” (obserwowanie rozgrywek), potem „Z kim
+grasz?” (załóż ligę / mam kod / na razie sam). Ograniczenie: przy włączonej weryfikacji maila
+pierwsze logowanie po weryfikacji idzie na Start.
+
+### ◐ 3. Mniej zakładek, jasny podział (częściowo, etap 1)
+✅ Nawigacja ma 5 pozycji (Start, Mecze, Typy, Ligi, Ranking). „Rozgrywki” są w Ustawieniach i
+pod przyciskiem „Wybierz rozgrywki” w Meczach.
+✅ *(01.11)* dołączenie do ligi (i zmiana jej zakresu) automatycznie dodaje jej rozgrywki do
+obserwowanych (migracja 012 dociągnęła istniejące ligi). Zostało: ewentualne dalsze łączenie
+(Typy + Ranking).
+
+### 4. Zimny start na produkcji
+`/health` budzi już bazę, ale darmowy Render nadal usypia (72 s). **Decyzja 01.11:** naprawiamy
+keep-alive na cron-job.org (patrz „Do zrobienia ręcznie”), płatny plan dopiero przy większym ruchu.
+
+---
+
+## P1: wyraźnie lepsza aplikacja
+
+### Wygląd i charakter
+- ✅ *(etap 2, 01.11)* **Logo rozgrywek** zapisywane z `emblem` football-data przy synchronizacji
+  (migracja 009 uzupełnia istniejące) i pokazywane w badge'ach.
+- ✅ *(etap 2, 01.11)* **Herby przez nasz cache:** endpoint `GET /img/crest` (tylko
+  `crests.football-data.org`, cache w pamięci i na dysku, tydzień w przeglądarce). Na Renderze
+  cache dyskowy znika przy restarcie (pierwsze ładowanie wolniejsze).
+- ✅ *(etap 2)* Puste stany z prostą ilustracją SVG (boisko, podium).
+- **Mniej „dashboardu”, więcej piłki:** wszystko to te same ciemne karty z gradientem. Brakuje
+  akcentów boiska: kolorów klubów na karcie meczu, zdjęć lub tła stadionu w nagłówku kolejki,
+  ilustracji w pustych stanach. Tytuły robione fontem z czasów „Mundial Typer” (szeroki,
+  plakatowy) gryzą się z nową, minimalistyczną marką.
+  ✅ *(01.11)* font: Bebas Neue wyrzucony (też z Google Fonts i obrazka tygodnia), tytuły i wyniki
+  w Inter, pogrubione, z lekko ciaśniejszym odstępem liter.
+- ✅ *(01.11)* **Jedna paleta:** tokeny w `tailwind.config.js`: `brand` (turkus: przyciski, linki,
+  aktywna nawigacja, focus, paski postępu, wybrane chipy), `accent` (złoto, rzadko: podium/#1,
+  joker, wyższa stawka, odznaki), znaczeniowe `hit-exact/diff/winner` (odcienie zieleni, najmocniejszy
+  dokładny), `miss`, `live` (czerwień), `warn` (bursztyn). Badge rozgrywek neutralne (ciemne tło,
+  jasny tekst, logo), fiolet usunięty, przyciski bez gradientu turkus→czerwień (gradient został
+  tylko w logo).
+- ✅ *(etap 10, 01.11)* **Gęstość:** Start na desktopie ma dwie wyważone kolumny (kupon i „na żywo”
+  po lewej, ligi, sezony i ostatnie wyniki w szerszej prawej, strona trochę szersza), na desktopie
+  6 ostatnich wyników zamiast 4, mniejsze odstępy w nagłówkach i wierszach kart. Telefon bez zmian
+  układu (jedna kolumna, kupon na górze).
+
+### ✅ Kontekst do typowania (etap 3, 01.11)
+Ikona „i” przy meczu i w kuponie: miejsce w tabeli (liczone z naszych wyników), forma z 5 meczów
+(W/R/P) i do 3 meczów bezpośrednich (`GET /matches/{id}/context`). Mecze bezpośrednie pojawią się,
+gdy w bazie będzie więcej niż jeden sezon. ✅ *(etap 6, 01.11)* „Średni typ ligi” po gwizdku: średni
+wynik, podział 1/X/2 i najczęstszy dokładny typ nad typami znajomych.
+
+### ✅ Na żywo (etap 3, 01.11)
+- „Gdyby się teraz skończyło: +3” przy meczach na żywo (pole `provisional_points`, bez zapisu
+  punktów), także przy typach członków ligi i w „Na razie prowadzi” w wynikach tygodnia.
+- Odświeżanie co 60 s, gdy jest mecz na żywo i karta jest widoczna (Start, kupon ligi, Mecze),
+  bez gubienia wpisywanych typów.
+- ✅ *(etap 6, 01.11)* **Tabela ligi na żywo:** przełącznik „Na żywo / Oficjalny” w rankingu ligi,
+  gdy trwa mecz: punkty „gdyby się teraz skończyło” (z jokerem ×2), strzałki ▲/▼ względem oficjalnej.
+
+### ✅ Grywalizacja (z umiarem)
+- ✅ *(etap 4, 01.11)* **Joker:** raz na kupon podwójne punkty za wybrany mecz (tylko w lidze w trybie
+  „tylko kupon”; liczy się w rankingu ligi i wynikach tygodnia, także na żywo).
+- ✅ *(etap 4, 01.11)* **Więcej pytań bonusowych:** „własne pytanie o drużynę” z treścią od
+  organizatora (np. kto spadnie, kto wygra LM), kilka poprawnych odpowiedzi, rozstrzyga organizator.
+  Król strzelców wymaga danych o zawodnikach, których nie mamy.
+- ✅ *(etap 7, 01.11)* **Seria i odznaki sezonowe:** 🔥N przy nicku w rankingu ligi (kolejki albo
+  kupony z rzędu bez pudła) i karta „Odznaki sezonu” (Król dokładnych, Prorok, Odważny, Seria,
+  Maruda), liczone na bieżąco z `GET /leagues/{id}/badges`. Zostało: podsumowanie sezonu na koniec.
+
+### Komunikacja w lidze
+Komentarze lub reakcje pod meczem albo pod podsumowaniem kolejki. Nie pełny czat, bo ludzie mają
+już grupę na Messengerze. Ale emoji pod typem kolegi („🤡” przy 0:5) to tani i skuteczny element
+społecznościowy. Alternatywa: przycisk „udostępnij podsumowanie” generujący obrazek do wklejenia na
+grupę. To bardziej realistyczne, bo rozmowa i tak dzieje się na Messengerze.
+- ✅ *(etap 9, 01.11)* **Reakcje pod typem kolegi:** w „Typy ligi” (po starcie meczu) emoji
+  🔥 😂 🤡 👏 😱 🙈 pod cudzym typem, jedno na osobę (inne zastępuje, ten sam klik cofa), bez reakcji
+  na własny typ. Tabela `league_pick_reactions` (migracja 011), `PUT/DELETE
+  /leagues/{id}/matches/{match_id}/reactions`, liczniki i `my_reaction` w `member_predictions`.
+- ✅ *(etap 9, 01.11)* **„Udostępnij obrazek”:** wyniki tygodnia jako PNG z `<canvas>` (bez nowych
+  bibliotek): nazwa ligi, tydzień, top 5 z punktami (z „+N na żywo” i etykietą „wyniki wstępne”, gdy
+  tydzień trwa), typ tygodnia. Na telefonie systemowe „Udostępnij” z plikiem, na komputerze kopia do
+  schowka (gdzie się da) i pobranie pliku. Nie ma komentarzy ani czatu — rozmowa zostaje na Messengerze.
+
+### Zasady w miejscu, nie na osobnej stronie
+Zamiast czytać „Zasady”: podgląd punktów na karcie („dokładny 5 · różnica 3 · zwycięzca 2”)
+i po meczu wyjaśnienie, czemu „+3”. Mecze pucharowe z większą punktacją oznaczone na karcie
+(„1/8 finału · punkty x1.4”).
+- ✅ *(etap 8, 01.11)* **Wyjaśnienie punktów po meczu:** przy moim rozliczonym typie „+3 · trafiona
+  różnica bramek”, „+5 · dokładny wynik”, „+2 · trafiony zwycięzca”, „0 · pudło” (karta meczu,
+  kupon, Start, Moje typy), w kuponie z jokerem dopisek „×2 joker = +6”. Stare typy bez `hit_type`
+  dostają rodzaj trafienia liczony na froncie z wyniku (`utils/scoring.js`, remis = różnica).
+- ✅ *(etap 8, 01.11)* **Wyższa stawka na karcie meczu:** złota plakietka „punkty ×1,4” (×1,8, ×2,2,
+  ×3) przy meczach pucharowych z większą punktacją, w podpowiedzi „1/8 finału: 7 · 4 · 3 pkt
+  zamiast 5 · 3 · 2”. Punkty z tej samej tabeli co podpowiedź „5 · 3 · 2” (API ich nie wysyła).
+
+---
+
+## P2: porządki, wydajność, technika
+
+### Wydajność i pierwsze wrażenie
+- **Zimny start Rendera:** darmowy Render usypia po 15 minutach. **Zmierzone na produkcji
+  28.10: pierwsza odpowiedź `/api/health` przyszła po 72 s**, kolejne po 0,2 s. Dla nowego użytkownika z linku to najgorsze możliwe wrażenie. Keep-alive przez
+  cron-job.org najwyraźniej nie działa (inaczej nie byłoby 72 s), a nawet działający pinguje
+  `/health`, który nie dotyka bazy, więc darmowy Neon i tak usypia po kilku minutach i pierwsze
+  zapytanie do bazy po przerwie też trwa dłużej. Płatny plan (ok. 7 USD/mies.) albo hosting bez usypiania
+  usuwa problem.
+- **Lokalnie (Docker, ciepła baza) strony ładują się ok. 0,5 s.** To nie mówi nic o produkcji,
+  gdzie dochodzi Render, Neon i sieć. Na produkcji tego nie mierzyłem poza `/health`.
+- Lokalnie, Start ok. 0,6 s przy 5–8 zapytaniach do API. Jest
+  dobrze. Można jeszcze połączyć dane Startu w jeden endpoint (`/me/home`).
+- ✅ *(etap 10, 01.11)* **Szkielety ładowania** w kształcie treści zamiast prostokątów: wiersze kuponu
+  (godzina, herby, okienka wyniku), karty meczów, wiersze rankingu, podium, karty lig, typów i
+  odznak. Wspólne klocki `SkeletonLine` / `SkeletonRow` / `SkeletonCard` / `SkeletonChips`, pulsowanie
+  wyłączone przy `prefers-reduced-motion`. Spinner został tylko przy sprawdzaniu logowania.
+
+### Dług techniczny
+- Stare endpointy i strony Mundialu (`/matches`, `/ranking`, `/bonus/*`, `leagues`, `scoring_rules`,
+  `matches.stage`): zaplanować migrację „contract” i usunąć, gdy front z nich nie korzysta.
+  **Decyzja 01.11:** dopiero po wdrożeniu tego brancha na produkcję i sprawdzeniu archiwum Mundialu.
+- ✅ ~~3 stare błędy lintu i brak testów frontu~~ (01.11.2026): lint czysty i blokujący w CI,
+  testy Playwright z podstawionym API (strona gościa, logowanie, typowanie, liga z kuponem,
+  link z zaproszeniem przez logowanie, weryfikacja maila), `npm run test:e2e`, odpalane w CI.
+- Brak monitoringu błędów (Sentry ma darmowy plan) i podstawowej analityki (np. Plausible lub
+  Umami): dziś nie wiadomo, ile osób wraca w weekend, gdzie odpadają i czy ktoś używa bonusów.
+  **Decyzja 01.11:** Sentry tak (patrz „Do zrobienia ręcznie”), analityka później.
+- `ADMIN_EMAILS` w env zamiast roli w bazie. Do 2 adminów jest OK, przy B2B (patrz monetyzacja) nie.
+- Weryfikacja emaila wyłączona (`REQUIRE_VERIFIED_EMAIL=false`), a domena Resend nieskonfigurowana.
+  Maile (reset hasła!) mogą nie docierać.
+
+### Drobne rzeczy z testu
+- Ranking per rozgrywka liczy wszystkich użytkowników aplikacji. Przy grupie znajomych to OK,
+  przy większej skali to ranking obcych ludzi: warto rozważyć, czy w ogóle ma być.
+  **Decyzja 01.11:** zostaje zwinięty (jak po etapie 1); usunąć, jeśli zrobi się z tego ranking obcych.
+- ✅ *(etap 8, 01.11)* Strona „Ligi” bez ligi ma podwójne przyciski („Dołącz do ligi / Utwórz ligę” u góry i to samo
+  w pustym stanie). Teraz bez ligi widać tylko przyciski z pustego stanu.
+- ✅ *(etap 8, 01.11)* Pusty ranking mówi „Pojawi się, gdy ktoś wytypuje mecze”, ale pojawia się dopiero, gdy mecze się
+  skończą. Teraz: „Pojawi się po pierwszych rozliczonych meczach tego sezonu”.
+- ✅ *(etap 8, 01.11)* Na telefonie „Wyloguj” jest stale widoczne w górnym pasku i zabiera miejsce.
+  Na telefonie wylogowanie jest w Ustawieniach (avatar w górnym pasku), na komputerze zostaje w pasku.
+- „Pula nagród” w lidze: patrz uwaga prawna w `monetyzacja.md`.
+- **Naprawione przy okazji testu:** „#1” przy 0 punktach na Starcie i w karcie „Moje ligi” (każdy
+  był pierwszy, zanim cokolwiek się rozliczyło). Teraz miejsce pokazuje się dopiero po pierwszych
+  punktach.
+
+---
+
+## Druga runda: weryfikacja i poprawki wniosków
+
+Te same kroki jeszcze raz, ale jako konkretne osoby. Szukałem miejsc, gdzie pierwsza runda się myli.
+
+### Osoby
+
+| Kto | Co robi | Co znalazłem |
+|---|---|---|
+| **Znajomy z linkiem** (nie ma konta, telefon) | klika `/join/KOD` z Messengera | **Błąd krytyczny (naprawiony):** link przenosił na zwykłe logowanie bez słowa o zaproszeniu. Po rejestracji gracz lądował na „Meczach” i **nie był w lidze**, bo kod przepadał. To główna droga, którą ludzie trafiają do typera. |
+| **Gracz z Mundialu** (obecny użytkownik po wdrożeniu) | otwiera swoją ligę | **Problem przed wdrożeniem:** ranking ligi domyślnie pokazuje „łącznie aktywne sezony”, czyli **wszyscy mają 0**. Punkty z Mundialu są tylko po ręcznym wybraniu sezonu archiwalnego. Dla obecnych graczy wygląda to jak wyzerowana liga. |
+| **Gracz ligi tylko z Premier League** | wchodzi na Start, typuje | **Nowy problem:** Start pokazuje mecze z „obserwowanych rozgrywek” (albo ze wszystkich, gdy nic nie obserwuje), a nie z zakresu jego lig. Zachęca do typowania Serie A, które w jego lidze nic nie daje. „Obserwuj” i „zakres ligi” to dwa osobne pojęcia, choć użytkownik myśli o tym jak o jednym. |
+| **Ktoś z zewnątrz / kupujący (HR, właściciel pubu)** | wchodzi na czutka.uk | Strona główna od razu przekierowuje na logowanie z hasłem „Zaloguj się i typuj wyniki!”. Brak informacji, co to jest, dla kogo, jak wygląda, ile kosztuje. **Bez strony startowej nie da się niczego sprzedać ani nikogo przekonać.** |
+| **Pierwszy użytkownik po przerwie** | wchodzi na produkcję rano | 72 s czekania na pierwszą odpowiedź (zmierzone). Większość ludzi zamknie kartę po kilkunastu sekundach. |
+| **Organizator ligi** | tworzy ligę, ustawia zakres, bonusy | Działa (przetestowane przez recenzentów i przeze mnie). Brakuje podglądu, kto jeszcze nie wytypował kolejki, i przypomnienia dla takich osób. To narzędzie, którego organizator najbardziej potrzebuje. |
+| **Gracz „statystyk”** | Typy, Ranking | Jest sporo (rozkład trafień, skuteczność, forma). Ta część jest akurat dobra, a może nawet za bogata jak na resztę. |
+
+### Co się potwierdziło
+- Brak warstwy społecznej i rytmu (przypomnienia, podsumowania). To nadal najważniejsza zmiana produktowa.
+- Typowanie kolejki: 10 osobnych kart z 10 przyciskami „Zapisz”.
+- Brak logo rozgrywek, choć API je zwraca (sprawdzone: pole `emblem`, np. `https://crests.football-data.org/PL.png`).
+
+### Co było nieprecyzyjne
+- „Nie da się zobaczyć typów znajomych”: da się, ale tylko w ukrytym oknie po kliknięciu w ranking
+  i tylko po meczu. Wniosek się nie zmienia (brakuje porównania przy meczu), ale problem jest inny,
+  niż napisałem.
+- „Zimny start 30–60 s”: było to założenie. Pomiar na produkcji dał 72 s.
+- „Strony ładują się 0,5 s”: to pomiar lokalny i nie przenosi się na produkcję.
+
+### Czego nie doceniłem w pierwszej rundzie
+- **Pierwsze 2 minuty decydują**, a tam były trzy dziury naraz: 72 s ładowania, zgubione zaproszenie,
+  brak strony „co to jest”. Żadna funkcja społeczna nie pomoże, jeśli znajomy z linkiem nie dotrze
+  do ligi. Dlatego te rzeczy idą przed wszystko inne.
+- **Pomieszanie pojęć „obserwuj” i „zakres ligi”.** To nie jest drobiazg UI, tylko powód, dla
+  którego aplikacja wydaje się chaotyczna: gracz nie wie, które mecze „się liczą”.
+- **Wdrożenie dla obecnych graczy.** Ich pierwsze spotkanie z nową wersją to liga z samymi zerami.
+
+### Podważenie własnych rekomendacji
+- **„4 zakładki zamiast 6”**: przesadziłem z wagą. Ludzie nie odchodzą przez liczbę zakładek, tylko
+  dlatego, że nie wiedzą, co mają zrobić i po co. Zostawiam jako P1, nie P0.
+- **„Push w PWA”**: na iPhonie push działa tylko po dodaniu aplikacji do ekranu głównego (iOS 16.4+),
+  co robi mała część ludzi. Pewniejsze są maile (Resend jest już podpięty, ale wymaga własnej domeny)
+  albo przypomnienie wysyłane przez organizatora jednym kliknięciem jako link na grupę.
+- **„Komentarze i reakcje”**: rozmowa i tak dzieje się na Messengerze lub WhatsAppie. Zamiast budować
+  czat, lepiej dawać ludziom rzeczy do wrzucenia tam: obrazek z podsumowaniem kolejki, link „zobacz
+  typy na ten mecz”.
+- **„Liga jako dom”**: prawdziwe dla grup znajomych, ale aplikacja musi działać też dla kogoś bez
+  ligi. Wtedy dom to kupon kolejki, a nie pusta liga.
+
+### Nowa kolejność (zastępuje tę z pierwszej rundy)
+
+**P0: zanim pokażecie nową wersję komukolwiek**
+1. ✅ Zaproszenie linkiem prosto do ligi (z podglądem ligi i rejestracją jako domyślną).
+2. ✅ Ranking ligi dla obecnych graczy (archiwum Mundialu, gdy bieżące sezony mają zera).
+3. ◐ Zimny start: `/health` budzi bazę, a decyzja o płatnym Renderze nadal czeka.
+4. ✅ Strona startowa dla niezalogowanych.
+
+**P0 produktowe**
+5. ◐ Jedno pojęcie: Start pokazuje kupon moich lig z etykietami lig. „Obserwuj” w Rozgrywkach nadal istnieje.
+6. ✅ Kupon z autozapisem (kupon tygodnia).
+7. ✅ Organizator widzi, kto nie wytypował, i wysyła przypomnienie (link na grupę). Mail jeszcze nie.
+8. ✅ Typy znajomych przy meczu po pierwszym gwizdku i podsumowanie tygodnia do udostępnienia (tekst).
+
+**P1 i dalej:** jak w pierwszej rundzie (logo i herby, kontekst do typowania, na żywo, joker,
+nawigacja, porządki techniczne).
+
+---
+
+## Trzecia runda: „zwykły gość, który niczego nie zna” (28.10, wieczór)
+
+Lokalny Docker z tego brancha (z niescommitowaną poprawką zaproszeń). Pięć podejść, za każdym
+razem inna osoba i świeże konto: przypadkowy gość z telefonu, organizator ligi, znajomy z linkiem
+z Messengera, kibic „na poważnie” na komputerze i ktoś, kto wkleja link na grupę. Celowo
+marudziłem i podważałem wszystko. Poniżej tylko to, co **nowe** albo co **wciąż nie jest
+zrobione** z poprzednich rund.
+
+### Najważniejszy wniosek tej rundy: za dużo meczów, za mało powodu
+
+„68 meczów czeka na Twój typ” i ściana „Nie typowałeś tego meczu” zniechęcały od pierwszego
+ekranu. Propozycja „Mecze tygodnia zamiast wszystkich meczów świata” jest **✅ zrobiona jako
+kupon tygodnia** (patrz „Zrobione 01.11.2026” na górze).
+
+### Problemy z tej rundy: status
+
+✅ Zrobione 01.11: podgląd linku (tagi `og:*`, ogólny obrazek), ekran zaproszenia z nazwą ligi i
+zapraszającym, rejestracja jako domyślna dla `/join`, przycisk po dołączeniu, kreator „Co
+typujecie?”, „Na co gramy?” zamiast „Pula nagród”, „Usuń ligę” w ustawieniach
+zaawansowanych, domyślna rozgrywka w Meczach, pełne nazwy rozgrywek, szara podpowiedź „0” (w
+kuponie), prywatność typów, awatar zamiast suwaków, „Wyloguj się” w Ustawieniach, rejestracja bez
+obietnicy maila, rankingi lig na górze strony Ranking.
+
+**Co zostało z tej rundy:**
+- **Nazwa „czutka” bez wyjaśnienia w aplikacji.** Hasło jest już na stronie startowej („Masz czutkę?
+  Udowodnij.”). Można je powtórzyć przy pustych stanach i w podsumowaniach.
+- ✅ *(etap 1)* Podpowiedź punktów przy meczu i w kuponie („5 · 3 · 2”, w fazie pucharowej LM więcej).
+  Na telefonie wyjaśnienie liczb jest tylko w atrybucie `title`.
+- ✅ *(etap 1)* Globalny ranking domyślnie zwinięty, na górze rankingi lig.
+- ✅ *(etap 1)* 5 pozycji w nawigacji zamiast 6.
+- ✅ *(etap 1)* Lista rund w Meczach pokazuje ±3 kolejki od bieżącej plus „Wszystkie rundy…”.
+- ✅ *(etap 1)* Szara podpowiedź „0” także w zwykłych kartach meczów.
+- **Podgląd linku z nazwą konkretnej ligi** (renderowanie tagów po stronie serwera dla `/join/KOD`).
+
+---
+
+## Proponowana kolejność (pierwsza runda, zastąpiona wyżej)
+
+1. **Sprint „społeczny”:** typy znajomych po rozpoczęciu meczu (pkt 2), podsumowanie kolejki w lidze
+   (pkt 4), logo rozgrywek i hostowane herby.
+2. **Sprint „kupon”:** kompaktowe typowanie z autozapisem (pkt 3) i nowy podział nawigacji (pkt 6).
+3. **Sprint „rytm”:** przypomnienia (push lub email), onboarding (pkt 5), joker.
+4. **Sprint „na żywo”:** wynik na żywo, tabela na żywo, odświeżanie.
+5. **Porządki:** contract migration, testy frontu, Sentry i analityka, płatny hosting.
+
+Po kroku 1–2 aplikacja przestaje być „zbiorem ekranów”, a staje się typerem, w który gra się ze znajomymi.

@@ -68,3 +68,37 @@ export const getUserBonuses = async (userId) => {
   const res = await api.get(`/admin/users/${userId}/bonuses`);
   return res.data;
 };
+
+// --- provider sync ---
+
+// kind: 'season' | 'window' | 'rescore', competitionCode optional (e.g. 'EPL')
+// can take 1-2 minutes for a full season run (api rate limit)
+export const runSync = async (kind, competitionCode = null) => {
+  const res = await api.post(
+    '/admin/sync/run',
+    { kind, competition_code: competitionCode },
+    { timeout: 5 * 60 * 1000 },
+  );
+  return res.data;
+};
+
+export const getSyncRuns = async (limit = 20) => {
+  const res = await api.get('/admin/sync/runs', { params: { limit } });
+  return res.data;
+};
+
+export const getAdminCompetitions = async () => {
+  const res = await api.get('/admin/competitions');
+  return res.data;
+};
+
+export const setCompetitionActive = async (competitionId, isActive) => {
+  const res = await api.patch(`/admin/competitions/${competitionId}`, { is_active: isActive });
+  return res.data;
+};
+
+// manual champion of a season — scores league bonus answers
+export const resolveSeasonChampion = async (seasonId, teamId) => {
+  const res = await api.post(`/admin/seasons/${seasonId}/champion`, { team_id: teamId });
+  return res.data;
+};

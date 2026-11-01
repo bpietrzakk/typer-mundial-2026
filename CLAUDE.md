@@ -14,7 +14,7 @@ Projekt dwuosobowy (bartek + Daniel). Backend w FastAPI, frontend w React.
 2. **Warstwy się nie krzyżują.**
    - `domain/` nie importuje z `db/`, `routers/` ani `fastapi`
    - `db/` nie importuje z `routers/`
-   - `routers/` nie piszą SQL — wywołują funkcje z `db/queries.py`
+   - `routers/` nie piszą SQL — wywołują funkcje z `db/queries/` (pakiet, moduły per obszar)
 
 3. **Sekrety przez `.env`** — JWT secret, klucz API football-data.org, klucz Resend, hasło do bazy. NIGDY w kodzie ani w repo. `.env` jest w `.gitignore`, `.env.example` jest w repo.
 
@@ -22,7 +22,7 @@ Projekt dwuosobowy (bartek + Daniel). Backend w FastAPI, frontend w React.
 
 5. **Auth przez JWT w httpOnly cookie** — nigdy nie trzymaj tokenu w localStorage. Endpoint `/auth/refresh` odnawia token zanim wygaśnie.
 
-6. **SQL tylko przez parametryzowane zapytania** — zero f-stringów z danymi użytkownika. Każdy SQL jako stała stringowa w `db/queries.py`.
+6. **SQL tylko przez parametryzowane zapytania** — zero f-stringów z danymi użytkownika. Każdy SQL jako stała stringowa w module pakietu `db/queries/`.
 
 7. **Małe kroki.** Jedno zadanie z MVP-checklisty naraz. Po skończeniu — odpal, przetestuj endpoint w `/docs`, dopiero potem następne.
 
@@ -148,6 +148,9 @@ Serwisy zewnętrzne (`services/`) są wywoływane z routerów, nie z domeny:
 
 ## Model danych
 
+> Poniżej model z MVP Mundialu. Od migracji 005 (multi-competition) aktualny opis tabel
+> (competitions, seasons, rounds, scoring_profiles, ...) jest w `docs/data-model.md`.
+
 ```sql
 users
     id, nick, email, password_hash, email_verified, created_at
@@ -241,7 +244,7 @@ mundial-backend/
 ├── db/
 │   ├── __init__.py
 │   ├── connection.py               # get_conn() / release_conn() — SimpleConnectionPool
-│   ├── queries.py                  # SQL jako stałe stringi, funkcje opakowujące
+│   ├── queries/                    # pakiet: SQL jako stałe stringi + funkcje, moduł per obszar (users, matches, results, ranking...)
 │   └── migrations/
 │       ├── 001_init.sql            # schemat wszystkich tabel
 │       └── 002_seed_mundial_2026.sql # drużyny, mecze, scoring_rules per faza
@@ -274,7 +277,7 @@ mundial-backend/
 
 ```
 mundial-frontend/
-├── .env.example                    # VITE_API_URL=http://localhost:8000
+├── vite.config.js                  # dev proxy /api → VITE_PROXY_TARGET (domyślnie localhost:8000)
 ├── vite.config.js
 ├── package.json
 ├── tailwind.config.js
@@ -318,7 +321,7 @@ mundial-frontend/
   - źle: `# Initialize the prediction validation process by comparing timestamps`
 - `snake_case` w Pythonie i SQL, `camelCase` w JavaScript/React.
 - Funkcje w `domain/` — pure, bez I/O. Cały I/O robi `db/` i `routers/`.
-- SQL trzymany w `db/queries.py` jako stałe stringi, parametryzowany przez `%s`.
+- SQL trzymany w pakiecie `db/queries/` (moduł per obszar, `__init__.py` re-eksportuje nazwy) jako stałe stringi, parametryzowany przez `%s`.
 - Pydantic schema dla każdego request body i response w `schemas/models.py`.
 - Importy: `domain` nie importuje z `db` ani `routers`. `db` nie importuje z `routers`.
 - Komunikaty błędów API po polsku (HTTP responses), kod po angielsku.
@@ -377,11 +380,10 @@ Backend: http://localhost:8000 | Swagger UI: http://localhost:8000/docs
 ```bash
 cd mundial-frontend
 
-cp .env.example .env
-# ustaw VITE_API_URL=http://localhost:8000
-
 npm install
 npm run dev
+# front woła /api/*, vite proxy-uje to na backend (domyślnie http://localhost:8000)
+# inny backend: VITE_PROXY_TARGET=http://localhost:8001 npm run dev
 ```
 
 Frontend: http://localhost:5173

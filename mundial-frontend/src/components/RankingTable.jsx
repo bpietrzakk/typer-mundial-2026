@@ -1,6 +1,9 @@
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
+import { TIPS, countOf } from '../utils/plural';
 
-export default function RankingTable({ entries, title, onSelectUser }) {
+// showStats (optional) adds exact / diff / scored columns from RankingEntry.
+// showBreakdown (optional) adds "match points + bonus points" under the total
+export default function RankingTable({ entries, title, onSelectUser, showStats = false, showBreakdown = false }) {
   const { user } = useAuth();
 
   if (!entries || entries.length === 0) {
@@ -10,6 +13,8 @@ export default function RankingTable({ entries, title, onSelectUser }) {
       </div>
     );
   }
+
+  const statCell = 'px-3 py-3.5 text-right tabular-nums text-sm text-gray-400 hidden sm:table-cell';
 
   return (
     <div className="glass-card overflow-hidden">
@@ -23,9 +28,16 @@ export default function RankingTable({ entries, title, onSelectUser }) {
         <table className="w-full">
           <thead>
             <tr className="text-left text-xs uppercase tracking-wider text-gray-500 border-b border-surface-500/20">
-              <th className="px-5 py-3 w-16">#</th>
-              <th className="px-5 py-3">Gracz</th>
-              <th className="px-5 py-3 text-right">Punkty</th>
+              <th className="px-4 sm:px-5 py-3 w-14 sm:w-16">#</th>
+              <th className="px-3 sm:px-5 py-3">Gracz</th>
+              {showStats && (
+                <>
+                  <th className="px-3 py-3 text-right hidden sm:table-cell" title="Dokładne wyniki">Dokł.</th>
+                  <th className="px-3 py-3 text-right hidden sm:table-cell" title="Trafione różnice bramek">Różn.</th>
+                  <th className="px-3 py-3 text-right hidden sm:table-cell" title="Rozliczone typy">Typy</th>
+                </>
+              )}
+              <th className="px-4 sm:px-5 py-3 text-right">Punkty</th>
             </tr>
           </thead>
           <tbody>
@@ -39,13 +51,13 @@ export default function RankingTable({ entries, title, onSelectUser }) {
                   className={`border-b border-surface-500/10 transition-colors
                     ${onSelectUser ? 'cursor-pointer' : ''}
                     ${isCurrentUser
-                      ? 'bg-mundial-teal/10 hover:bg-mundial-teal/15'
+                      ? 'bg-brand/10 hover:bg-brand/15'
                       : 'hover:bg-surface-700/30'
                     }`}
                 >
-                  <td className="px-5 py-3.5">
+                  <td className="px-4 sm:px-5 py-3.5">
                     <span className={`font-bold tabular-nums text-sm ${
-                      entry.rank === 1 ? 'text-mundial-gold text-base' :
+                      entry.rank === 1 ? 'text-accent text-base' :
                       entry.rank === 2 ? 'text-gray-300' :
                       entry.rank === 3 ? 'text-amber-600' :
                       'text-gray-500 font-mono'
@@ -53,23 +65,40 @@ export default function RankingTable({ entries, title, onSelectUser }) {
                       {entry.rank}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5">
-                    <span className={`font-medium ${isCurrentUser ? 'text-mundial-teal' : 'text-gray-200'}`}>
+                  <td className="px-3 sm:px-5 py-3.5">
+                    <span className={`font-medium ${isCurrentUser ? 'text-brand' : 'text-gray-200'}`}>
                       {entry.nick}
                     </span>
                     {isCurrentUser && (
-                      <span className="ml-2 text-xs text-mundial-teal/70">(Ty)</span>
+                      <span className="ml-2 text-xs text-brand/70">(Ty)</span>
+                    )}
+                    {showStats && (
+                      <p className="sm:hidden text-[11px] text-gray-400 mt-0.5 tabular-nums">
+                        dokł. {entry.exact_hits} · różn. {entry.diff_hits} · {countOf(entry.scored_predictions, TIPS)}
+                      </p>
                     )}
                   </td>
-                  <td className="px-5 py-3.5 text-right">
+                  {showStats && (
+                    <>
+                      <td className={`${statCell} text-hit-exact/80`}>{entry.exact_hits}</td>
+                      <td className={`${statCell} text-hit-diff/80`}>{entry.diff_hits}</td>
+                      <td className={statCell}>{entry.scored_predictions}</td>
+                    </>
+                  )}
+                  <td className="px-4 sm:px-5 py-3.5 text-right">
                     <span className={`font-bold text-lg ${
-                      entry.rank === 1 ? 'text-mundial-gold' :
+                      entry.rank === 1 ? 'text-accent' :
                       entry.rank === 2 ? 'text-gray-300' :
                       entry.rank === 3 ? 'text-amber-600' :
                       'text-gray-400'
                     }`}>
                       {entry.total_points}
                     </span>
+                    {showBreakdown && (
+                      <span className="block text-[10px] text-gray-500 tabular-nums" title="mecze + bonusy">
+                        {entry.match_points} + {entry.bonus_points}
+                      </span>
+                    )}
                   </td>
                 </tr>
               );

@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
+import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import {
   getUsers, getUserPredictions, getUserBonuses, bootstrap, deleteUser,
   setMatchResult, verifyUserEmail, getAdminLeagues, getLeagueMembers,
   kickMember, adminResetLeagueCode, getAdminStats,
 } from '../api/admin';
 import { getMatches } from '../api/matches';
+import { apiErrorMessage } from '../utils/apiError';
+import { proxiedImageUrl } from '../utils/imageProxy';
+import AdminCollapsible from '../components/AdminCollapsible';
+import AdminSyncPanel from '../components/AdminSyncPanel';
 
 const STAGE_LABELS = {
   group: 'Grupa', round_of_16: '1/8', quarter: 'Ćwierć',
@@ -33,7 +37,7 @@ function StatsCard() {
     <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
       {items.map((s) => (
         <div key={s.label} className="glass-card p-3 text-center">
-          <p className="text-xl font-black tabular-nums text-mundial-teal">{s.value}</p>
+          <p className="text-xl font-black tabular-nums text-brand">{s.value}</p>
           <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
         </div>
       ))}
@@ -101,12 +105,12 @@ function MatchesTab({ addToast }) {
             <div key={m.id} className="glass-card p-4 flex items-center gap-3 flex-wrap">
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-md shrink-0 ${
                 isFinished ? 'bg-gray-500/20 text-gray-500' :
-                m.status === 'live' ? 'bg-mundial-red/20 text-mundial-red' :
-                'bg-mundial-teal/10 text-mundial-teal'}`}>
+                m.status === 'live' ? 'bg-live/20 text-live' :
+                'bg-brand/10 text-brand'}`}>
                 {STAGE_LABELS[m.stage] || m.stage}
               </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-200 truncate">
+              <div className="flex-1 min-w-[9rem]">
+                <p className="text-sm font-medium text-gray-200 break-words">
                   {m.home_team.name} <span className="text-gray-500">vs</span> {m.away_team.name}
                 </p>
                 <p className="text-xs text-gray-500">
@@ -199,7 +203,7 @@ function UsersTab({ addToast, currentUserId }) {
   return (
     <div>
       <p className="text-xs text-gray-500 mb-4">
-        Aby nadać prawa admina dodaj email do <code className="text-mundial-teal">ADMIN_EMAILS</code> w <code className="text-mundial-teal">.env</code> i zrestartuj serwer.
+        Aby nadać prawa admina dodaj email do <code className="text-brand">ADMIN_EMAILS</code> w <code className="text-brand">.env</code> i zrestartuj serwer.
       </p>
       <div className="grid gap-2">
         {users.map((u, i) => {
@@ -218,15 +222,15 @@ function UsersTab({ addToast, currentUserId }) {
                   <div>
                     <p className="font-medium text-gray-200 flex items-center gap-2 flex-wrap">
                       {u.nick}
-                      {u.is_admin && <span className="text-xs px-1.5 py-0.5 rounded bg-mundial-gold/20 text-mundial-gold">admin</span>}
-                      {!u.email_verified && <span className="text-xs text-mundial-red">niezweryfikowany</span>}
+                      {u.is_admin && <span className="text-xs px-1.5 py-0.5 rounded bg-brand/15 text-brand">admin</span>}
+                      {!u.email_verified && <span className="text-xs text-warn">niezweryfikowany</span>}
                     </p>
                     <p className="text-xs text-gray-500">{u.email}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                   <div className="text-right mr-1">
-                    <p className="score-num font-bold text-mundial-teal">{u.total_points} pkt</p>
+                    <p className="score-num font-bold text-brand">{u.total_points} pkt</p>
                     <p className="text-xs text-gray-500">{u.prediction_count} typów</p>
                   </div>
                   {!u.email_verified && (
@@ -268,9 +272,9 @@ function UsersTab({ addToast, currentUserId }) {
                         <div className="flex items-center gap-2 text-sm">
                           <span className="text-gray-500">Mistrz:</span>
                           {data.bonuses.crest_url && (
-                            <img src={data.bonuses.crest_url} alt="" className="w-4 h-4 object-contain" />
+                            <img src={proxiedImageUrl(data.bonuses.crest_url)} alt="" loading="lazy" className="w-4 h-4 object-contain" />
                           )}
-                          <span className="text-mundial-gold font-semibold">{data.bonuses.champion_name}</span>
+                          <span className="text-accent font-semibold">{data.bonuses.champion_name}</span>
                           {data.bonuses.champion_points != null && (
                             <span className="text-emerald-400 text-xs font-bold">+{data.bonuses.champion_points}pkt</span>
                           )}
@@ -321,6 +325,8 @@ function LeaguesTab({ addToast }) {
   const [kicking, setKicking] = useState(null);
   const [resetting, setResetting] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+  // key of the action waiting for a second click: 'kick-<league>-<user>' or 'reset-<league>'
+  const [confirmKey, setConfirmKey] = useState(null);
 
   useEffect(() => { getAdminLeagues().then(setLeagues).catch(() => {}).finally(() => setLoading(false)); }, []);
 
@@ -337,7 +343,9 @@ function LeaguesTab({ addToast }) {
   };
 
   const handleKick = async (leagueId, userId, nick) => {
-    if (!window.confirm(`Usunąć ${nick} z ligi?`)) return;
+    const key = `kick-${leagueId}-${userId}`;
+    if (confirmKey !== key) { setConfirmKey(key); return; }
+    setConfirmKey(null);
     setKicking(`${leagueId}-${userId}`);
     try {
       await kickMember(leagueId, userId);
@@ -355,7 +363,9 @@ function LeaguesTab({ addToast }) {
   };
 
   const handleReset = async (leagueId) => {
-    if (!window.confirm('Zresetować kod zaproszenia tej ligi?')) return;
+    const key = `reset-${leagueId}`;
+    if (confirmKey !== key) { setConfirmKey(key); return; }
+    setConfirmKey(null);
     setResetting(leagueId);
     try {
       const { join_code } = await adminResetLeagueCode(leagueId);
@@ -396,20 +406,34 @@ function LeaguesTab({ addToast }) {
               <div className="flex items-center gap-3 shrink-0">
                 <span className="text-sm font-bold text-gray-300 tabular-nums">{l.member_count} graczy</span>
                 <code
-                  className="bg-surface-600/50 px-2.5 py-1 rounded-lg text-mundial-teal font-mono text-sm tracking-widest cursor-pointer hover:bg-surface-600 transition-colors"
+                  className="bg-surface-600/50 px-2.5 py-1 rounded-lg text-brand font-mono text-sm tracking-widest cursor-pointer hover:bg-surface-600 transition-colors"
                   onClick={(e) => { e.stopPropagation(); copyCode(l.id, l.join_code); }}
                   title="Kliknij aby skopiować"
                 >
                   {copiedId === l.id ? 'Skopiowano' : l.join_code}
                 </code>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleReset(l.id); }}
-                  disabled={resetting === l.id}
-                  className="text-xs px-2 py-1 rounded-lg text-gray-500 hover:text-mundial-red hover:bg-red-500/10 transition-colors"
-                  title="Resetuj kod"
-                >
-                  {resetting === l.id ? '…' : 'Reset'}
-                </button>
+                {confirmKey === `reset-${l.id}` ? (
+                  <span className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => handleReset(l.id)}
+                      className="text-xs px-2 py-1 rounded-lg bg-red-500/20 border border-red-500/40 text-red-300 hover:bg-red-500/30 transition-colors"
+                    >
+                      Tak, resetuj
+                    </button>
+                    <button onClick={() => setConfirmKey(null)} className="text-xs px-2 py-1 text-gray-400 hover:text-gray-200 transition-colors">
+                      Anuluj
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleReset(l.id); }}
+                    disabled={resetting === l.id}
+                    className="text-xs px-2 py-1 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    title="Resetuj kod"
+                  >
+                    {resetting === l.id ? '…' : 'Reset'}
+                  </button>
+                )}
                 <span className="text-gray-600 text-xs">{expanded === l.id ? '▲' : '▼'}</span>
               </div>
             </div>
@@ -426,16 +450,30 @@ function LeaguesTab({ addToast }) {
                       <div key={m.user_id} className="flex items-center justify-between text-sm">
                         <span className="text-gray-300 flex items-center gap-2">
                           {m.nick}
-                          {m.is_admin && <span className="text-xs text-mundial-gold">admin ligi</span>}
+                          {m.is_admin && <span className="text-xs text-brand">admin ligi</span>}
                         </span>
-                        <button
-                          onClick={() => handleKick(l.id, m.user_id, m.nick)}
-                          disabled={kicking === `${l.id}-${m.user_id}` || m.is_admin}
-                          className="text-xs text-gray-600 hover:text-mundial-red transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                          title={m.is_admin ? 'Nie można wyrzucić właściciela' : 'Usuń z ligi'}
-                        >
-                          {kicking === `${l.id}-${m.user_id}` ? '…' : 'Wyrzuć'}
-                        </button>
+                        {confirmKey === `kick-${l.id}-${m.user_id}` ? (
+                          <span className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleKick(l.id, m.user_id, m.nick)}
+                              className="text-xs px-2 py-1 rounded-lg bg-red-500/20 border border-red-500/40 text-red-300 hover:bg-red-500/30 transition-colors"
+                            >
+                              Tak, wyrzuć
+                            </button>
+                            <button onClick={() => setConfirmKey(null)} className="text-xs text-gray-400 hover:text-gray-200 transition-colors">
+                              Anuluj
+                            </button>
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleKick(l.id, m.user_id, m.nick)}
+                            disabled={kicking === `${l.id}-${m.user_id}` || m.is_admin}
+                            className="text-xs text-gray-500 hover:text-red-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            title={m.is_admin ? 'Nie można wyrzucić właściciela' : 'Usuń z ligi'}
+                          >
+                            {kicking === `${l.id}-${m.user_id}` ? '…' : 'Wyrzuć'}
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -456,7 +494,7 @@ function LeaguesTab({ addToast }) {
 export default function Admin() {
   const { user } = useAuth();
   const { addToast } = useToast();
-  const [tab, setTab] = useState('matches');
+  const [tab, setTab] = useState('users');
   const [bootLoading, setBootLoading] = useState(false);
   const [bootResult, setBootResult] = useState('');
 
@@ -469,7 +507,7 @@ export default function Admin() {
       const r = await bootstrap();
       setBootResult(`Drużyny: ${r.teams}, mecze +${r.matches_inserted}/~${r.matches_updated}, grupy: ${r.groups_assigned}`);
     } catch (err) {
-      setBootResult(`Błąd (sprawdź FOOTBALL_API_KEY): ${err.response?.data?.detail || ''}`);
+      setBootResult(`Błąd (sprawdź FOOTBALL_API_KEY): ${apiErrorMessage(err, '')}`);
     } finally { setBootLoading(false); }
   };
 
@@ -479,19 +517,10 @@ export default function Admin() {
 
       <StatsCard />
 
-      <div className="glass-card p-5 mb-6">
-        <h2 className="font-semibold text-gray-200 mb-2">Dane turnieju</h2>
-        <p className="text-sm text-gray-400 mb-3">
-          Pobierz drużyny, mecze i grupy z football-data.org. Bezpieczne do ponownego uruchomienia.
-        </p>
-        <button onClick={handleBootstrap} disabled={bootLoading} className="btn-primary text-sm">
-          {bootLoading ? 'Pobieram…' : 'Pobierz dane z API'}
-        </button>
-        {bootResult && <p className="text-sm text-gray-300 mt-3">{bootResult}</p>}
-      </div>
+      <AdminSyncPanel />
 
       <div className="flex gap-2 mb-5 overflow-x-auto pb-1 scrollbar-hide">
-        {[['matches', 'Mecze'], ['users', 'Użytkownicy'], ['leagues', 'Ligi']].map(([key, label]) => (
+        {[['users', 'Użytkownicy'], ['leagues', 'Ligi']].map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)}
             className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${tab === key ? TAB_ACTIVE : TAB_IDLE}`}>
             {label}
@@ -499,9 +528,30 @@ export default function Admin() {
         ))}
       </div>
 
-      {tab === 'matches' && <MatchesTab addToast={addToast} />}
       {tab === 'users'   && <UsersTab addToast={addToast} currentUserId={user?.id} />}
       {tab === 'leagues' && <LeaguesTab addToast={addToast} />}
+
+      {/* old World Cup tools, kept but out of the way */}
+      <div className="mt-8">
+        <AdminCollapsible
+          title="Archiwum Mundialu 2026"
+          description="Pobieranie danych turnieju i ręczne wpisywanie wyników — narzędzia z czasów samego Mundialu."
+        >
+          <div className="pt-4">
+            <h3 className="font-semibold text-gray-200 mb-2">Dane turnieju</h3>
+            <p className="text-sm text-gray-400 mb-3">
+              Pobierz drużyny, mecze i grupy Mundialu z football-data.org. Bezpieczne do ponownego uruchomienia.
+            </p>
+            <button onClick={handleBootstrap} disabled={bootLoading} className="btn-primary text-sm">
+              {bootLoading ? 'Pobieram…' : 'Pobierz dane z API'}
+            </button>
+            {bootResult && <p className="text-sm text-gray-300 mt-3">{bootResult}</p>}
+          </div>
+
+          <h3 className="font-semibold text-gray-200 mt-8 mb-3">Ręczne wpisywanie wyników</h3>
+          <MatchesTab addToast={addToast} />
+        </AdminCollapsible>
+      </div>
     </div>
   );
 }

@@ -247,3 +247,73 @@ utrwala niespójność z meczami i zły UX (typuj mistrza w każdej lidze osobno
 
 **Konsekwencje.** Migracja zakłada czyste dane — user z bonusami w wielu
 ligach złamałby nowy `UNIQUE (user_id)`. W dev: `./scripts/migrate.sh --reset`.
+
+---
+
+## 010 — Wiele rozgrywek, darmowe football-data.org jako jedyne źródło (2026-10-04)
+
+**Kontekst.** Po Mundialu aplikacja (teraz czutka) ma obsługiwać wiele rozgrywek
+naraz: Liga Mistrzów, Ekstraklasa, Liga Narodów, top 5 lig. Potrzebne jest
+źródło terminarza i wyników. Warunek właściciela: zero kosztów.
+
+**Decyzja.** football-data.org, plan darmowy. Pokrywa Ligę Mistrzów i top 5.
+Ekstraklasa i Liga Narodów są w bazie jako nieaktywne rozgrywki bez dostawcy.
+Komunikacja z API idzie przez wspólny interfejs `FootballProvider`
+(`services/providers/`), więc drugi dostawca to nowy adapter, nie przeróbka.
+
+**Alternatywy.** API-Football (pełne pokrycie, ale darmowy plan bez bieżącego
+sezonu, Pro ~19 USD/mies.), TheSportsDB (Ekstraklasa jest, darmowy klucz
+obcięty do kilku meczów, ~9 USD/mies.), nieoficjalne API ESPN (bez gwarancji,
+Ekstraklasa zwraca 400). Szczegóły w `docs/data-source.md`.
+
+**Konsekwencje.** 6 z 8 docelowych rozgrywek. Wyniki z opóźnieniem (plan
+darmowy), limit 10 zapytań/min — synchronizacja musi grupować zapytania.
+
+---
+
+## 011 — Hierarchia rozgrywka → sezon → runda → mecz, profile punktacji (2026-10-04)
+
+**Kontekst.** Schemat był zaszyty pod Mundial: `matches.stage` z listą faz
+turnieju, `scoring_rules` z jednym wierszem na fazę, drużyna w jednej lidze,
+grupa w kolumnie drużyny.
+
+**Decyzja.** Tabele `competitions`, `seasons`, `rounds`, `season_teams`;
+punkty w `scoring_profiles` + `scoring_profile_rules` (wiersz `default` jako
+zapas), profil przypisany do sezonu. Punktujemy wynik po 90 minutach; dogrywka
+i karne w osobnych kolumnach. Migracja 005 w stylu expand → contract: dodaje
+nowe struktury, przepisuje Mundial jako archiwalny sezon, stare kolumny zostają
+do osobnej migracji usuwającej. Szczegóły w `docs/data-model.md`.
+
+**Alternatywy.** Kolumny `competition`/`matchday` wprost w `matches` bez
+tabeli rund — prostsze, ale nazwy i kolejność faz trzeba by trzymać w kodzie
+frontu dla każdej rozgrywki osobno (dokładnie ten problem miał Mundial).
+Jeden globalny zestaw punktów — odrzucone, bo puchary mają rosnącą punktację
+w fazie pucharowej, a archiwum Mundialu musi zachować swoje wartości.
+
+---
+
+## 012 — Jeden runner migracji w Pythonie (2026-10-04) — supersedes #006
+
+**Kontekst.** Wpis #006 opisywał `migrate.sh` bez rejestru, ale `main.py`
+miał już własny runner z tabelą `schema_migrations`, który dzielił SQL po
+średnikach (psuło się na blokach `DO $$ ... $$`). Dwa mechanizmy, różne
+zachowanie.
+
+**Decyzja.** Jedyny runner to `db/migrate.py` z rejestrem `schema_migrations`
+(nazwy plików bez zmian, produkcja ma już wpisy 001–004). Plik idzie jako jedno
+polecenie w jednej transakcji, z blokadą doradczą. Pliki cofające w
+`db/migrations/rollback/`, uruchamiane tylko przez `--down`. `migrate.sh` to
+nakładka. Opis w `docs/migrations.md`.
+
+---
+
+## 013 — `db/queries.py` podzielony na pakiet (2026-10-04)
+
+**Kontekst.** `db/queries.py` miał 1400 linii; przy kilku osobach (i agentach)
+pracujących równolegle każdy edytował ten sam plik.
+
+**Decyzja.** Pakiet `db/queries/` z modułami per obszar (`users`, `matches`,
+`predictions`, `results`, `ranking`, `leagues`, `bonus`, `admin`).
+`db/queries/__init__.py` re-eksportuje wszystkie dotychczasowe nazwy, więc
+`from db.queries import X` działa bez zmian. Zasada „SQL tylko jako stałe w
+warstwie db, parametryzowany przez %s” bez zmian.

@@ -1,7 +1,7 @@
 {
-  "name": "Mundial Typer 2026",
-  "short_name": "Mundial",
-  "description": "Typuj wyniki meczów Mundialu 2026! Rywalizuj ze znajomymi w prywatnych ligach.",
+  "name": "czutka",
+  "short_name": "czutka",
+  "description": "Typuj wyniki meczów piłkarskich i rywalizuj ze znajomymi w prywatnych ligach.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

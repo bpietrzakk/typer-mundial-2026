@@ -8,7 +8,12 @@ on:
   workflow_dispatch:
 
 jobs:
+  # same checks as on PRs — deploy only runs when they pass
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   deploy:
+    needs: ci
     runs-on: ubuntu-latest
     permissions:
       contents: read

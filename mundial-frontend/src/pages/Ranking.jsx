@@ -1,210 +1,63 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
-import { getRanking } from '../api/ranking';
-import RankingTable from '../components/RankingTable';
-import UserPredictionsModal from '../components/UserPredictionsModal';
-
-function PodiumCard({ entry, platformHeight, isCurrentUser, onSelect }) {
-  const colors = {
-    1: { ring: 'border-mundial-gold/60', glow: 'shadow-[0_0_20px_rgba(200,164,40,0.4)]', label: 'text-mundial-gold', bg: 'bg-mundial-gold/10' },
-    2: { ring: 'border-gray-400/40', glow: '', label: 'text-gray-300', bg: 'bg-gray-400/10' },
-    3: { ring: 'border-amber-600/50', glow: '', label: 'text-amber-600', bg: 'bg-amber-600/10' },
-  }[entry.rank] || {};
-
-  return (
-    <div className="flex flex-col items-center gap-1.5 cursor-pointer" onClick={onSelect}>
-      {/* rank number */}
-      <span className={`text-xs font-black uppercase tracking-widest ${colors.label}`}>
-        #{entry.rank}
-      </span>
-
-      {/* avatar */}
-      <div className={`${entry.rank === 1 ? 'w-16 h-16' : 'w-14 h-14'} rounded-full ${colors.bg} border-2 ${colors.ring} ${colors.glow} flex items-center justify-center`}>
-        <span className={`font-black font-display ${entry.rank === 1 ? 'text-xl' : 'text-lg'} ${colors.label}`}>
-          {entry.nick.slice(0, 2).toUpperCase()}
-        </span>
-      </div>
-
-      {/* nick + points — above the platform so they don't affect platform height */}
-      <p className={`font-bold text-sm text-center truncate w-full px-1 ${isCurrentUser ? 'text-mundial-teal' : 'text-gray-200'}`}>
-        {entry.nick}
-        {isCurrentUser && <span className="block text-xs text-mundial-teal/60">(Ty)</span>}
-      </p>
-      <p className={`text-xl font-black tabular-nums ${colors.label}`}>{entry.total_points}</p>
-      <p className="text-xs text-gray-600 mb-1">pkt</p>
-
-      {/* podium platform — fixed height, purely decorative */}
-      <div
-        className={`w-full rounded-t-xl ${colors.bg} border border-surface-500/20`}
-        style={{ height: platformHeight }}
-      />
-    </div>
-  );
-}
+import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import GlobalRankingSection from '../components/GlobalRankingSection';
+import MyLeaguesCard from '../components/MyLeaguesCard';
+import useMyLeagues from '../hooks/useMyLeagues';
 
 export default function Ranking() {
   const { user } = useAuth();
-  const { addToast } = useToast();
-  const [entries, setEntries] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [bonuses, setBonuses] = useState(true);
-
-  const handleShare = async (entry) => {
-    const text = `Jestem #${entry.rank} z ${entry.total_points} pkt na Mundial Typer 2026! ⚽`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: 'Mundial Typer 2026', text, url: window.location.origin });
-      } else {
-        await navigator.clipboard.writeText(text);
-        addToast('Skopiowano do schowka!');
-      }
-    } catch { /* user anulował */ }
-  };
-
-  const loadRanking = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      setEntries(await getRanking({ bonuses }));
-    } catch {
-      setError('Nie udało się załadować rankingu');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // reload when the bonuses switch changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { loadRanking(); }, [bonuses]);
-
-  if (loading) {
-    return (
-      <div className="page-container">
-        <h1 className="page-title">Ranking</h1>
-        <div className="skeleton h-48 rounded-2xl mb-6" />
-        <div className="skeleton h-96 rounded-2xl" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="page-container">
-        <h1 className="page-title">Ranking</h1>
-        <div className="glass-card p-8 text-center">
-          <p className="text-red-400 mb-4">{error}</p>
-          <button onClick={loadRanking} className="btn-secondary">Spróbuj ponownie</button>
-        </div>
-      </div>
-    );
-  }
-
-  const top3 = entries.slice(0, 3);
-  const rest = entries.slice(3);
-  const myEntry = entries.find((e) => e.user_id === user?.id);
-
-  // podium order: 2nd | 1st | 3rd
-  const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean);
-  const platformHeights = { 1: '120px', 2: '80px', 3: '50px' };
+  const leaguesQ = useMyLeagues({ many: true });
+  const [params] = useSearchParams();
+  // a link with ?competition= opens the global ranking right away
+  const [showGlobal, setShowGlobal] = useState(() => params.has('competition'));
 
   return (
     <div className="page-container">
-      <h1 className="page-title">Ranking globalny</h1>
+      <h1 className="page-title !mb-6">Ranking</h1>
 
-      {/* official ranking with bonuses or match points only */}
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-xl bg-white/5 p-1">
-          {[[true, 'Z bonusami'], [false, 'Bez bonusów']].map(([value, label]) => (
-            <button
-              key={label}
-              onClick={() => setBonuses(value)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                bonuses === value ? 'bg-mundial-teal text-white' : 'text-gray-400 hover:text-gray-200'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-gray-500">Bonusy: mistrz 20 pkt, awans z grupy 3 pkt za drużynę.</p>
+      {/* my leagues first — that's the ranking friends care about */}
+      <div className="mb-8">
+        <MyLeaguesCard
+          title="Rankingi Twoich lig"
+          leaguesData={leaguesQ.data}
+          loading={leaguesQ.loading}
+          userId={user?.id}
+        />
       </div>
 
-      {/* user's position banner (if not in top 3) */}
-      {myEntry && myEntry.rank > 3 && (
-        <div className="glass-card px-5 py-3 mb-6 flex items-center gap-3 border-mundial-teal/20">
-          <span className="text-sm text-gray-400">Twoja pozycja:</span>
-          <span className="text-2xl font-black tabular-nums text-mundial-gold">#{myEntry.rank}</span>
-          <span className="text-gray-500 text-sm">·</span>
-          <span className="text-lg font-bold tabular-nums text-gray-200">{myEntry.total_points} pkt</span>
-          {bonuses && myEntry.bonus_points > 0 && (
-            <span className="text-xs text-gray-500 tabular-nums">{myEntry.match_points} + {myEntry.bonus_points} bonusy</span>
-          )}
-          {entries[0] && myEntry.total_points < entries[0].total_points && (
-            <span className="text-xs text-gray-500">
-              {entries[0].total_points - myEntry.total_points} pkt za liderem
-            </span>
-          )}
-          <button
-            onClick={() => handleShare(myEntry)}
-            className="ml-auto p-2 rounded-lg text-gray-500 hover:text-mundial-teal hover:bg-surface-700/50 transition-colors"
-            title="Udostępnij"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
-            </svg>
-          </button>
-        </div>
-      )}
-
-      {/* podium */}
-      {top3.length >= 2 && (
-        <div className="glass-card p-6 mb-6">
-          <div className="flex items-end gap-3 justify-center">
-            {podiumOrder.map((entry) => (
-              <div key={entry.user_id} className="flex-1 max-w-[140px]">
-                <PodiumCard
-                  entry={entry}
-                  platformHeight={platformHeights[entry.rank]}
-                  isCurrentUser={entry.user_id === user?.id}
-                  onSelect={() => setSelectedUser(entry)}
-                />
-              </div>
-            ))}
+      {showGlobal ? (
+        <section aria-labelledby="global-ranking-title">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 id="global-ranking-title" className="text-lg font-semibold text-gray-200">Wszyscy gracze czutki</h2>
+              <p className="text-xs text-gray-400 mb-4">Ranking rozgrywek — wszyscy gracze aplikacji, nie tylko Twoje ligi.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowGlobal(false)}
+              className="shrink-0 text-xs text-gray-400 hover:text-gray-200 px-2 py-1 rounded-lg hover:bg-surface-700/40 transition-colors"
+            >
+              Zwiń
+            </button>
           </div>
-        </div>
-      )}
-
-      {/* stats row */}
-      {entries.length > 0 && (
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="glass-card p-3 sm:p-4 text-center">
-            <p className="text-xs sm:text-sm text-gray-400">Graczy</p>
-            <p className="text-xl sm:text-2xl font-bold text-gray-200">{entries.length}</p>
-          </div>
-          <div className="glass-card p-3 sm:p-4 text-center">
-            <p className="text-xs sm:text-sm text-gray-400">Lider</p>
-            <p className="text-sm sm:text-lg font-bold text-mundial-gold truncate">{entries[0]?.nick}</p>
-          </div>
-          <div className="glass-card p-3 sm:p-4 text-center">
-            <p className="text-xs sm:text-sm text-gray-400">Wynik</p>
-            <p className="text-xl sm:text-2xl font-bold text-mundial-gold tabular-nums">{entries[0]?.total_points}</p>
-          </div>
-        </div>
-      )}
-
-      {/* full table (from #4) */}
-      {rest.length > 0 && <RankingTable entries={rest} onSelectUser={setSelectedUser} />}
-      {rest.length === 0 && entries.length > 0 && <RankingTable entries={entries} onSelectUser={setSelectedUser} />}
-
-      {selectedUser && (
-        <UserPredictionsModal
-          userId={selectedUser.user_id}
-          nick={selectedUser.nick}
-          onClose={() => setSelectedUser(null)}
-        />
+          <GlobalRankingSection />
+        </section>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowGlobal(true)}
+          aria-expanded="false"
+          className="w-full flex items-center justify-between gap-3 px-5 py-4 rounded-2xl border border-surface-500/30 bg-surface-800/40 text-left hover:border-brand/40 transition-colors"
+        >
+          <span>
+            <span className="block text-sm font-semibold text-gray-200">Pokaż ranking wszystkich graczy</span>
+            <span className="block text-xs text-gray-500 mt-0.5">Ranking rozgrywek dla wszystkich graczy czutki, nie tylko Twoich lig.</span>
+          </span>
+          <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+        </button>
       )}
     </div>
   );

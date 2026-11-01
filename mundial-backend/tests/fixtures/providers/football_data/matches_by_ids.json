@@ -1,0 +1,202 @@
+{
+ "filters": {
+  "permission": "TIER_ONE"
+ },
+ "resultSet": {
+  "count": 3,
+  "competitions": "WC,CL",
+  "first": "2026-06-29",
+  "last": "2026-09-08",
+  "played": 3
+ },
+ "matches": [
+  {
+   "area": {
+    "id": 2267,
+    "name": "World",
+    "code": "INT",
+    "flag": null
+   },
+   "competition": {
+    "id": 2000,
+    "name": "FIFA World Cup",
+    "code": "WC",
+    "type": "CUP",
+    "emblem": "https://crests.football-data.org/wm26.png"
+   },
+   "season": {
+    "id": 2398,
+    "startDate": "2026-06-11",
+    "endDate": "2026-07-19",
+    "currentMatchday": 3,
+    "winner": null
+   },
+   "id": 537415,
+   "utcDate": "2026-06-29T20:30:00Z",
+   "status": "FINISHED",
+   "matchday": null,
+   "stage": "LAST_32",
+   "group": null,
+   "lastUpdated": "2026-08-02T20:20:11Z",
+   "homeTeam": {
+    "id": 759,
+    "name": "Germany",
+    "shortName": "Germany",
+    "tla": "GER",
+    "crest": "https://crests.football-data.org/759.svg"
+   },
+   "awayTeam": {
+    "id": 761,
+    "name": "Paraguay",
+    "shortName": "Paraguay",
+    "tla": "PAR",
+    "crest": "https://crests.football-data.org/761.svg"
+   },
+   "score": {
+    "winner": "AWAY_TEAM",
+    "duration": "PENALTY_SHOOTOUT",
+    "fullTime": {
+     "home": 4,
+     "away": 5
+    },
+    "halfTime": {
+     "home": 0,
+     "away": 1
+    },
+    "regularTime": {
+     "home": 1,
+     "away": 1
+    },
+    "extraTime": {
+     "home": 0,
+     "away": 0
+    },
+    "penalties": {
+     "home": 3,
+     "away": 4
+    }
+   },
+   "referees": []
+  },
+  {
+   "area": {
+    "id": 2267,
+    "name": "World",
+    "code": "INT",
+    "flag": null
+   },
+   "competition": {
+    "id": 2000,
+    "name": "FIFA World Cup",
+    "code": "WC",
+    "type": "CUP",
+    "emblem": "https://crests.football-data.org/wm26.png"
+   },
+   "season": {
+    "id": 2398,
+    "startDate": "2026-06-11",
+    "endDate": "2026-07-19",
+    "currentMatchday": 3,
+    "winner": null
+   },
+   "id": 537390,
+   "utcDate": "2026-07-19T19:00:00Z",
+   "status": "FINISHED",
+   "matchday": null,
+   "stage": "FINAL",
+   "group": null,
+   "lastUpdated": "2026-08-02T20:20:11Z",
+   "homeTeam": {
+    "id": 760,
+    "name": "Spain",
+    "shortName": "Spain",
+    "tla": "ESP",
+    "crest": "https://crests.football-data.org/760.svg"
+   },
+   "awayTeam": {
+    "id": 762,
+    "name": "Argentina",
+    "shortName": "Argentina",
+    "tla": "ARG",
+    "crest": "https://crests.football-data.org/762.png"
+   },
+   "score": {
+    "winner": "HOME_TEAM",
+    "duration": "EXTRA_TIME",
+    "fullTime": {
+     "home": 1,
+     "away": 0
+    },
+    "halfTime": {
+     "home": 0,
+     "away": 0
+    },
+    "regularTime": {
+     "home": 0,
+     "away": 0
+    },
+    "extraTime": {
+     "home": 1,
+     "away": 0
+    }
+   },
+   "referees": []
+  },
+  {
+   "area": {
+    "id": 2077,
+    "name": "Europe",
+    "code": "EUR",
+    "flag": "https://crests.football-data.org/EUR.svg"
+   },
+   "competition": {
+    "id": 2001,
+    "name": "UEFA Champions League",
+    "code": "CL",
+    "type": "CUP",
+    "emblem": "https://crests.football-data.org/CL.png"
+   },
+   "season": {
+    "id": 2557,
+    "startDate": "2026-09-08",
+    "endDate": "2027-01-27",
+    "currentMatchday": 2,
+    "winner": null
+   },
+   "id": 575323,
+   "utcDate": "2026-09-08T16:45:00Z",
+   "status": "FINISHED",
+   "matchday": 1,
+   "stage": "LEAGUE_STAGE",
+   "group": null,
+   "lastUpdated": "2026-10-04T10:20:34Z",
+   "homeTeam": {
+    "id": 851,
+    "name": "Club Brugge KV",
+    "shortName": "Club Brugge",
+    "tla": "BRU",
+    "crest": "https://crests.football-data.org/851.png"
+   },
+   "awayTeam": {
+    "id": 58,
+    "name": "Aston Villa FC",
+    "shortName": "Aston Villa",
+    "tla": "AVL",
+    "crest": "https://crests.football-data.org/58.png"
+   },
+   "score": {
+    "winner": "AWAY_TEAM",
+    "duration": "REGULAR",
+    "fullTime": {
+     "home": 2,
+     "away": 3
+    },
+    "halfTime": {
+     "home": 1,
+     "away": 3
+    }
+   },
+   "referees": []
+  }
+ ]
+}

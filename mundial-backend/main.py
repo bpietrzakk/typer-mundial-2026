@@ -1,24 +1,36 @@
 import asyncio
 import logging
 import os
-import re
 import time
 from contextlib import asynccontextmanager
-from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+from db.connection import PoolBusy
+from db.queries.health import ping_db
+from domain.sync_plan import is_sync_enabled
 from routers import admin as admin_router
 from routers import admin_bonus as admin_bonus_router
+from routers import admin_sync as admin_sync_router
 from routers import admin_users as admin_users_router
 from routers import auth as auth_router
 from routers import bonus as bonus_router
+from routers import competitions as competitions_router
+from routers import coupon as coupon_router
+from routers import img as img_router
+from routers import league_bonus as league_bonus_router
 from routers import leagues as leagues_router
 from routers import matches as matches_router
 from routers import predictions as predictions_router
 from routers import ranking as ranking_router
+from services.sync import run_scheduler
 
+# without this our info logs (sync runs) never show up, uvicorn only configures its own loggers
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# httpx logs every request at info level, that is noise for the sync job
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
@@ -39,52 +51,10 @@ def _wait_for_db(max_attempts: int = 30) -> None:
 
 
 def run_migrations() -> None:
-    """Apply any SQL migrations in db/migrations/ that haven't run yet.
+    """Apply pending SQL migrations — logic lives in db/migrate.py."""
+    from db.migrate import run_migrations as apply_pending
 
-    Uses a schema_migrations table as a tracking ledger — safe to call on
-    every startup; already-applied files are skipped.
-    """
-    from db.connection import get_conn, release_conn
-
-    migrations_dir = Path(__file__).parent / "db" / "migrations"
-
-    conn = get_conn()
-    try:
-        # create the ledger table if this is the very first boot
-        with conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS schema_migrations (
-                        filename   TEXT        PRIMARY KEY,
-                        applied_at TIMESTAMPTZ DEFAULT NOW()
-                    )
-                """)
-
-        for sql_file in sorted(migrations_dir.glob("*.sql")):
-            with conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "SELECT 1 FROM schema_migrations WHERE filename = %s",
-                        (sql_file.name,),
-                    )
-                    if cur.fetchone():
-                        continue  # already applied
-
-                    logger.info("applying migration %s", sql_file.name)
-                    # strip comments BEFORE splitting so semicolons inside
-                    # comments don't produce broken statement fragments
-                    sql_text = re.sub(r"--[^\n]*", "", sql_file.read_text())
-                    for stmt in sql_text.split(";"):
-                        clean = stmt.strip()
-                        if clean:
-                            cur.execute(clean)
-                    cur.execute(
-                        "INSERT INTO schema_migrations (filename) VALUES (%s)",
-                        (sql_file.name,),
-                    )
-                    logger.info("migration %s applied", sql_file.name)
-    finally:
-        release_conn(conn)
+    apply_pending()
 
 
 @asynccontextmanager
@@ -92,9 +62,14 @@ async def lifespan(app: FastAPI):
     _wait_for_db()
     run_migrations()
 
-    task = asyncio.create_task(_poll_results())
+    task = None
+    if is_sync_enabled(os.getenv("SYNC_ENABLED"), os.getenv("FOOTBALL_API_KEY")):
+        task = asyncio.create_task(run_scheduler())
+    else:
+        logger.info("provider sync is off (SYNC_ENABLED=false or no FOOTBALL_API_KEY)")
     yield
-    task.cancel()
+    if task is not None:
+        task.cancel()
 
 
 app = FastAPI(
@@ -120,9 +95,21 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(PoolBusy)
+async def pool_busy_handler(_request: Request, _exc: PoolBusy) -> JSONResponse:
+    # every db connection stayed busy too long — tell the client to retry
+    return JSONResponse(status_code=503, content={"detail": "Serwer jest chwilowo przeciążony, spróbuj ponownie"})
+
+
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    # touch the db too, so keep-alive pings also keep Neon awake
+    try:
+        ping_db()
+    except Exception:
+        logger.exception("health check: database is not reachable")
+        return JSONResponse(status_code=503, content={"status": "degraded", "db": "error"})
+    return {"status": "ok", "db": "ok"}
 
 
 app.include_router(auth_router.router)
@@ -130,36 +117,12 @@ app.include_router(matches_router.router)
 app.include_router(predictions_router.router)
 app.include_router(admin_router.router)
 app.include_router(admin_bonus_router.router)
+app.include_router(admin_sync_router.router)
 app.include_router(admin_users_router.router)
 app.include_router(ranking_router.router)
 app.include_router(leagues_router.router)
 app.include_router(bonus_router.router)
-
-
-_POLL_INTERVAL = 5 * 60  # seconds
-
-
-async def _poll_results() -> None:
-    if not os.getenv("FOOTBALL_API_KEY"):
-        logger.info("FOOTBALL_API_KEY not set — skipping background job")
-        return
-
-    from db.queries import finalize_match, get_match_by_external_id, MatchAlreadyFinished, MatchNotFound
-    from services.football_api import fetch_finished_matches
-
-    while True:
-        await asyncio.sleep(_POLL_INTERVAL)
-        try:
-            for m in fetch_finished_matches():
-                row = get_match_by_external_id(m["external_id"])
-                if row is None or row["status"] == "finished":
-                    continue
-                if m["home_goals"] is None or m["away_goals"] is None:
-                    continue
-                try:
-                    finalize_match(row["id"], m["home_goals"], m["away_goals"])
-                    logger.info("auto-finalized %s %s:%s", m["external_id"], m["home_goals"], m["away_goals"])
-                except (MatchAlreadyFinished, MatchNotFound):
-                    pass
-        except Exception as exc:
-            logger.warning("result poll failed: %s", exc)
+app.include_router(league_bonus_router.router)
+app.include_router(competitions_router.router)
+app.include_router(coupon_router.router)
+app.include_router(img_router.router)

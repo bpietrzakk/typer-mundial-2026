@@ -1,6 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { joinLeague } from '../api/leagues';
+import { getLeague, getMyLeagues, joinLeague } from '../api/leagues';
+
+// already a member -> which of my leagues has this code (the list has no codes)
+async function findMyLeagueByCode(code) {
+  const leagues = await getMyLeagues();
+  for (const l of leagues) {
+    const detail = await getLeague(l.id);
+    if (detail.join_code?.toUpperCase() === code.toUpperCase()) return detail.id;
+  }
+  return null;
+}
 
 export default function JoinByLink() {
   const { code } = useParams();
@@ -8,32 +18,40 @@ export default function JoinByLink() {
   const [status, setStatus] = useState('joining'); // 'joining' | 'success' | 'error' | 'already'
   const [error, setError] = useState('');
 
+  const started = useRef(false);
+
   useEffect(() => {
+    // join only once (StrictMode runs effects twice, the 2nd call would say 409)
+    if (started.current) return;
+    started.current = true;
     joinLeague(code)
       .then((league) => {
         setStatus('success');
-        setTimeout(() => navigate(`/leagues/${league.id}`, { replace: true }), 1500);
+        setTimeout(() => navigate(`/leagues/${league.id}`, { replace: true, state: { joined: true } }), 1500);
       })
       .catch((err) => {
         const detail = err.response?.data?.detail || '';
         if (err.response?.status === 409) {
+          // a reminder link (/join/CODE) also brings a member straight to the league
           setStatus('already');
-          setTimeout(() => navigate('/leagues', { replace: true }), 1500);
+          findMyLeagueByCode(code)
+            .catch(() => null)
+            .then((id) => navigate(id ? `/leagues/${id}#kupon` : '/leagues', { replace: true }));
         } else {
           setStatus('error');
           setError(detail || 'Nieprawidłowy lub wygasły kod zaproszenia');
         }
       });
-  }, [code]);
+  }, [code, navigate]);
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">
       <div className="glass-card p-10 text-center max-w-sm w-full animate-fade-in">
         {status === 'joining' && (
           <>
-            <div className="w-12 h-12 border-2 border-mundial-teal/30 border-t-mundial-teal rounded-full animate-spin mx-auto mb-4" />
+            <div className="w-12 h-12 border-2 border-brand/30 border-t-brand rounded-full animate-spin mx-auto mb-4" />
             <p className="text-gray-200 font-semibold">Dołączam do ligi…</p>
-            <p className="text-gray-500 text-sm mt-1">Kod: <span className="font-mono text-mundial-teal">{code}</span></p>
+            <p className="text-gray-500 text-sm mt-1">Kod: <span className="font-mono text-brand">{code}</span></p>
           </>
         )}
         {status === 'success' && (
@@ -49,13 +67,13 @@ export default function JoinByLink() {
         )}
         {status === 'already' && (
           <>
-            <div className="w-12 h-12 rounded-full bg-mundial-teal/15 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-mundial-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <div className="w-12 h-12 rounded-full bg-brand/15 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <p className="text-gray-200 font-semibold">Już jesteś w tej lidze</p>
-            <p className="text-gray-500 text-sm mt-1">Przekierowuję do lig…</p>
+            <p className="text-gray-500 text-sm mt-1">Przekierowuję do ligi…</p>
           </>
         )}
         {status === 'error' && (

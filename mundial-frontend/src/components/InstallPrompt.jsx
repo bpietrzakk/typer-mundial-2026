@@ -35,14 +35,14 @@ export default function InstallPrompt() {
 
   return (
     <div className="fixed bottom-20 md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-80 z-40 animate-slide-up">
-      <div className="glass-card p-4 border-mundial-teal/30 shadow-glow-teal">
+      <div className="glass-card p-4 border-brand/30 shadow-glow-brand">
         <div className="flex items-start gap-3">
           <img src="/favicon.svg" alt="" className="w-10 h-10 rounded-xl shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-gray-200 text-sm">Zainstaluj Mundial Typer</p>
+            <p className="font-semibold text-gray-200 text-sm">Zainstaluj czutkę</p>
             <p className="text-xs text-gray-500 mt-0.5">Dodaj do ekranu głównego i korzystaj jak z aplikacji</p>
           </div>
-          <button onClick={handleDismiss} className="text-gray-600 hover:text-gray-400 transition-colors shrink-0">
+          <button onClick={handleDismiss} className="text-gray-400 hover:text-gray-400 transition-colors shrink-0">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>

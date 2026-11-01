@@ -1,15 +1,8 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import * as authApi from '../api/auth';
-
-const AuthContext = createContext(null);
-
-// hook for components to consume auth state
-export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be inside AuthProvider');
-  return ctx;
-};
+import { isInvitePath } from '../utils/pendingInvite';
+import { AuthContext, useAuth } from '../hooks/useAuth';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -92,14 +85,16 @@ export function ProtectedRoute({ children }) {
     // show a centered spinner while checking auth status
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-10 h-10 border-4 border-mundial-teal/30 border-t-mundial-teal rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-brand/30 border-t-brand rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!isLoggedIn) {
-    // save where the user wanted to go so we can redirect after login
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    // save where the user wanted to go so we can redirect after login.
+    // invite links go to sign-up first — invited friends rarely have an account
+    const target = isInvitePath(location.pathname) ? '/register' : '/login';
+    return <Navigate to={target} state={{ from: location }} replace />;
   }
 
   return children;

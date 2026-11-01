@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, ProtectedRoute } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import Navbar from './components/Navbar';
@@ -17,9 +17,13 @@ import BonusPicks from './pages/BonusPicks';
 import Admin from './pages/Admin';
 import Settings from './pages/Settings';
 import Dashboard from './pages/Dashboard';
+import Competitions from './pages/Competitions';
 import Rules from './pages/Rules';
 import JoinByLink from './pages/JoinByLink';
 import NotFound from './pages/NotFound';
+import Landing from './pages/Landing';
+import Welcome from './pages/Welcome';
+import HomeRoute from './components/HomeRoute';
 
 // layout wrapper — navbar + page content for authenticated routes
 function AppLayout({ children }) {
@@ -46,15 +50,17 @@ export default function App() {
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/verify-pending" element={<VerifyPending />} />
 
-          {/* protected routes — with navbar */}
+          {/* start: landing page for guests, dashboard when logged in */}
           <Route
             path="/"
             element={
-              <ProtectedRoute>
+              <HomeRoute guest={<Landing />}>
                 <AppLayout><Dashboard /></AppLayout>
-              </ProtectedRoute>
+              </HomeRoute>
             }
           />
+
+          {/* protected routes — with navbar */}
           <Route
             path="/matches"
             element={
@@ -80,6 +86,14 @@ export default function App() {
             }
           />
           <Route
+            path="/competitions"
+            element={
+              <ProtectedRoute>
+                <AppLayout><Competitions /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/leagues"
             element={
               <ProtectedRoute>
@@ -95,6 +109,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          {/* old Mundial bonus picks — read-only archive page */}
           <Route
             path="/bonus"
             element={
@@ -112,7 +127,6 @@ export default function App() {
             }
           />
 
-          {/* catch-all — redirect to matches */}
           <Route
             path="/settings"
             element={
@@ -129,6 +143,15 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          {/* onboarding after sign-up without an invite — no navbar, full focus */}
+          <Route
+            path="/witaj"
+            element={
+              <ProtectedRoute>
+                <Welcome />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/join/:code"
             element={
@@ -137,6 +160,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          {/* anything else */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </ToastProvider>

@@ -6,7 +6,7 @@ export default function NotFound() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="text-center animate-fade-in">
-        <p className="text-8xl font-black font-display gradient-text tracking-tight mb-2">404</p>
+        <p className="text-8xl font-black text-brand tracking-tight mb-2">404</p>
         <p className="text-xl font-semibold text-gray-200 mb-2">Tej strony nie ma</p>
         <p className="text-gray-500 text-sm mb-8 max-w-xs mx-auto">
           Wygląda na to, że trafiłeś w słupek. Wróć na boisko.

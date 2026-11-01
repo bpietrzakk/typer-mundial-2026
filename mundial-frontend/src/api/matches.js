@@ -17,3 +17,9 @@ export const getTeams = async () => {
   const res = await api.get('/matches/teams');
   return res.data;
 };
+
+// table place, form and head to head of both teams (loaded on demand)
+export const getMatchContext = async (id) => {
+  const res = await api.get(`/matches/${id}/context`);
+  return res.data;
+};

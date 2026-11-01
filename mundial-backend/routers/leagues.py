@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
 from db.queries import (
     AlreadyMember,
@@ -14,15 +14,36 @@ from db.queries import (
     reset_join_code,
     update_prize_pool,
 )
+from db.queries.badges import list_league_finished_picks, list_league_unit_matches
+from db.queries.competitions import get_season
+from db.queries.coupon import get_league_coupon_ranking, update_league_coupon_settings
+from db.queries.leagues import (
+    get_league_preview_by_code,
+    is_season_in_league_scope,
+    list_active_season_ids_in_league_scope,
+    list_existing_competition_ids,
+    list_league_competitions,
+    replace_league_competitions,
+)
+from db.queries.ranking import get_league_season_ranking
+from domain.joker import joker_multiplier
+from domain.league_badges import member_streaks, season_badges
+from domain.ranking import sort_ranking
 from routers.deps import get_current_user
 from schemas.models import (
     CreateLeagueRequest,
+    LeagueBadgesResponse,
     JoinLeagueRequest,
     LeagueDetailResponse,
+    LeagueRankingEntry,
+    LeaguePreviewResponse,
+    LeagueScopeRequest,
+    LeagueScopeResponse,
     LeagueSummary,
     ResetCodeResponse,
     UpdateLeagueSettingsRequest,
 )
+from services.live_points import add_live_ranking
 
 
 router = APIRouter(prefix="/leagues", tags=["leagues"])
@@ -40,6 +61,10 @@ def _league_to_response(league: dict, members: list[dict]) -> dict:
         "created_at": league["created_at"],
         "members": members,
         "prize_pool_per_person": league.get("prize_pool_per_person"),
+        # weekly coupon settings (008), defaults when an older row shape comes in
+        "ranking_mode": league.get("ranking_mode") or "scope",
+        "coupon_size": league.get("coupon_size") or 10,
+        "coupon_auto": league.get("coupon_auto", True),
     }
 
 
@@ -60,8 +85,24 @@ def create_new_league(
     body: CreateLeagueRequest,
     current_user: dict = Depends(get_current_user),
 ) -> dict:
+    # optional scope at creation: unknown competitions -> 422 before anything is written
+    competition_ids = list(dict.fromkeys(body.competition_ids or []))
+    if competition_ids:
+        unknown = set(competition_ids) - list_existing_competition_ids(competition_ids)
+        if unknown:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Nieznane rozgrywki: " + ", ".join(str(i) for i in sorted(unknown)),
+            )
+
     # creator becomes the owner AND first admin member, both in one transaction
     league = create_league(body.name, current_user["id"])
+    # coupon settings + scope go right after (left out = database defaults)
+    # saving the scope also follows its competitions for the owner
+    if body.ranking_mode is not None or body.coupon_size is not None:
+        update_league_coupon_settings(league["id"], body.ranking_mode, body.coupon_size, None)
+    if competition_ids:
+        replace_league_competitions(league["id"], competition_ids)
     # re-fetch with owner_nick joined; members list has just the creator
     detail = get_league_with_owner(league["id"])
     members = list_league_members(league["id"])
@@ -91,6 +132,20 @@ def join_existing_league(
     detail = get_league_with_owner(league["id"])
     members = list_league_members(league["id"])
     return _league_to_response(detail, members)
+
+
+# public, no login — the invite link shows what you are joining.
+# registered before the /{league_id} routes so e.g. code "ranking" never
+# lands in /{league_id}/ranking
+@router.get("/preview/{code}", response_model=LeaguePreviewResponse)
+def preview_league(code: str = Path(min_length=1, max_length=32)) -> dict:
+    preview = get_league_preview_by_code(code)
+    if preview is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nie znaleziono ligi z tym kodem",
+        )
+    return preview
 
 
 @router.get("/{league_id}", response_model=LeagueDetailResponse)
@@ -164,4 +219,138 @@ def update_league_settings(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Liga nie istnieje")
     if detail["owner_user_id"] != current_user["id"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tylko właściciel może edytować ligę")
-    update_prize_pool(league_id, current_user["id"], body.prize_pool_per_person)
+    # partial update: only what the body sends changes (null prize pool = no pool)
+    if "prize_pool_per_person" in body.model_fields_set:
+        update_prize_pool(league_id, current_user["id"], body.prize_pool_per_person)
+    if body.ranking_mode is not None or body.coupon_size is not None or body.coupon_auto is not None:
+        update_league_coupon_settings(league_id, body.ranking_mode, body.coupon_size, body.coupon_auto)
+
+
+# --- league scope and ranking (multi-competition) ---
+# unknown league -> 404, existing league but wrong person -> 403
+
+def _require_league(league_id: int) -> dict:
+    detail = get_league_with_owner(league_id)
+    if detail is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Liga nie istnieje")
+    return detail
+
+
+def _require_member(league_id: int, user_id: int) -> dict:
+    detail = _require_league(league_id)
+    if not is_league_member(league_id, user_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Nie należysz do tej ligi")
+    return detail
+
+
+def _scope_response(league_id: int) -> dict:
+    # no rows = the league counts every competition
+    competitions = list_league_competitions(league_id)
+    return {"all": not competitions, "competitions": competitions}
+
+
+@router.get("/{league_id}/competitions", response_model=LeagueScopeResponse)
+def get_league_scope(
+    league_id: int,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    # which competitions the league counts — members only
+    _require_member(league_id, current_user["id"])
+    return _scope_response(league_id)
+
+
+@router.put("/{league_id}/competitions", response_model=LeagueScopeResponse)
+def set_league_scope(
+    league_id: int,
+    body: LeagueScopeRequest,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    # owner narrows the league to chosen competitions, empty list = all of them
+    detail = _require_league(league_id)
+    if detail["owner_user_id"] != current_user["id"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tylko właściciel może zmienić zakres ligi",
+        )
+
+    # drop duplicates, keep the order the client sent
+    competition_ids = list(dict.fromkeys(body.competition_ids))
+    unknown = set(competition_ids) - list_existing_competition_ids(competition_ids)
+    if unknown:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Nieznane rozgrywki: " + ", ".join(str(i) for i in sorted(unknown)),
+        )
+
+    # competitions new to the scope get followed by every member (never unfollows)
+    replace_league_competitions(league_id, competition_ids)
+    return _scope_response(league_id)
+
+
+def _league_season_ids(league_id: int, season_id: int | None) -> list[int]:
+    # with season_id: that season (must be in the league scope),
+    # without it: every active season in the scope
+    if season_id is None:
+        return list_active_season_ids_in_league_scope(league_id)
+    if get_season(season_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sezon nie istnieje")
+    if not is_season_in_league_scope(league_id, season_id):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Ten sezon nie należy do rozgrywek tej ligi",
+        )
+    return [season_id]
+
+
+@router.get("/{league_id}/ranking", response_model=list[LeagueRankingEntry])
+def get_league_scoped_ranking(
+    league_id: int,
+    season_id: int | None = Query(default=None),
+    bonuses: bool = Query(default=True),
+    current_user: dict = Depends(get_current_user),
+) -> list[dict]:
+    # members only. with season_id: that season (must be in the league scope),
+    # bonuses=false leaves out the old global Mundial bonuses (champion / group advances),
+    # without it: every active season in the scope added up.
+    # league bonus answers of the chosen seasons are included either way.
+    # ranking_mode 'coupon': match points only from this league's weekly coupons.
+    # while a match is live: live_points / live_total / live_rank (not final)
+    detail = _require_member(league_id, current_user["id"])
+    season_ids = _league_season_ids(league_id, season_id)
+
+    mode = detail.get("ranking_mode") or "scope"
+    if mode == "coupon":
+        # each member's joker match counts double (domain/joker.py)
+        ranking = sort_ranking(
+            get_league_coupon_ranking(league_id, season_ids, joker_multiplier("coupon"), bonuses)
+        )
+    else:
+        ranking = sort_ranking(get_league_season_ranking(league_id, season_ids, bonuses))
+    # official order stays, live matches only add the live_* fields
+    return add_live_ranking(ranking, league_id, season_ids, mode)
+
+
+@router.get("/{league_id}/badges", response_model=LeagueBadgesResponse)
+def get_league_badges(
+    league_id: int,
+    season_id: int | None = Query(default=None),
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    # season badges + streaks of the members, computed on the fly.
+    # same seasons as GET /leagues/{id}/ranking, coupon mode = coupon matches only
+    detail = _require_member(league_id, current_user["id"])
+    season_ids = _league_season_ids(league_id, season_id)
+    coupon_only = (detail.get("ranking_mode") or "scope") == "coupon"
+
+    members = list_league_members(league_id)
+    member_ids = [m["user_id"] for m in members]
+    picks = list_league_finished_picks(league_id, season_ids, coupon_only)
+    units = list_league_unit_matches(league_id, season_ids, coupon_only)
+
+    streaks = member_streaks(member_ids, units, picks)
+    return {
+        "unit": "coupon" if coupon_only else "round",
+        "finished_picks": len(picks),
+        "badges": season_badges(member_ids, picks, streaks),
+        "streaks": [{"user_id": m["user_id"], "nick": m["nick"], **streaks[m["user_id"]]} for m in members],
+    }

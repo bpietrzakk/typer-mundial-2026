@@ -1,0 +1,336 @@
+# global + private league rankings
+# every query is a module-level constant — easy to grep, easy to audit
+# all parameters use %s, never f-strings with user data (iron rule #6)
+
+from psycopg2.extras import RealDictCursor
+
+from db.connection import get_conn, release_conn
+
+# global ranking (legacy = Mundial 2026 archive)
+# match points come only from the Mundial 2026 season, so predictions of new
+# competitions never leak in. the season is found by join, not by id.
+# subqueries aggregate per source BEFORE joining users — joining 3 tables
+# directly with 1:N relationships causes a Cartesian explosion that would
+# double/triple-count bonus rows for users with many predictions.
+SQL_GLOBAL_RANKING = """
+    SELECT
+        u.id,
+        u.nick,
+        COALESCE(pp.total, 0) + COALESCE(bp.total, 0) + COALESCE(gap.total, 0)
+            AS total_points,
+        COALESCE(pp.total, 0) AS match_points,
+        COALESCE(bp.total, 0) + COALESCE(gap.total, 0) AS bonus_points
+    FROM users u
+    LEFT JOIN (
+        SELECT p.user_id, SUM(p.points_awarded) AS total
+        FROM predictions p
+        JOIN matches m ON m.id = p.match_id AND m.status = 'finished'
+        JOIN seasons s ON s.id = m.season_id AND s.label = '2026'
+        JOIN competitions c ON c.id = s.competition_id AND c.code = 'WC'
+        GROUP BY p.user_id
+    ) pp ON pp.user_id = u.id
+    LEFT JOIN (
+        SELECT user_id, SUM(points_awarded) AS total
+        FROM bonus_predictions
+        GROUP BY user_id
+    ) bp ON bp.user_id = u.id
+    LEFT JOIN (
+        SELECT user_id, SUM(points_awarded) AS total
+        FROM group_advance_predictions
+        GROUP BY user_id
+    ) gap ON gap.user_id = u.id
+    ORDER BY total_points DESC, u.nick ASC
+"""
+
+
+# private league ranking — same shape as global, but
+# JOIN with private_league_members filters to members of this league.
+# bonuses are global per user (decisions #009) — same totals as the global
+# ranking, just restricted to this league's members. takes one param (league_id).
+SQL_LEAGUE_RANKING = """
+    SELECT
+        u.id,
+        u.nick,
+        COALESCE(pp.total, 0) + COALESCE(bp.total, 0) + COALESCE(gap.total, 0)
+            AS total_points,
+        COALESCE(pp.total, 0) AS match_points,
+        COALESCE(bp.total, 0) + COALESCE(gap.total, 0) AS bonus_points
+    FROM users u
+    JOIN private_league_members plm
+        ON plm.user_id = u.id AND plm.private_league_id = %s
+    LEFT JOIN (
+        SELECT p.user_id, SUM(p.points_awarded) AS total
+        FROM predictions p
+        JOIN matches m ON m.id = p.match_id AND m.status = 'finished'
+        JOIN seasons s ON s.id = m.season_id AND s.label = '2026'
+        JOIN competitions c ON c.id = s.competition_id AND c.code = 'WC'
+        GROUP BY p.user_id
+    ) pp ON pp.user_id = u.id
+    LEFT JOIN (
+        SELECT user_id, SUM(points_awarded) AS total
+        FROM bonus_predictions
+        GROUP BY user_id
+    ) bp ON bp.user_id = u.id
+    LEFT JOIN (
+        SELECT user_id, SUM(points_awarded) AS total
+        FROM group_advance_predictions
+        GROUP BY user_id
+    ) gap ON gap.user_id = u.id
+    ORDER BY total_points DESC, u.nick ASC
+"""
+
+
+# --- ranking queries ---
+
+def _ranking_rows(rows, bonuses: bool = True) -> list[dict]:
+    # legacy mundial ranking: bonuses=False ranks by match points only
+    entries = []
+    for r in rows:
+        match_pts = int(r["match_points"])
+        bonus_pts = int(r["bonus_points"])
+        entries.append({
+            "user_id": r["id"],
+            "nick": r["nick"],
+            "match_points": match_pts,
+            "bonus_points": bonus_pts,
+            "total_points": match_pts + bonus_pts if bonuses else match_pts,
+        })
+    entries.sort(key=lambda e: (-e["total_points"], e["nick"]))
+    for i, e in enumerate(entries):
+        e["rank"] = i + 1
+    return entries
+
+
+def get_global_ranking(bonuses: bool = True) -> list[dict]:
+    # every user (even with 0 points), rank computed in python
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_GLOBAL_RANKING)
+                return _ranking_rows(cur.fetchall(), bonuses)
+    finally:
+        release_conn(conn)
+
+
+def get_league_ranking(league_id: int, bonuses: bool = True) -> list[dict]:
+    # same shape as global ranking but restricted to league members
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_LEAGUE_RANKING, (league_id,))
+                return _ranking_rows(cur.fetchall(), bonuses)
+    finally:
+        release_conn(conn)
+
+
+# --- season + private league rankings (multi-competition) ---
+# totals per user over a SET of seasons, built from three small aggregates so
+# the 1:N joins never multiply each other (same trick as the old queries).
+# only finished matches count, so cancelled / awarded ones (points NULL) never
+# do. column names match what domain.ranking.sort_ranking expects.
+#   pred   - match points + hit counts of finished matches in the seasons
+#   bonus  - old global champion picks tagged with one of the seasons (Mundial archive)
+#   gadv   - old global group advance picks tagged with one of the seasons
+# the fragment takes: season ids, season ids + include_bonuses, season ids + include_bonuses.
+# include_bonuses = false switches bonus/gadv off ("bez bonusów" Mundial ranking)
+
+_SQL_SCORE_CTES = """
+    pred AS (
+        SELECT p.user_id,
+               COALESCE(SUM(p.points_awarded), 0) AS points,
+               COUNT(*) FILTER (WHERE p.hit_type = 'exact') AS exact_hits,
+               COUNT(*) FILTER (WHERE p.hit_type = 'diff') AS diff_hits,
+               COUNT(p.points_awarded) AS scored_predictions
+        FROM predictions p
+        JOIN matches m ON m.id = p.match_id
+        WHERE m.season_id = ANY(%s::bigint[]) AND m.status = 'finished'
+        GROUP BY p.user_id
+    ),
+    bonus AS (
+        SELECT user_id, SUM(points_awarded) AS total
+        FROM bonus_predictions
+        WHERE season_id = ANY(%s::bigint[]) AND %s
+        GROUP BY user_id
+    ),
+    gadv AS (
+        SELECT user_id, SUM(points_awarded) AS total
+        FROM group_advance_predictions
+        WHERE season_id = ANY(%s::bigint[]) AND %s
+        GROUP BY user_id
+    )
+"""
+
+# season ranking: everyone who predicted a match of the season (or has an old
+# bonus pick for it, only while bonuses count). match_points / bonus_points
+# = the breakdown of total_points.
+# params: season ids, (season ids, flag) x2, season ids, (season ids, flag) x2
+SQL_SEASON_RANKING = (
+    "WITH" + _SQL_SCORE_CTES + """,
+    participants AS (
+        SELECT p.user_id
+        FROM predictions p
+        JOIN matches m ON m.id = p.match_id
+        WHERE m.season_id = ANY(%s::bigint[])
+        UNION
+        SELECT user_id FROM bonus_predictions WHERE season_id = ANY(%s::bigint[]) AND %s
+        UNION
+        SELECT user_id FROM group_advance_predictions WHERE season_id = ANY(%s::bigint[]) AND %s
+    )
+    SELECT
+        u.id AS user_id,
+        u.nick,
+        COALESCE(pred.points, 0) + COALESCE(bonus.total, 0) + COALESCE(gadv.total, 0)
+            AS total_points,
+        COALESCE(pred.points, 0) AS match_points,
+        COALESCE(bonus.total, 0) + COALESCE(gadv.total, 0) AS bonus_points,
+        COALESCE(pred.exact_hits, 0) AS exact_hits,
+        COALESCE(pred.diff_hits, 0) AS diff_hits,
+        COALESCE(pred.scored_predictions, 0) AS scored_predictions
+    FROM participants pa
+    JOIN users u ON u.id = pa.user_id
+    LEFT JOIN pred ON pred.user_id = u.id
+    LEFT JOIN bonus ON bonus.user_id = u.id
+    LEFT JOIN gadv ON gadv.user_id = u.id
+"""
+)
+
+# private league ranking: every member (also with 0 points), seasons chosen by
+# the caller, plus the points of this league's bonus answers for those seasons.
+# bonus_points = old global bonuses + league bonus answers.
+# params: season ids, (season ids, flag) x2, league id, season ids, league id
+SQL_LEAGUE_SEASONS_RANKING = (
+    "WITH" + _SQL_SCORE_CTES + """,
+    league_bonus AS (
+        SELECT a.user_id, SUM(a.points_awarded) AS total
+        FROM league_bonus_answers a
+        JOIN league_bonus_questions q ON q.id = a.question_id
+        WHERE q.private_league_id = %s AND q.season_id = ANY(%s::bigint[])
+        GROUP BY a.user_id
+    )
+    SELECT
+        u.id AS user_id,
+        u.nick,
+        COALESCE(pred.points, 0) + COALESCE(bonus.total, 0) + COALESCE(gadv.total, 0)
+            + COALESCE(lb.total, 0) AS total_points,
+        COALESCE(pred.points, 0) AS match_points,
+        COALESCE(bonus.total, 0) + COALESCE(gadv.total, 0) + COALESCE(lb.total, 0) AS bonus_points,
+        COALESCE(pred.exact_hits, 0) AS exact_hits,
+        COALESCE(pred.diff_hits, 0) AS diff_hits,
+        COALESCE(pred.scored_predictions, 0) AS scored_predictions
+    FROM private_league_members plm
+    JOIN users u ON u.id = plm.user_id
+    LEFT JOIN pred ON pred.user_id = u.id
+    LEFT JOIN bonus ON bonus.user_id = u.id
+    LEFT JOIN gadv ON gadv.user_id = u.id
+    LEFT JOIN league_bonus lb ON lb.user_id = u.id
+    WHERE plm.private_league_id = %s
+"""
+)
+
+
+def _season_rows(rows) -> list[dict]:
+    # plain ints (SUM/COUNT may come back as Decimal/long), no rank yet
+    return [
+        {
+            "user_id": r["user_id"],
+            "nick": r["nick"],
+            "total_points": int(r["total_points"]),
+            # breakdown, queries without it (coupon progress) = all match points
+            "match_points": int(r.get("match_points", r["total_points"])),
+            "bonus_points": int(r.get("bonus_points", 0)),
+            "exact_hits": int(r["exact_hits"]),
+            "diff_hits": int(r["diff_hits"]),
+            "scored_predictions": int(r["scored_predictions"]),
+        }
+        for r in rows
+    ]
+
+
+def get_season_ranking(season_id: int, include_bonuses: bool = True) -> list[dict]:
+    # unsorted rows, the router ranks them with domain.ranking.sort_ranking.
+    # include_bonuses = False -> only match points (old Mundial bonuses left out)
+    ids = [season_id]
+    flag = bool(include_bonuses)
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(SQL_SEASON_RANKING, (ids, ids, flag, ids, flag) * 2)
+                return _season_rows(cur.fetchall())
+    finally:
+        release_conn(conn)
+
+
+def get_league_season_ranking(
+    league_id: int, season_ids: list[int], include_bonuses: bool = True,
+) -> list[dict]:
+    # league members over the given seasons + league bonus answer points.
+    # an empty season list is fine: everybody has 0 points then.
+    # include_bonuses = False leaves out only the old global Mundial bonuses
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    SQL_LEAGUE_SEASONS_RANKING,
+                    (season_ids, season_ids, bool(include_bonuses), season_ids, bool(include_bonuses),
+                     league_id, season_ids, league_id),
+                )
+                return _season_rows(cur.fetchall())
+    finally:
+        release_conn(conn)
+
+
+# live league table: every LIVE match in the given seasons with the picks of
+# league members (LEFT JOIN, so a live match nobody typed still comes back
+# with user_id NULL). coupon_only = 'coupon' league: only matches on any coupon
+# of this league. is_joker = the member's joker on a coupon of this league.
+# params: league, league, season ids, coupon_only, league
+SQL_LIST_LEAGUE_LIVE_PREDICTIONS = """
+    SELECT m.id AS match_id, m.season_id, r.phase, m.status,
+           m.home_goals, m.away_goals,
+           mp.user_id, mp.pred_home, mp.pred_away,
+           EXISTS (
+               SELECT 1
+               FROM league_coupon_jokers j
+               JOIN league_coupons jc ON jc.id = j.coupon_id
+               WHERE jc.private_league_id = %s
+                 AND j.user_id = mp.user_id AND j.match_id = m.id
+           ) AS is_joker
+    FROM matches m
+    JOIN rounds r ON r.id = m.round_id
+    LEFT JOIN (
+        SELECT p.match_id, p.user_id, p.pred_home, p.pred_away
+        FROM predictions p
+        JOIN private_league_members plm
+            ON plm.user_id = p.user_id AND plm.private_league_id = %s
+    ) mp ON mp.match_id = m.id
+    WHERE m.status = 'live'
+      AND m.season_id = ANY(%s::bigint[])
+      AND (NOT %s OR EXISTS (
+          SELECT 1
+          FROM league_coupon_matches lcm
+          JOIN league_coupons lc ON lc.id = lcm.coupon_id
+          WHERE lcm.match_id = m.id AND lc.private_league_id = %s
+      ))
+    ORDER BY m.id ASC, mp.user_id ASC
+"""
+
+
+def list_league_live_predictions(league_id: int, season_ids: list[int], coupon_only: bool) -> list[dict]:
+    # rows for domain.live_points.league_live_points, empty when nothing is live
+    if not season_ids:
+        return []
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    SQL_LIST_LEAGUE_LIVE_PREDICTIONS,
+                    (league_id, league_id, season_ids, coupon_only, league_id),
+                )
+                return [dict(r) for r in cur.fetchall()]
+    finally:
+        release_conn(conn)
