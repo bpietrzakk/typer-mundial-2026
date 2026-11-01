@@ -8,11 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from db.queries import coupon as q
 from domain.coupon import check_coupon_edit, week_start, week_start_of
+from domain.joker import check_joker_clear, check_joker_set, joker_multiplier
 from domain.live_points import member_provisional_totals
 from domain.match_status import is_open_for_predictions
 from domain.ranking import sort_ranking
 from routers.deps import get_current_user
 from schemas.models import (
+    CouponJokerRequest,
     CouponUpdateRequest,
     LeagueCouponResponse,
     MyCouponResponse,
@@ -35,6 +37,15 @@ _EDIT_ERRORS = {
     "out_of_week": (status.HTTP_422_UNPROCESSABLE_CONTENT, "Ten mecz nie jest grany w tym tygodniu"),
     "started_add": (status.HTTP_409_CONFLICT, "Nie można dodać meczu, który już się zaczął"),
     "started_remove": (status.HTTP_409_CONFLICT, "Nie można usunąć meczu, który już się zaczął"),
+}
+
+# error code from domain.joker -> (http status, message)
+_JOKER_ERRORS = {
+    "mode": (status.HTTP_409_CONFLICT, "Joker działa tylko w lidze, w której ranking liczy mecze z kuponu"),
+    "not_on_coupon": (status.HTTP_422_UNPROCESSABLE_CONTENT, "Ten mecz nie jest na kuponie tego tygodnia"),
+    "locked": (status.HTTP_409_CONFLICT, "Mecz z jokerem już się zaczął — jokera nie można przenieść ani zdjąć"),
+    "started": (status.HTTP_409_CONFLICT, "Jokera można postawić tylko na mecz, który się jeszcze nie zaczął"),
+    "race": (status.HTTP_409_CONFLICT, "Joker zmienił się w międzyczasie — odśwież kupon"),
 }
 
 
@@ -80,13 +91,19 @@ def _coupon_response(league: dict, can_manage: bool, week: date, user_id: int, n
     match_ids = [m["match_id"] for m in q.list_coupons_match_ids([coupon_id])] if coupon else []
     matches = _with_can_predict(q.list_matches_by_ids(user_id, match_ids), now)
 
-    members = q.list_member_coupon_progress(league["id"], coupon_id)
+    # jokers only matter in leagues ranked by their coupons
+    multiplier = joker_multiplier(league["ranking_mode"])
+    jokers = q.list_coupon_jokers(coupon_id) if coupon and multiplier > 1 else {}
+
+    members = q.list_member_coupon_progress(league["id"], coupon_id, multiplier)
     member_count = len(members)
     typed_counts = q.count_typed_per_match(league["id"], coupon_id) if coupon else {}
 
     revealed: dict[int, list[dict]] = {}
     if coupon:
+        # only started matches come back, so other people's jokers never leak early
         for p in q.list_started_member_predictions(league["id"], coupon_id, now):
+            p["is_joker"] = jokers.get(p["user_id"]) == p["match_id"]
             revealed.setdefault(p["match_id"], []).append(p)
 
     for m in matches:
@@ -101,7 +118,7 @@ def _coupon_response(league: dict, can_manage: bool, week: date, user_id: int, n
 
     # live matches: "if it ended now" for me and for every revealed member pick
     matches = add_provisional_points(matches)
-    provisional = member_provisional_totals(matches)
+    provisional = member_provisional_totals(matches, multiplier)
 
     total = len(matches)
     return {
@@ -115,6 +132,7 @@ def _coupon_response(league: dict, can_manage: bool, week: date, user_id: int, n
         "coupon_size": league["coupon_size"],
         "coupon_auto": league["coupon_auto"],
         "can_edit": bool(can_manage) and week == current_week,
+        "my_joker_match_id": jokers.get(user_id),
         "total": total,
         "matches": matches,
         "members": [
@@ -179,6 +197,57 @@ def regenerate_coupon(
     return _coupon_response(league, True, week, current_user["id"], now)
 
 
+def _current_coupon_checks(league_id: int, now: datetime) -> tuple[int | None, dict]:
+    # (coupon id, match checks) of this week's coupon, (None, {}) without one
+    coupon = q.get_coupon(league_id, week_start(now))
+    if coupon is None:
+        return None, {}
+    return coupon["id"], to_checks(q.list_coupon_match_checks(coupon["id"]))
+
+
+@router.put("/leagues/{league_id}/coupon/joker", response_model=LeagueCouponResponse)
+def set_coupon_joker(
+    league_id: int,
+    body: CouponJokerRequest,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    # member puts (or moves) the joker of this week on one coupon match
+    league, can_manage = _require_member(league_id, current_user["id"])
+    user_id = current_user["id"]
+    now = _now()
+    coupon_id, checks = _current_coupon_checks(league_id, now)
+    current = q.list_coupon_jokers(coupon_id).get(user_id) if coupon_id else None
+
+    error = check_joker_set(league["ranking_mode"], checks, current, body.match_id, now)
+    if error is None and current != body.match_id and not q.set_joker(coupon_id, user_id, body.match_id, current):
+        error = "race"
+    if error is not None:
+        code, detail = _JOKER_ERRORS[error]
+        raise HTTPException(status_code=code, detail=detail)
+    return _coupon_response(league, can_manage, week_start(now), user_id, now)
+
+
+@router.delete("/leagues/{league_id}/coupon/joker", response_model=LeagueCouponResponse)
+def clear_coupon_joker(
+    league_id: int,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    # member takes the joker back (no joker = nothing to do)
+    league, can_manage = _require_member(league_id, current_user["id"])
+    user_id = current_user["id"]
+    now = _now()
+    coupon_id, checks = _current_coupon_checks(league_id, now)
+    current = q.list_coupon_jokers(coupon_id).get(user_id) if coupon_id else None
+
+    error = check_joker_clear(league["ranking_mode"], checks, current, now)
+    if error is not None:
+        code, detail = _JOKER_ERRORS[error]
+        raise HTTPException(status_code=code, detail=detail)
+    if current is not None:
+        q.clear_joker(coupon_id, user_id, current)
+    return _coupon_response(league, can_manage, week_start(now), user_id, now)
+
+
 @router.get("/me/coupon", response_model=MyCouponResponse)
 def get_my_coupon(current_user: dict = Depends(get_current_user)) -> dict:
     # the start screen: coupons of all my leagues this week, a match only once
@@ -191,10 +260,19 @@ def get_my_coupon(current_user: dict = Depends(get_current_user)) -> dict:
     labels: dict[int, list[dict]] = {}
     if leagues:
         source = "leagues"
-        names = {lg["id"]: lg["name"] for lg in leagues}
+        by_id = {lg["id"]: lg for lg in leagues}
         coupons = [c for c in (ensure_league_coupon(lg, week, now) for lg in leagues) if c is not None]
+        my_jokers = q.list_user_jokers(user_id, [c["id"] for c in coupons])
         for row in q.list_coupons_match_ids([c["id"] for c in coupons]):
-            league_ref = {"id": row["private_league_id"], "name": names[row["private_league_id"]]}
+            league = by_id[row["private_league_id"]]
+            league_ref = {
+                "id": league["id"],
+                "name": league["name"],
+                "ranking_mode": league["ranking_mode"],
+                # a scope league never shows a joker, even an old one
+                "is_my_joker": joker_multiplier(league["ranking_mode"]) > 1
+                and my_jokers.get(row["coupon_id"]) == row["match_id"],
+            }
             refs = labels.setdefault(row["match_id"], [])
             if league_ref not in refs:
                 refs.append(league_ref)

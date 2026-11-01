@@ -66,13 +66,17 @@ Sama logika liczenia jest w czystych funkcjach w `domain/scoring.py` — opis za
 
 `user_competitions` zapisuje, które rozgrywki użytkownik obserwuje (filtr listy meczów). Ligi prywatne (`private_leagues`, `private_league_members`) działają jak wcześniej — kod zaproszenia, członkowie, ranking. Nowa tabela `private_league_competitions` pozwala zawęzić ligę do wybranych rozgrywek (brak wierszy = wszystkie).
 
-Bonusy są teraz opcją ligi prywatnej: właściciel dodaje pytanie bonusowe (`league_bonus_questions`, na razie rodzaj `champion` — „kto wygra sezon”) z liczbą punktów i terminem, a członkowie odpowiadają w `league_bonus_answers`. Punkty z bonusów liczą się tylko w rankingu tej ligi.
+Bonusy są teraz opcją ligi prywatnej: właściciel dodaje pytanie bonusowe (`league_bonus_questions`) z liczbą punktów i terminem, a członkowie odpowiadają w `league_bonus_answers`. Punkty z bonusów liczą się tylko w rankingu tej ligi.
+
+Rodzaje pytań: `champion` („kto wygra sezon”, rozstrzyga synchronizacja albo admin aplikacji przez `resolved_team_id`, jedno na sezon w lidze — częściowy indeks unikalny `uq_league_bonus_questions_champion`) i od migracji 010 `team_pick` — własne pytanie o drużyny sezonu z treścią w `title` (np. „Kto spadnie z Premier League?”) i `answers_count` (1–10, ile drużyn wybiera gracz; dla `champion` zawsze 1). Odpowiedź gracza to **jeden wiersz na wybraną drużynę** (`PRIMARY KEY (question_id, user_id, team_id)`), a `points_awarded` każdego wiersza to punkty za tę drużynę — suma wierszy daje punkty gracza, więc zapytania rankingów się nie zmieniły. Poprawne drużyny pytania `team_pick` zaznacza właściciel po terminie w **`league_bonus_correct_teams`** (`question_id`, `team_id`; od 1 do `answers_count` drużyn) i wtedy ustawia się `resolved_at`.
 
 ## Kupon tygodnia
 
 Migracja 008 (`008_league_coupons.sql`, rollback w `rollback/008_league_coupons.down.sql`). Liga prywatna dostała trzy ustawienia: `ranking_mode` (`scope` — ranking liczy wszystkie mecze z zakresu ligi, jak wcześniej; `coupon` — tylko mecze z kuponów tej ligi), `coupon_size` (5–15, domyślnie 10) i `coupon_auto` (czy automat układa kupon w poniedziałek). Domyślny `ranking_mode` w bazie to `scope`, żeby istniejące ligi nie zmieniły zasad; nowe ligi front zakłada z `coupon`.
 
 **`league_coupons`** to jeden kupon ligi na tydzień: `week_start` to poniedziałek (data polska), `created_by` mówi, czy kupon ułożył automat (`auto`), czy organizator (`owner`). `UNIQUE (private_league_id, week_start)` sprawia, że automat odpalony dwa razy nie zrobi dwóch kuponów. **`league_coupon_matches`** to mecze na kuponie (`PRIMARY KEY (coupon_id, match_id)`, indeks po `match_id`). Typy się nie zmieniły — nadal jeden typ na użytkownika i mecz w `predictions`, więc mecz z dwóch kuponów typuje się raz. Tydzień bez meczów nie ma wiersza kuponu.
+
+**`league_coupon_jokers`** (migracja 010) to joker członka na kuponie: `coupon_id`, `user_id`, `match_id`, `set_at`, `PRIMARY KEY (coupon_id, user_id)` — jeden joker na osobę i tydzień. Klucz obcy `(coupon_id, match_id)` wskazuje na `league_coupon_matches`, więc mecz usunięty z kuponu zabiera jokera ze sobą. Punkty meczu z jokerem liczą się ×2 tylko w rankingu ligi w trybie `coupon` i w wynikach tygodnia; `predictions.points_awarded` się nie zmienia.
 
 Tabeli ligowej nie trzymamy: miejsca drużyn do doboru meczów liczymy w locie z zakończonych meczów sezonu (fazy `regular`/`league_phase`, 3/1/0, potem bilans i bramki — `domain.coupon.league_table`), a przed trzecią kolejką miejsc nie ma.
 

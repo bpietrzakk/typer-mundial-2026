@@ -16,19 +16,29 @@ from db.queries.league_bonus import (
     list_league_scope,
     list_question_answers,
     resolve_season_champion,
+    resolve_team_pick_question,
     save_answer,
 )
 from domain.league_bonus import (
-    BONUS_KINDS,
+    MAX_ANSWERS_COUNT,
     MAX_POINTS,
+    MAX_TITLE_LENGTH,
+    MIN_ANSWERS_COUNT,
     MIN_POINTS,
+    MIN_TITLE_LENGTH,
+    answer_total_points,
     are_answers_visible,
     can_delete_question,
+    can_resolve_question,
+    check_answer_teams,
+    check_correct_teams,
+    check_question_shape,
     is_bonus_answer_allowed,
     is_competition_in_scope,
     is_deadline_in_future,
     is_points_valid,
     is_season_status_allowed,
+    normalize_title,
 )
 from domain.match_status import as_utc
 from routers.deps import get_admin_user, get_current_user
@@ -38,11 +48,20 @@ from schemas.models import (
     LeagueBonusQuestionResponse,
     LeagueBonusResolveRequest,
     LeagueBonusResolveResponse,
+    LeagueBonusTeamPickResolveRequest,
 )
 
 
 # full paths here: the router mixes /leagues/... and /admin/... endpoints
 router = APIRouter(tags=["league-bonus"])
+
+# error code from domain.league_bonus.check_question_shape -> message
+_SHAPE_ERRORS = {
+    "kind": "Nieobsługiwany rodzaj pytania",
+    "title_missing": "Podaj treść pytania",
+    "title_length": f"Treść pytania musi mieć od {MIN_TITLE_LENGTH} do {MAX_TITLE_LENGTH} znaków",
+    "answers_count": f"Liczba poprawnych odpowiedzi musi być od {MIN_ANSWERS_COUNT} do {MAX_ANSWERS_COUNT}",
+}
 
 
 def _now() -> datetime:
@@ -98,9 +117,39 @@ def _team(row: dict, prefix: str) -> dict | None:
     }
 
 
+def _teams(value) -> list[dict]:
+    # json list from the sql aggregate (None = no rows)
+    return [
+        {"id": t["id"], "name": t["name"], "short_name": t.get("short_name"), "crest_url": t.get("crest_url")}
+        for t in (value or [])
+    ]
+
+
+def _group_answers(answers: list[dict]) -> list[dict]:
+    # one row per picked team -> one entry per player, order of the sql kept
+    by_user: dict[int, dict] = {}
+    for a in answers:
+        entry = by_user.setdefault(a["user_id"], {"user_id": a["user_id"], "nick": a["nick"], "teams": [], "pts": []})
+        entry["teams"].append(_team(a, "team"))
+        entry["pts"].append(a["points_awarded"])
+    return [
+        {
+            "user_id": e["user_id"],
+            "nick": e["nick"],
+            "team": e["teams"][0],
+            "teams": e["teams"],
+            "points_awarded": answer_total_points(e["pts"]),
+        }
+        for e in by_user.values()
+    ]
+
+
 def _question_to_response(row: dict, answers: list[dict], now: datetime) -> dict:
     # flat sql row + visible answers -> the question shape from the contract
-    my_team = _team(row, "my_team")
+    my_teams = _teams(row.get("my_teams"))
+    resolved_team = _team(row, "resolved_team")
+    # champion: the season winner, team_pick: the teams marked by the owner
+    resolved_teams = _teams(row.get("correct_teams")) or ([resolved_team] if resolved_team else [])
     return {
         "id": row["id"],
         "season": {
@@ -113,23 +162,19 @@ def _question_to_response(row: dict, answers: list[dict], now: datetime) -> dict
             },
         },
         "kind": row["kind"],
+        "title": row.get("title"),
+        "answers_count": row.get("answers_count") or 1,
         "points": row["points"],
         "deadline_at": _utc(row["deadline_at"]),
         "is_open": is_bonus_answer_allowed(row["deadline_at"], now),
-        "resolved_team": _team(row, "resolved_team"),
+        "resolved_team": resolved_teams[0] if resolved_teams else None,
+        "resolved_teams": resolved_teams,
         "resolved_at": _utc(row["resolved_at"]),
         "my_answer": (
-            {"team": my_team, "points_awarded": row["my_points_awarded"]} if my_team else None
+            {"team": my_teams[0], "teams": my_teams, "points_awarded": row["my_points_awarded"]}
+            if my_teams else None
         ),
-        "answers": [
-            {
-                "user_id": a["user_id"],
-                "nick": a["nick"],
-                "team": _team(a, "team"),
-                "points_awarded": a["points_awarded"],
-            }
-            for a in answers
-        ],
+        "answers": _group_answers(answers),
     }
 
 
@@ -172,11 +217,10 @@ def create_bonus_question(
     deadline_at = as_utc(body.deadline_at)
 
     # checks that need no database first
-    if body.kind not in BONUS_KINDS:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Nieobsługiwany rodzaj pytania",
-        )
+    title = normalize_title(body.title) if body.kind == "team_pick" else None
+    shape_error = check_question_shape(body.kind, title, body.answers_count)
+    if shape_error is not None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=_SHAPE_ERRORS[shape_error])
     if not is_points_valid(body.points):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -206,7 +250,7 @@ def create_bonus_question(
     try:
         question_id = create_league_question(
             league_id, body.season_id, body.kind, body.points, deadline_at,
-            current_user["id"],
+            current_user["id"], title, body.answers_count,
         )
     except BonusQuestionExists:
         raise HTTPException(
@@ -256,19 +300,90 @@ def answer_bonus_question(
             status_code=status.HTTP_409_CONFLICT,
             detail="Termin odpowiedzi minął",
         )
-    # the picked team has to play in the season of the question
-    if not is_team_in_season(row["season_id"], body.team_id):
+    # team_id (one pick) or team_ids (team_pick with several picks)
+    team_ids = body.team_ids if body.team_ids is not None else (
+        [body.team_id] if body.team_id is not None else []
+    )
+    if not team_ids:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Wybierz drużynę")
+    answers_count = row.get("answers_count") or 1
+    picks_error = check_answer_teams(team_ids, answers_count)
+    if picks_error == "duplicate":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Każda drużyna może być wybrana tylko raz",
+        )
+    if picks_error == "count":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Wybierz dokładnie {answers_count} drużyn" if answers_count > 1 else "Wybierz jedną drużynę",
+        )
+    # every picked team has to play in the season of the question
+    if not all(is_team_in_season(row["season_id"], team_id) for team_id in team_ids):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Ta drużyna nie gra w tym sezonie",
         )
 
     try:
-        save_answer(question_id, current_user["id"], body.team_id)
+        save_answer(question_id, current_user["id"], team_ids)
     except BonusQuestionNotFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pytanie nie istnieje")
 
     # deadline has not passed (checked above), so answers stay hidden in this reply
+    row = _get_question_or_404(league_id, question_id, current_user)
+    return _build_questions([row], now)[0]
+
+
+@router.post(
+    "/leagues/{league_id}/bonus-questions/{question_id}/resolve",
+    response_model=LeagueBonusQuestionResponse,
+)
+def resolve_bonus_question(
+    league_id: int,
+    question_id: int,
+    body: LeagueBonusTeamPickResolveRequest,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    # owner marks the correct teams of an own question (again = correction)
+    _require_owner(league_id, current_user)
+    row = _get_question_or_404(league_id, question_id, current_user)
+    now = _now()
+    blocked = can_resolve_question(row["kind"], row["deadline_at"], now)
+    if blocked == "kind":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Mistrza sezonu rozstrzyga aplikacja po zakończeniu rozgrywek",
+        )
+    if blocked == "open":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Pytanie można rozstrzygnąć dopiero po terminie odpowiedzi",
+        )
+
+    answers_count = row.get("answers_count") or 1
+    picks_error = check_correct_teams(body.team_ids, answers_count)
+    if picks_error == "duplicate":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Każda drużyna może być zaznaczona tylko raz",
+        )
+    if picks_error == "count":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Zaznacz od 1 do {answers_count} poprawnych drużyn",
+        )
+    if not all(is_team_in_season(row["season_id"], team_id) for team_id in body.team_ids):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Ta drużyna nie gra w tym sezonie",
+        )
+
+    try:
+        resolve_team_pick_question(question_id, body.team_ids)
+    except BonusQuestionNotFound:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pytanie nie istnieje")
+
     row = _get_question_or_404(league_id, question_id, current_user)
     return _build_questions([row], now)[0]
 

@@ -2,8 +2,9 @@ import CouponRow from './CouponRow';
 import { formatDayLong, groupMatchesByDay, relativeDayLabel } from '../utils/matchUi';
 
 // coupon matches grouped by day, one compact row per match.
-// leaguesOf(match) -> league tags, renderExtra(match) -> content under the row
-export default function CouponDayList({ matches, onSaved, onLocked, showCompetition = true, leaguesOf, renderExtra }) {
+// leaguesOf(match) -> league tags, renderExtra(match) -> content under the row,
+// jokerOf(match) -> joker props of the row (undefined = no joker button)
+export default function CouponDayList({ matches, onSaved, onLocked, showCompetition = true, leaguesOf, jokerOf, renderExtra }) {
   const groups = groupMatchesByDay(matches);
 
   return (
@@ -25,6 +26,7 @@ export default function CouponDayList({ matches, onSaved, onLocked, showCompetit
                   onLocked={onLocked}
                   showCompetition={showCompetition}
                   leagues={leaguesOf?.(m)}
+                  joker={jokerOf?.(m)}
                 >
                   {renderExtra?.(m)}
                 </CouponRow>

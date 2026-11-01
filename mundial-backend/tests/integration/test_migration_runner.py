@@ -128,6 +128,30 @@ def test_rollback_restores_schema_and_data(conn, app_pool):
                 (cur.fetchone()[0], match_id),
             )
 
+    # a joker (010) and a team_pick question with two picks: the rollback drops
+    # the team_pick question and the old answer key fits the champion rows again
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO league_coupon_jokers (coupon_id, user_id, match_id) "
+                "SELECT coupon_id, %s, match_id FROM league_coupon_matches LIMIT 1",
+                (ids["users"]["ala"],),
+            )
+            cur.execute(
+                "INSERT INTO league_bonus_questions "
+                "(private_league_id, season_id, kind, title, answers_count, points, deadline_at) "
+                "VALUES (%s, %s, 'team_pick', 'Kto spadnie?', 2, 5, NOW()) RETURNING id",
+                (ids["private_league"], season_id),
+            )
+            pick_id = cur.fetchone()[0]
+            for team_id in team_ids[:2]:
+                cur.execute(
+                    "INSERT INTO league_bonus_answers (question_id, user_id, team_id) VALUES (%s, %s, %s)",
+                    (pick_id, ids["users"]["ala"], team_id),
+                )
+    assert run_rollback(conn, "010") == "010_jokers_and_team_pick.down.sql"
+    assert "010_jokers_and_team_pick.sql" not in _ledger(conn)
+
     # 009 filled the football-data logos, its rollback clears them again
     assert scalar_logo(conn, "EPL") == "https://crests.football-data.org/PL.png"
     assert scalar_logo(conn, "WC") == "https://crests.football-data.org/wm26.png"

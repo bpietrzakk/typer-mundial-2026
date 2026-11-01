@@ -25,6 +25,7 @@ from db.queries.leagues import (
     replace_league_competitions,
 )
 from db.queries.ranking import get_league_season_ranking
+from domain.joker import joker_multiplier
 from domain.ranking import sort_ranking
 from routers.deps import get_current_user
 from schemas.models import (
@@ -305,5 +306,6 @@ def get_league_scoped_ranking(
         season_ids = list_active_season_ids_in_league_scope(league_id)
 
     if detail.get("ranking_mode") == "coupon":
-        return sort_ranking(get_league_coupon_ranking(league_id, season_ids))
+        # each member's joker match counts double (domain/joker.py)
+        return sort_ranking(get_league_coupon_ranking(league_id, season_ids, joker_multiplier("coupon")))
     return sort_ranking(get_league_season_ranking(league_id, season_ids))

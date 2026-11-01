@@ -220,13 +220,18 @@ def test_one_coupon_per_league_and_week(world, conn):
 
 def test_rollback_008_and_apply_again(world, conn):
     _set_coupon(conn, world["biuro"], [world["m"]["t4"]])
+    # 010 (jokers) hangs on the coupon tables, so it goes first
+    assert run_rollback(conn, "010") == "010_jokers_and_team_pick.down.sql"
+    assert run_rollback(conn, "009") == "009_competition_logos.down.sql"
     assert run_rollback(conn, "008") == "008_league_coupons.down.sql"
     assert scalar(conn, "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'league_coupons'") == 0
     assert scalar(
         conn, "SELECT COUNT(*) FROM information_schema.columns "
               "WHERE table_name = 'private_leagues' AND column_name = 'ranking_mode'",
     ) == 0
-    assert migrate_to(conn) == ["008_league_coupons.sql"]
+    assert migrate_to(conn) == [
+        "008_league_coupons.sql", "009_competition_logos.sql", "010_jokers_and_team_pick.sql",
+    ]
 
 
 # --- candidates + table from the database ---
@@ -546,3 +551,128 @@ def test_scheduler_skips_a_week_without_matches(world, conn):
     # december: nothing scheduled -> no empty coupon rows
     assert generate_missing_coupons(datetime(2026, 12, 9, 12, 0, tzinfo=UTC)) == 0
     assert scalar(conn, "SELECT COUNT(*) FROM league_coupons") == 0
+
+
+# --- joker (010, domain/joker.py) ---
+
+def _coupon_mode(conn, league_id):
+    execute(conn, "UPDATE private_leagues SET ranking_mode = 'coupon' WHERE id = %s", (league_id,))
+
+
+def _joker(conn, coupon_id, user_id, match_id):
+    execute(
+        conn,
+        "INSERT INTO league_coupon_jokers (coupon_id, user_id, match_id) VALUES (%s, %s, %s)",
+        (coupon_id, user_id, match_id),
+    )
+
+
+def test_joker_only_in_coupon_mode(world, api, conn):
+    m = world["m"]
+    _set_coupon(conn, world["biuro"], [m["t2"], m["t4"], m["t7"]])
+    resp = api("ala").put(f"/leagues/{world['biuro']}/coupon/joker", json={"match_id": m["t4"]})
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "Joker działa tylko w lidze, w której ranking liczy mecze z kuponu"
+    assert api("ala").get(f"/leagues/{world['biuro']}/coupon").json()["my_joker_match_id"] is None
+
+
+def test_set_move_and_clear_joker(world, api, conn):
+    m, lid = world["m"], world["biuro"]
+    _coupon_mode(conn, lid)
+    _set_coupon(conn, lid, [m["t2"], m["t4"], m["t7"]])
+    url = f"/leagues/{lid}/coupon/joker"
+
+    body = api("ala").put(url, json={"match_id": m["t4"]}).json()
+    assert body["my_joker_match_id"] == m["t4"]
+    # move to another open match
+    assert api("ala").put(url, json={"match_id": m["t7"]}).json()["my_joker_match_id"] == m["t7"]
+    # another member sees nothing of it
+    assert api("celina").get(f"/leagues/{lid}/coupon").json()["my_joker_match_id"] is None
+
+    started = api("ala").put(url, json={"match_id": m["t2"]})
+    assert started.status_code == 409
+    assert started.json()["detail"] == "Jokera można postawić tylko na mecz, który się jeszcze nie zaczął"
+    outside = api("ala").put(url, json={"match_id": m["u1"]})
+    assert outside.status_code == 422
+    assert outside.json()["detail"] == "Ten mecz nie jest na kuponie tego tygodnia"
+
+    assert api("ala").delete(url).json()["my_joker_match_id"] is None
+    # clearing twice is fine
+    assert api("ala").delete(url).status_code == 200
+    assert api("daniel").put(url, json={"match_id": m["t4"]}).status_code == 403
+
+
+def test_joker_is_locked_after_kickoff(world, api, conn, clock):
+    m, lid = world["m"], world["biuro"]
+    _coupon_mode(conn, lid)
+    _set_coupon(conn, lid, [m["t2"], m["t4"], m["t7"]])
+    url = f"/leagues/{lid}/coupon/joker"
+    assert api("ala").put(url, json={"match_id": m["t4"]}).status_code == 200
+
+    # t4 kicked off at 20:00
+    clock["now"] = datetime(2026, 11, 4, 20, 5, tzinfo=UTC)
+    moved = api("ala").put(url, json={"match_id": m["t7"]})
+    assert moved.status_code == 409
+    assert moved.json()["detail"] == "Mecz z jokerem już się zaczął — jokera nie można przenieść ani zdjąć"
+    assert api("ala").delete(url).status_code == 409
+    # same match again is fine
+    assert api("ala").put(url, json={"match_id": m["t4"]}).status_code == 200
+
+
+def test_joker_doubles_week_results_and_coupon_ranking(world, api, conn):
+    m, u, lid = world["m"], world["users"], world["biuro"]
+    coupon_id = _set_coupon(conn, lid, [m["t2"], m["t4"]])
+    # ala: t2 exact (5) with the joker -> 10
+    _joker(conn, coupon_id, u["ala"], m["t2"])
+
+    # scope league: the joker is ignored everywhere
+    body = api("celina").get(f"/leagues/{lid}/coupon").json()
+    assert {x["nick"]: x["total_points"] for x in body["members"]}["ala"] == 5
+    t2 = next(x for x in body["matches"] if x["id"] == m["t2"])
+    assert all(p["is_joker"] is False for p in t2["member_predictions"])
+
+    _coupon_mode(conn, lid)
+    body = api("celina").get(f"/leagues/{lid}/coupon").json()
+    assert {x["nick"]: x["total_points"] for x in body["members"]}["ala"] == 10
+    t2 = next(x for x in body["matches"] if x["id"] == m["t2"])
+    preds = {p["nick"]: p for p in t2["member_predictions"]}
+    # the prediction keeps its own points, the flag says it counts double
+    assert preds["ala"]["is_joker"] is True and preds["ala"]["points_awarded"] == 5
+    assert preds["bartek"]["is_joker"] is False
+    assert _ranking(api, lid) == {"ala": 10, "bartek": 0, "celina": 0}
+
+    # global numbers do not change
+    assert scalar(conn, "SELECT points_awarded FROM predictions WHERE user_id = %s AND match_id = %s",
+                  (u["ala"], m["t2"])) == 5
+
+
+def test_other_jokers_stay_hidden_before_kickoff(world, api, conn):
+    m, u, lid = world["m"], world["users"], world["biuro"]
+    _coupon_mode(conn, lid)
+    coupon_id = _set_coupon(conn, lid, [m["t2"], m["t4"]])
+    _joker(conn, coupon_id, u["ala"], m["t4"])
+    body = api("celina").get(f"/leagues/{lid}/coupon").json()
+    t4 = next(x for x in body["matches"] if x["id"] == m["t4"])
+    assert t4["member_predictions"] == []
+
+
+def test_joker_goes_with_a_match_dropped_from_the_coupon(world, api, conn):
+    m, u, lid = world["m"], world["users"], world["biuro"]
+    _coupon_mode(conn, lid)
+    coupon_id = _set_coupon(conn, lid, [m["t2"], m["t4"], m["t7"]])
+    _joker(conn, coupon_id, u["ala"], m["t7"])
+    execute(conn, "DELETE FROM league_coupon_matches WHERE coupon_id = %s AND match_id = %s", (coupon_id, m["t7"]))
+    assert scalar(conn, "SELECT COUNT(*) FROM league_coupon_jokers") == 0
+
+
+def test_my_coupon_marks_my_joker_per_league(world, api, conn):
+    m, u = world["m"], world["users"]
+    _coupon_mode(conn, world["biuro"])
+    biuro = _set_coupon(conn, world["biuro"], [m["t4"], m["t7"]])
+    _set_coupon(conn, world["rodzina"], [m["t4"]])
+    _joker(conn, biuro, u["ala"], m["t4"])
+    body = api("ala").get("/me/coupon").json()
+    t4 = next(x for x in body["matches"] if x["id"] == m["t4"])
+    refs = {ref["name"]: ref for ref in t4["leagues"]}
+    assert refs["Biuro"]["is_my_joker"] is True and refs["Biuro"]["ranking_mode"] == "coupon"
+    assert refs["Rodzina"]["is_my_joker"] is False and refs["Rodzina"]["ranking_mode"] == "scope"

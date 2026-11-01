@@ -107,26 +107,32 @@ Typy meczów `cancelled` / `awarded` nie liczą się nigdzie.
 
 ## Bonusy ligowe — agent D
 
-Pytanie (`league_bonus_questions`) dotyczy jednego sezonu, na razie `kind = "champion"`.
+Pytanie (`league_bonus_questions`) dotyczy jednego sezonu. Rodzaje (`kind`): `champion` („kto wygra sezon”, rozstrzyga synchronizacja / admin aplikacji, jedno na sezon w lidze) i `team_pick` (migracja 010: własna treść `title` od właściciela, `answers_count` = ile drużyn wybiera gracz i ile może być poprawnych, rozstrzyga właściciel; dowolnie wiele na sezon). Odpowiedź gracza = jeden wiersz `league_bonus_answers` na wybraną drużynę, punkty za każdą trafioną (`domain.league_bonus.calculate_pick_points`).
 
 | Metoda | Ścieżka | Opis |
 |---|---|---|
 | GET | `/leagues/{id}/bonus-questions` | Członek ligi (403). Lista pytań, najnowszy termin pierwszy. |
-| POST | `/leagues/{id}/bonus-questions` | Właściciel (403). Body `{"season_id", "kind": "champion", "points": 1..100, "deadline_at"}`. `deadline_at` w przyszłości (422), sezon `upcoming`/`active` (422), rozgrywka sezonu w zakresie ligi (422). Duplikat (liga, sezon, kind) → 409. → 201 z pytaniem. |
+| POST | `/leagues/{id}/bonus-questions` | Właściciel (403). Body `{"season_id", "kind": "champion" \| "team_pick", "points": 1..100, "deadline_at", "title": null, "answers_count": 1}`. `team_pick`: `title` 3–120 znaków po przycięciu (422 „Podaj treść pytania” / długość), `answers_count` 1–10 (422); `champion`: `answers_count` musi być 1, `title` ignorowany. `deadline_at` w przyszłości (422), sezon `upcoming`/`active` (422), rozgrywka sezonu w zakresie ligi (422). Drugie pytanie `champion` o ten sam sezon w lidze → 409. → 201 z pytaniem. |
 | DELETE | `/leagues/{id}/bonus-questions/{qid}` | Właściciel, tylko przed terminem (409 po terminie) → 204. |
-| PUT | `/leagues/{id}/bonus-questions/{qid}/answer` | Członek. Body `{"team_id"}`. Tylko przed terminem (409, `domain.league_bonus.is_bonus_answer_allowed`). Drużyna musi być w `season_teams` sezonu (422). Upsert → 200 z `my_answer`. |
+| PUT | `/leagues/{id}/bonus-questions/{qid}/answer` | Członek. Body `{"team_ids": [..]}` (albo stare `{"team_id"}` = jedna drużyna). Dokładnie `answers_count` różnych drużyn (422 „Wybierz dokładnie N drużyn” / „Każda drużyna może być wybrana tylko raz”). Tylko przed terminem (409, `domain.league_bonus.is_bonus_answer_allowed`). Każda drużyna musi być w `season_teams` sezonu (422). Odpowiedź zastępowana w całości → 200 z `my_answer`. |
+| POST | `/leagues/{id}/bonus-questions/{qid}/resolve` | Właściciel (403), tylko `team_pick` (422 dla `champion`), tylko po terminie (409). Body `{"team_ids": [..]}` — od 1 do `answers_count` różnych drużyn z sezonu (422). Zapisuje poprawne drużyny, `resolved_at`, punktuje każdą wybraną drużynę graczy; ponowne wywołanie = korekta. → 200 z pytaniem. |
 | POST | `/admin/seasons/{id}/champion` | Admin. Body `{"team_id"}` — ręczne rozstrzygnięcie / korekta. Wywołuje `resolve_season_champion`. → `{"questions_resolved": n, "answers_scored": m}`. |
 
 ```jsonc
 // pytanie
 { "id": 4,
   "season": { "id": 5, "label": "2026/27", "competition": CompetitionRef },
-  "kind": "champion", "points": 20,
+  "kind": "champion",              // champion | team_pick
+  "title": null,                   // team_pick: "Kto spadnie z Premier League?"
+  "answers_count": 1,              // ile drużyn wybiera gracz
+  "points": 20,                    // team_pick: za każdą trafioną drużynę
   "deadline_at": "2026-11-30T22:59:59Z", "is_open": true,
-  "resolved_team": Team | null, "resolved_at": null,
-  "my_answer": { "team": Team, "points_awarded": null } | null,
-  "answers": [ { "user_id": 3, "nick": "ola", "team": Team, "points_awarded": null } ] }
-  // answers: pusta lista przed terminem (nie zdradzamy typów), pełna po terminie
+  "resolved_team": Team | null,    // pierwsza z resolved_teams
+  "resolved_teams": [ Team ],      // champion: mistrz, team_pick: poprawne drużyny
+  "resolved_at": null,
+  "my_answer": { "team": Team, "teams": [ Team ], "points_awarded": null } | null,   // points = suma
+  "answers": [ { "user_id": 3, "nick": "ola", "team": Team, "teams": [ Team ], "points_awarded": null } ] }
+  // answers: pusta lista przed terminem (nie zdradzamy typów), pełna po terminie, jeden wpis na gracza
 ```
 
 Funkcja dla synchronizacji (własność D, woła ją A):
@@ -173,7 +179,11 @@ Specyfikacja: [rozwoj/spec-kupon-tygodnia.md](rozwoj/spec-kupon-tygodnia.md). Ty
 | PATCH | `/leagues/{id}/settings` | Właściciel. Dochodzą pola `ranking_mode` (`scope`/`coupon`), `coupon_size` (5–15), `coupon_auto`. Zmienia się tylko to, co jest w body (`prize_pool_per_person: null` nadal kasuje pulę). → 204. |
 | POST | `/leagues` | Opcjonalnie `ranking_mode`, `coupon_size`, `competition_ids` (zakres; nieznane id → 422, liga nie powstaje). Bez nich: domyślne z bazy (`scope`, 10). |
 | GET | `/leagues/{id}`, `POST /leagues`, `POST /leagues/join` | Odpowiedź ligi ma pola `ranking_mode`, `coupon_size`, `coupon_auto`. |
-| GET | `/leagues/{id}/ranking` | W trybie `coupon` punkty za mecze liczą się tylko z meczów z kuponów tej ligi (bonusy ligowe bez zmian). |
+| GET | `/leagues/{id}/ranking` | W trybie `coupon` punkty za mecze liczą się tylko z meczów z kuponów tej ligi (bonusy ligowe bez zmian), a mecz-joker członka liczy się ×2. |
+| PUT | `/leagues/{id}/coupon/joker` | Członek. Body `{"match_id"}`. Joker bieżącego tygodnia: stawia albo przenosi (`domain.joker.check_joker_set`). 409: liga w trybie `scope` („Joker działa tylko w lidze, w której ranking liczy mecze z kuponu”), mecz już się zaczął, obecny joker stoi na meczu, który się zaczął (nie da się przenieść), joker zmieniony równolegle. 422: mecz spoza kuponu tego tygodnia. Zwraca to co GET kuponu. |
+| DELETE | `/leagues/{id}/coupon/joker` | Członek. Zdejmuje jokera bieżącego tygodnia (brak jokera = nic się nie dzieje). 409: tryb `scope` albo mecz z jokerem już się zaczął. Zwraca to co GET kuponu. |
+
+**Joker** (migracja 010, `domain/joker.py`): raz na kupon (tydzień) członek ligi w trybie `coupon` oznacza jeden mecz kuponu; punkty za ten mecz liczą się ×2 w rankingu ligi (tryb `coupon`) i w wynikach tygodnia (`members[].total_points`, `members[].provisional_points`). `predictions.points_awarded`, rankingi rozgrywek i `member_predictions[].points_awarded` się nie zmieniają. Ligi `scope` ignorują jokery (także zapisane wcześniej). Cudzy joker widoczny dopiero po starcie meczu (`is_joker` w `member_predictions`).
 
 Generowanie w tle: scheduler synchronizacji (`services/sync.run_scheduler`) co tick woła `services.coupons.coupon_tick`, który najwyżej raz na godzinę, od poniedziałku 06:00 czasu PL, tworzy brakujące kupony lig z `coupon_auto=true`.
 
@@ -186,6 +196,7 @@ Generowanie w tle: scheduler synchronizacji (`services/sync.run_scheduler`) co t
   "created_by": "auto",          // auto | owner | null
   "ranking_mode": "coupon", "coupon_size": 10, "coupon_auto": true,
   "can_edit": true,              // organizator i bieżący tydzień
+  "my_joker_match_id": 1205,     // mój joker tego tygodnia, null bez jokera / w lidze scope
   "total": 10,
   "matches": [ Match + {
       "typed_count": 2,          // ilu członków wytypowało
@@ -193,12 +204,13 @@ Generowanie w tle: scheduler synchronizacji (`services/sync.run_scheduler`) co t
       "predictions_visible": true,   // mecz się zaczął
       "member_predictions": [ { "user_id": 3, "nick": "ola", "pred_home": 2, "pred_away": 1,
                                 "points_awarded": 5, "hit_type": "exact",
-                                "provisional_points": null, "provisional_hit_type": null } ]   // [] przed startem; provisional_* tylko live
+                                "provisional_points": null, "provisional_hit_type": null,
+                                "is_joker": false } ]   // [] przed startem; provisional_* tylko live (bez ×2)
   } ],
   "members": [                   // posortowani jak ranking (punkty tygodnia), wszyscy członkowie
     { "rank": 1, "user_id": 3, "nick": "ola", "typed": 7, "total": 10,
       "total_points": 12, "exact_hits": 1, "diff_hits": 2, "scored_predictions": 4,
-      "provisional_points": 3 }  // suma „gdyby się teraz skończyło” z meczów live, NIE wliczona w total_points ani w sortowanie
+      "provisional_points": 3 }  // suma „gdyby się teraz skończyło” z meczów live (joker ×2), NIE wliczona w total_points ani w sortowanie
   ]
 }
 
@@ -211,8 +223,12 @@ Generowanie w tle: scheduler synchronizacji (`services/sync.run_scheduler`) co t
   "week_start": "2026-11-02", "week_end": "2026-11-08",
   "typed": 3, "total": 10,
   "next_deadline": "2026-11-04T20:00:00Z",   // najbliższy otwarty mecz bez mojego typu, null gdy brak
-  "matches": [ Match + { "leagues": [ { "id": 1, "name": "Biuro" } ] } ]   // [] dla hits
+  "matches": [ Match + { "leagues": [ { "id": 1, "name": "Biuro",
+                                        "ranking_mode": "coupon", "is_my_joker": false } ] } ]   // [] dla hits
 }
+
+// PUT /leagues/{id}/coupon/joker
+{ "match_id": 1205 }
 
 // PATCH /leagues/{id}/settings (każde pole opcjonalne)
 { "ranking_mode": "coupon", "coupon_size": 8, "coupon_auto": true, "prize_pool_per_person": 20 }

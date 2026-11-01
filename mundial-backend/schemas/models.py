@@ -316,8 +316,9 @@ class LeagueBonusSeason(BaseModel):
 
 
 class LeagueBonusMyAnswer(BaseModel):
-    team: LeagueBonusTeam
-    # None until the question is resolved
+    team: LeagueBonusTeam                  # first pick (champion: the only one)
+    teams: list[LeagueBonusTeam] = []      # every pick, team_pick may have several
+    # None until the question is resolved, then the sum over picks
     points_awarded: int | None = None
 
 
@@ -325,17 +326,21 @@ class LeagueBonusAnswerEntry(BaseModel):
     user_id: int
     nick: str
     team: LeagueBonusTeam
+    teams: list[LeagueBonusTeam] = []
     points_awarded: int | None = None
 
 
 class LeagueBonusQuestionResponse(BaseModel):
     id: int
     season: LeagueBonusSeason
-    kind: str
+    kind: str                          # champion | team_pick
+    title: str | None = None           # own question text, team_pick only
+    answers_count: int = 1             # teams a player picks
     points: int
     deadline_at: datetime
     is_open: bool
-    resolved_team: LeagueBonusTeam | None = None
+    resolved_team: LeagueBonusTeam | None = None   # first of resolved_teams
+    resolved_teams: list[LeagueBonusTeam] = []
     resolved_at: datetime | None = None
     my_answer: LeagueBonusMyAnswer | None = None
     # empty before the deadline, everybody's answers after it
@@ -345,15 +350,28 @@ class LeagueBonusQuestionResponse(BaseModel):
 class LeagueBonusQuestionRequest(BaseModel):
     # strict ints: JSON true / 20.0 / "20" are rejected (422) instead of coerced
     season_id: int = Field(strict=True)
-    # only "champion" for now, checked in the router (Polish error message)
+    # champion | team_pick, checked in the domain (Polish error message)
     kind: str = Field(min_length=1, max_length=32)
     # range 1..100 is checked in domain.league_bonus
     points: int = Field(strict=True)
     deadline_at: datetime
+    # team_pick only: own question text + how many correct teams (1..10)
+    title: str | None = Field(default=None, max_length=500)
+    answers_count: int = Field(default=1, strict=True)
+
+
+StrictTeamId = Annotated[int, Field(strict=True)]
 
 
 class LeagueBonusAnswerRequest(BaseModel):
-    team_id: int = Field(strict=True)
+    # team_id = one pick (old shape), team_ids = every pick of a team_pick question
+    team_id: int | None = Field(default=None, strict=True)
+    team_ids: list[StrictTeamId] | None = Field(default=None, max_length=20)
+
+
+class LeagueBonusTeamPickResolveRequest(BaseModel):
+    # correct teams of an own question, 1..answers_count
+    team_ids: list[StrictTeamId] = Field(max_length=20)
 
 
 class LeagueBonusResolveRequest(BaseModel):
@@ -557,6 +575,8 @@ class CouponMemberPrediction(BaseModel):
     # live match only: points "if it ended now"
     provisional_points: int | None = None
     provisional_hit_type: str | None = None
+    # the member's joker of the week (counts double in a 'coupon' league)
+    is_joker: bool = False
 
 
 class CouponMatch(CompetitionMatch):
@@ -592,6 +612,7 @@ class LeagueCouponResponse(BaseModel):
     coupon_size: int
     coupon_auto: bool
     can_edit: bool                    # owner / admin and the current week
+    my_joker_match_id: int | None = None   # my joker of that week, only in 'coupon' leagues
     total: int
     matches: list[CouponMatch]
     members: list[CouponMember]       # ranked by points of the week
@@ -605,9 +626,15 @@ class CouponUpdateRequest(BaseModel):
     match_ids: list[CouponMatchId] = Field(max_length=50)
 
 
+class CouponJokerRequest(BaseModel):
+    match_id: CouponMatchId
+
+
 class CouponLeagueRef(BaseModel):
     id: int
     name: str
+    ranking_mode: str = "scope"
+    is_my_joker: bool = False   # my joker of this league sits on this match
 
 
 class MyCouponMatch(CompetitionMatch):

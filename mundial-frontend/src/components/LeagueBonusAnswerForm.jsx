@@ -3,17 +3,30 @@ import { getSeasonTeams } from '../api/competitions';
 import { answerBonusQuestion } from '../api/leagueBonus';
 import { useToast } from '../context/ToastContext';
 import { apiErrorMessage } from '../utils/apiError';
-import LeagueTeamPicker from './LeagueTeamPicker';
+import LeagueTeamMultiPicker from './LeagueTeamMultiPicker';
 
-// pick (or change) my answer to an open bonus question
+// my current picks padded to answers_count slots
+const initialSlots = (question) => {
+  const count = question.answers_count || 1;
+  const mine = (question.my_answer?.teams?.length ? question.my_answer.teams : [question.my_answer?.team])
+    .filter(Boolean)
+    .map((t) => t.id);
+  return Array.from({ length: count }, (_, i) => mine[i] ?? null);
+};
+
+const sameSet = (a, b) => a.length === b.length && a.every((id) => b.includes(id));
+
+// pick (or change) my answer to an open bonus question (1 or more teams)
 export default function LeagueBonusAnswerForm({ leagueId, question, onSaved, onCancel, onDeadlinePassed }) {
   const { addToast } = useToast();
-  const currentTeamId = question.my_answer?.team?.id ?? null;
+  const hasAnswer = Boolean(question.my_answer);
+  const savedIds = initialSlots(question).filter((id) => id != null);
+  const isChampion = question.kind === 'champion';
 
   const [teams, setTeams] = useState(null); // null = still loading
   const [loadError, setLoadError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
-  const [teamId, setTeamId] = useState(currentTeamId);
+  const [slots, setSlots] = useState(() => initialSlots(question));
   const [saving, setSaving] = useState(false);
 
   const seasonId = question.season.id;
@@ -32,11 +45,15 @@ export default function LeagueBonusAnswerForm({ leagueId, question, onSaved, onC
     setReloadKey((k) => k + 1);
   };
 
+  const picked = slots.filter((id) => id != null);
+  const complete = picked.length === slots.length;
+  const unchanged = hasAnswer && sameSet(picked, savedIds);
+
   const handleSave = async () => {
-    if (teamId == null) return;
+    if (!complete) return;
     setSaving(true);
     try {
-      const updated = await answerBonusQuestion(leagueId, question.id, teamId);
+      const updated = await answerBonusQuestion(leagueId, question.id, picked);
       onSaved(updated);
       addToast('Typ zapisany');
     } catch (err) {
@@ -63,24 +80,27 @@ export default function LeagueBonusAnswerForm({ leagueId, question, onSaved, onC
 
   return (
     <div className="space-y-3">
-      <LeagueTeamPicker
+      {slots.length > 1 && (
+        <p className="text-xs text-gray-400">Wybierz {slots.length} drużyny — punkty dostajesz za każdą trafioną.</p>
+      )}
+      <LeagueTeamMultiPicker
         teams={teams}
-        value={teamId}
-        onChange={setTeamId}
+        value={slots}
+        onChange={setSlots}
         disabled={saving}
-        ariaLabel="Twój typ na mistrza"
-        placeholder="Wybierz drużynę, która wygra sezon"
+        ariaLabel={isChampion ? 'Twój typ na mistrza' : 'Twój typ'}
+        placeholder={isChampion ? 'Wybierz drużynę, która wygra sezon' : 'Wybierz drużynę'}
       />
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={handleSave}
-          disabled={saving || teamId == null || teamId === currentTeamId}
+          disabled={saving || !complete || unchanged}
           className="btn-primary text-sm !py-2 !px-5"
         >
-          {saving ? 'Zapisuję…' : currentTeamId ? 'Zmień typ' : 'Zapisz typ'}
+          {saving ? 'Zapisuję…' : hasAnswer ? 'Zmień typ' : 'Zapisz typ'}
         </button>
-        {currentTeamId != null && (
+        {hasAnswer && (
           <button
             type="button"
             onClick={onCancel}

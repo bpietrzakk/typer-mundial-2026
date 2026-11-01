@@ -57,3 +57,15 @@ export const getCouponCandidates = async ({ scope, competitions, weekStart, week
   }
   return found.sort((a, b) => new Date(a.kickoff_at) - new Date(b.kickoff_at));
 };
+
+// my joker of this week: put / move it on a coupon match, or take it back.
+// both return the whole league coupon (like GET)
+export const setCouponJoker = async (leagueId, matchId) => {
+  const res = await api.put(`/leagues/${leagueId}/coupon/joker`, { match_id: matchId });
+  return res.data;
+};
+
+export const clearCouponJoker = async (leagueId) => {
+  const res = await api.delete(`/leagues/${leagueId}/coupon/joker`);
+  return res.data;
+};

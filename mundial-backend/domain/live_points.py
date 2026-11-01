@@ -4,6 +4,7 @@ Only for display: nothing here is ever saved. points_awarded is still
 written only by domain/match_results.py when a match is finished.
 """
 
+from domain.joker import JOKER_MULTIPLIER, joker_points
 from domain.scoring import calculate_points, classify_hit, pick_rule
 
 
@@ -62,11 +63,13 @@ def with_provisional(matches: list[dict], rules_by_season: dict) -> list[dict]:
     return out
 
 
-def member_provisional_totals(matches: list[dict]) -> dict[int, int]:
-    # user id -> sum of provisional points over live matches (members who typed one)
+def member_provisional_totals(matches: list[dict], multiplier: int = JOKER_MULTIPLIER) -> dict[int, int]:
+    # user id -> sum of provisional points over live matches (members who typed one).
+    # a joker pick counts with the multiplier (1 = league without jokers)
     totals: dict[int, int] = {}
     for m in matches:
         for p in m.get("member_predictions", []):
-            if p.get("provisional_points") is not None:
-                totals[p["user_id"]] = totals.get(p["user_id"], 0) + p["provisional_points"]
+            points = joker_points(p.get("provisional_points"), bool(p.get("is_joker")), multiplier)
+            if points is not None:
+                totals[p["user_id"]] = totals.get(p["user_id"], 0) + points
     return totals

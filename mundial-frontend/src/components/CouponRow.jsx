@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { addPrediction } from '../api/predictions';
 import HitBadge from './HitBadge';
+import JokerButton from './JokerButton';
 import MatchContextButton from './MatchContextButton';
 import MatchContextPanel from './MatchContextPanel';
 import ProvisionalPoints from './ProvisionalPoints';
@@ -21,8 +22,9 @@ const sameAsSaved = (saved, home, away) =>
 // only one side typed -> the other shows a grey "0" hint and the save
 // happens when the player leaves the row (then the 0 is taken for real).
 // onSaved(matchId, myPrediction), onLocked(matchId) after a 409.
-// leagues = small league tags, children = extra content under the row
-export default function CouponRow({ match, onSaved, onLocked, leagues, showCompetition = false, children }) {
+// leagues = small league tags, children = extra content under the row.
+// joker = { active, locked, onSet, onClear } in a 'coupon' league, undefined = no joker here
+export default function CouponRow({ match, onSaved, onLocked, leagues, joker, showCompetition = false, children }) {
   const pred = match.my_prediction;
   const editable = Boolean(match.can_predict);
 
@@ -203,10 +205,13 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, showCompe
     }
   }
 
-  const showMeta = showCompetition || (leagues && leagues.length > 0);
+  // joker chip: my joker here, or a free joker and an open match
+  const showJoker = Boolean(joker) && (joker.active || (editable && !joker.locked));
+  const jokerHere = Boolean(joker?.active);
+  const showMeta = showCompetition || (leagues && leagues.length > 0) || showJoker;
 
   return (
-    <div className={`px-3 sm:px-4 py-2.5 ${isLive ? 'bg-mundial-red/5' : ''}`}>
+    <div className={`px-3 sm:px-4 py-2.5 ${jokerHere ? 'bg-mundial-gold/10 ring-1 ring-inset ring-mundial-gold/40' : isLive ? 'bg-mundial-red/5' : ''}`}>
       <div className="max-w-2xl mx-auto">
         <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto_minmax(0,1fr)_0.875rem] sm:grid-cols-[3rem_minmax(0,1fr)_auto_minmax(0,1fr)_1.25rem] items-center gap-1 sm:gap-3">
           {/* time / status + form toggle */}
@@ -277,6 +282,10 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, showCompe
                   {match.status === 'scheduled' || match.status === 'postponed' ? 'typowanie zamknięte' : 'bez typu'}
                 </span>
               )
+            )}
+
+            {showJoker && (
+              <JokerButton active={joker.active} canChange={editable} onSet={joker.onSet} onClear={joker.onClear} />
             )}
 
             {showCompetition && match.competition && (

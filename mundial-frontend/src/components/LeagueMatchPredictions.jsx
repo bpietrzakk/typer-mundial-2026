@@ -66,6 +66,9 @@ export default function LeagueMatchPredictions({ match }) {
                 <li key={p.user_id} className="flex items-center justify-between gap-2 py-1.5 text-xs">
                   <span className={`truncate ${isMe ? 'text-mundial-teal font-semibold' : 'text-gray-200'}`}>
                     {p.nick}{isMe && ' (Ty)'}
+                    {p.is_joker && (
+                      <span className="ml-1.5 px-1 rounded bg-mundial-gold/20 text-mundial-gold text-[10px] font-bold" title="Joker: punkty za ten mecz liczą się podwójnie">🃏 ×2</span>
+                    )}
                   </span>
                   <span className="flex items-center gap-2 shrink-0">
                     <span className="score-num font-bold text-gray-100">{p.pred_home}:{p.pred_away}</span>

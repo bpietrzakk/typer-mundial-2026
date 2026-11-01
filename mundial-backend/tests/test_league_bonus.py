@@ -129,3 +129,96 @@ def test_answers_visible_from_the_deadline_on():
     # exactly at the deadline answering is closed, so answers can be shown
     assert are_answers_visible(DEADLINE, DEADLINE) is True
     assert are_answers_visible(DEADLINE, DEADLINE + timedelta(days=3)) is True
+
+
+# --- team_pick: own question about teams (migration 010) ---
+
+from domain.league_bonus import (  # noqa: E402
+    BONUS_KINDS,
+    MAX_ANSWERS_COUNT,
+    answer_total_points,
+    calculate_pick_points,
+    can_resolve_question,
+    check_answer_teams,
+    check_correct_teams,
+    check_question_shape,
+    normalize_title,
+)
+
+
+def test_both_kinds_exist():
+    assert BONUS_KINDS == ("champion", "team_pick")
+
+
+def test_normalize_title_trims_and_collapses_spaces():
+    assert normalize_title("  Kto   spadnie z PL? ") == "Kto spadnie z PL?"
+    assert normalize_title("   ") is None
+    assert normalize_title(None) is None
+
+
+def test_question_shape_champion():
+    assert check_question_shape("champion", None, 1) is None
+    # one champion, so one team
+    assert check_question_shape("champion", None, 3) == "answers_count"
+
+
+def test_question_shape_team_pick():
+    assert check_question_shape("team_pick", "Kto spadnie z Premier League?", 3) is None
+    assert check_question_shape("team_pick", None, 1) == "title_missing"
+    assert check_question_shape("team_pick", "ab", 1) == "title_length"
+    assert check_question_shape("team_pick", "x" * 121, 1) == "title_length"
+    assert check_question_shape("team_pick", "Kto wygra LM?", 0) == "answers_count"
+    assert check_question_shape("team_pick", "Kto wygra LM?", MAX_ANSWERS_COUNT + 1) == "answers_count"
+    assert check_question_shape("team_pick", "Kto wygra LM?", MAX_ANSWERS_COUNT) is None
+
+
+def test_question_shape_unknown_kind():
+    assert check_question_shape("top_scorer", "Kto?", 1) == "kind"
+
+
+def test_player_picks_exactly_answers_count_teams():
+    assert check_answer_teams([1, 2, 3], 3) is None
+    assert check_answer_teams([1, 2], 3) == "count"
+    assert check_answer_teams([1, 2, 3, 4], 3) == "count"
+    assert check_answer_teams([], 1) == "count"
+    assert check_answer_teams([1, 1, 2], 3) == "duplicate"
+
+
+def test_correct_teams_from_one_to_answers_count():
+    assert check_correct_teams([7], 1) is None
+    assert check_correct_teams([7, 8, 9], 3) is None
+    # fewer is fine (e.g. only two clubs went down after a points deduction)
+    assert check_correct_teams([7, 8], 3) is None
+    assert check_correct_teams([], 3) == "count"
+    assert check_correct_teams([7, 8], 1) == "count"
+    assert check_correct_teams([7, 7], 3) == "duplicate"
+
+
+def test_only_team_pick_after_the_deadline_is_resolved_by_the_owner():
+    assert can_resolve_question("team_pick", DEADLINE, DEADLINE) is None
+    assert can_resolve_question("team_pick", DEADLINE, DEADLINE + timedelta(days=1)) is None
+    assert can_resolve_question("team_pick", DEADLINE, DEADLINE - timedelta(seconds=1)) == "open"
+    # champion is resolved by the sync / app admin
+    assert can_resolve_question("champion", DEADLINE, DEADLINE + timedelta(days=1)) == "kind"
+
+
+def test_pick_points_for_every_hit_team():
+    correct = {7, 8, 9}
+    assert calculate_pick_points(7, correct, 5) == 5
+    assert calculate_pick_points(1, correct, 5) == 0
+    # not resolved yet
+    assert calculate_pick_points(7, None, 5) is None
+    assert calculate_pick_points(7, set(), 5) is None
+
+
+def test_answer_total_points():
+    # 3 relegation picks, 2 hits, 5 points each
+    picks = [calculate_pick_points(t, {7, 8, 9}, 5) for t in (7, 9, 1)]
+    assert answer_total_points(picks) == 10
+    assert answer_total_points([None, None]) is None
+    assert answer_total_points([]) is None
+
+
+def test_champion_points_match_pick_points():
+    assert calculate_champion_answer_points(7, 7, 20) == calculate_pick_points(7, {7}, 20) == 20
+    assert calculate_champion_answer_points(1, 7, 20) == calculate_pick_points(1, {7}, 20) == 0

@@ -2,12 +2,13 @@ import { Link } from 'react-router-dom';
 import CouponDayList from './CouponDayList';
 import CouponProgress from './CouponProgress';
 import ScoringHint from './ScoringHint';
-import { formatWeekRange, nextOpenDeadline } from '../utils/coupon';
+import { JOKER_RULE, formatWeekRange, nextOpenDeadline } from '../utils/coupon';
 import { distinctPoints } from '../utils/scoring';
 
 // start screen coupon: merged coupons of my leagues, or "hits of the week".
 // counters are counted from the list, so they move right after an autosave
-export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked }) {
+// jokerOf(match) -> joker props (only matches of exactly one 'coupon' league)
+export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked, jokerOf, showJokerRule = false }) {
   const { matches, source } = coupon;
   const isHits = source === 'hits';
   const typed = matches.filter((m) => m.my_prediction).length;
@@ -26,6 +27,9 @@ export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked })
         {matches.length > 0 ? (
           <CouponProgress typed={typed} total={matches.length} nextDeadline={nextOpenDeadline(matches)} />
         ) : null}
+        {showJokerRule && matches.length > 0 && (
+          <p className="text-xs text-gray-500 mt-2"><span aria-hidden="true">🃏 </span>{JOKER_RULE}.</p>
+        )}
         {isHits && matches.length > 0 && (
           <p className="text-xs text-gray-500 mt-2">Najciekawsze mecze tygodnia z obserwowanych rozgrywek.</p>
         )}
@@ -45,6 +49,7 @@ export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked })
           onSaved={onSaved}
           onLocked={onLocked}
           leaguesOf={showLeagues ? (m) => m.leagues : undefined}
+          jokerOf={jokerOf}
         />
       )}
 

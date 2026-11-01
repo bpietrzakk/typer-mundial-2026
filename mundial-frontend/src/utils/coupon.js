@@ -70,3 +70,14 @@ export const hasStarted = (match) => {
   if (['live', 'finished', 'awarded', 'suspended'].includes(match.status)) return true;
   return match.status !== 'postponed' && new Date(match.kickoff_at) <= new Date();
 };
+
+// --- joker (one match per coupon counts double, only in 'coupon' leagues) ---
+
+export const JOKER_RULE = 'Joker: raz w tygodniu podwójne punkty za wybrany mecz';
+
+// the joker can't move away from a match that kicked off. same rule as the
+// backend (domain.coupon.has_started): postponed / cancelled were never played
+export function isJokerLocked(jokerMatch) {
+  if (!jokerMatch || jokerMatch.status === 'cancelled') return false;
+  return hasStarted(jokerMatch);
+}

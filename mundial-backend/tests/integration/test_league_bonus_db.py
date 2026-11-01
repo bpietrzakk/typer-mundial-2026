@@ -584,3 +584,82 @@ def test_admin_endpoint_errors(world):
     resp = api(world, "admin").post(f"/admin/seasons/{epl}/champion", json={"team_id": ars})
     assert resp.status_code == 200
     assert resp.json() == {"questions_resolved": 0, "answers_scored": 0}
+
+
+# --- team_pick: own question, several picks, resolved by the owner (010) ---
+
+def create_team_pick(world, title="Kto spadnie z Premier League?", answers_count=2, points=5):
+    return api(world, "ola").post(
+        f"/leagues/{world['league']['one']}/bonus-questions",
+        json={
+            "season_id": world["season"]["epl"], "kind": "team_pick", "title": title,
+            "answers_count": answers_count, "points": points, "deadline_at": _iso(timedelta(days=30)),
+        },
+    )
+
+
+def pick(world, question_id, nick, *teams):
+    return api(world, nick).put(
+        f"/leagues/{world['league']['one']}/bonus-questions/{question_id}/answer",
+        json={"team_ids": [world["team"][t] for t in teams]},
+    )
+
+
+def resolve(world, question_id, *teams, nick="ola"):
+    return api(world, nick).post(
+        f"/leagues/{world['league']['one']}/bonus-questions/{question_id}/resolve",
+        json={"team_ids": [world["team"][t] for t in teams]},
+    )
+
+
+def test_team_pick_questions_can_repeat_next_to_the_champion(world):
+    assert create_question(world).status_code == 201
+    first = create_team_pick(world)
+    second = create_team_pick(world, title="Kto zagra w LM?", answers_count=1)
+    assert first.status_code == 201 and second.status_code == 201
+    body = first.json()
+    assert (body["kind"], body["title"], body["answers_count"]) == ("team_pick", "Kto spadnie z Premier League?", 2)
+    # still one champion question per season
+    assert create_question(world).status_code == 409
+    assert len(list_questions(world).json()) == 3
+
+
+def test_team_pick_answer_is_replaced_as_a_whole(world, conn):
+    qid = create_team_pick(world).json()["id"]
+    assert pick(world, qid, "bartek", "ARS", "CHE").status_code == 200
+    body = pick(world, qid, "bartek", "LIV", "CHE").json()
+    assert sorted(t["name"] for t in body["my_answer"]["teams"]) == ["Chelsea", "Liverpool"]
+    assert _exec(conn, "SELECT COUNT(*) FROM league_bonus_answers WHERE question_id = %s", (qid,))[0][0] == 2
+    # wrong number of teams / a team from another season
+    assert pick(world, qid, "bartek", "ARS").status_code == 422
+    assert pick(world, qid, "bartek", "ARS", "PSG").status_code == 422
+
+
+def test_owner_resolves_team_pick_and_points_go_to_the_ranking(world, conn):
+    qid = create_team_pick(world, points=5).json()["id"]
+    pick(world, qid, "bartek", "ARS", "CHE")
+    pick(world, qid, "celina", "LIV", "CHE")
+
+    # not before the deadline
+    assert resolve(world, qid, "CHE", "LIV").status_code == 409
+    close_question(conn, qid)
+    # only the owner
+    assert resolve(world, qid, "CHE", "LIV", nick="bartek").status_code == 403
+
+    body = resolve(world, qid, "CHE", "LIV").json()
+    assert sorted(t["name"] for t in body["resolved_teams"]) == ["Chelsea", "Liverpool"]
+    points = {a["nick"]: a["points_awarded"] for a in body["answers"]}
+    # bartek 1 hit, celina 2 hits
+    assert points == {"bartek": 5, "celina": 10}
+    ranking = api(world, "ola").get(f"/leagues/{world['league']['one']}/ranking").json()
+    assert {r["nick"]: r["total_points"] for r in ranking}["celina"] == 10
+
+    # correction: only Arsenal went down
+    body = resolve(world, qid, "ARS").json()
+    assert {a["nick"]: a["points_awarded"] for a in body["answers"]} == {"bartek": 5, "celina": 0}
+
+
+def test_champion_question_cannot_be_resolved_by_the_owner(world, conn):
+    qid = create_question(world).json()["id"]
+    close_question(conn, qid)
+    assert resolve(world, qid, "ARS").status_code == 422

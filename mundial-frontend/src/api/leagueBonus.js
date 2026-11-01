@@ -1,17 +1,22 @@
 import api from './axios';
 
-// league bonus questions ("who wins the season") — owner creates, members answer
+// league bonus questions — owner creates (and resolves own ones), members answer.
+// kinds: champion ("who wins the season") | team_pick (own question about teams)
 
 export const getBonusQuestions = async (leagueId) => {
   const res = await api.get(`/leagues/${leagueId}/bonus-questions`);
   return res.data;
 };
 
-// deadlineAt = ISO string in UTC
-export const createBonusQuestion = async (leagueId, seasonId, points, deadlineAt) => {
+// deadlineAt = ISO string in UTC. title + answersCount only for team_pick
+export const createBonusQuestion = async (leagueId, {
+  seasonId, kind = 'champion', title = null, answersCount = 1, points, deadlineAt,
+}) => {
   const res = await api.post(`/leagues/${leagueId}/bonus-questions`, {
     season_id: seasonId,
-    kind: 'champion',
+    kind,
+    title: kind === 'team_pick' ? title : null,
+    answers_count: kind === 'team_pick' ? answersCount : 1,
     points,
     deadline_at: deadlineAt,
   });
@@ -21,10 +26,18 @@ export const createBonusQuestion = async (leagueId, seasonId, points, deadlineAt
 export const deleteBonusQuestion = async (leagueId, questionId) =>
   api.delete(`/leagues/${leagueId}/bonus-questions/${questionId}`);
 
-// returns the whole question with my_answer filled in
-export const answerBonusQuestion = async (leagueId, questionId, teamId) => {
+// teamIds = every pick (answers_count of them). returns the whole question
+export const answerBonusQuestion = async (leagueId, questionId, teamIds) => {
   const res = await api.put(`/leagues/${leagueId}/bonus-questions/${questionId}/answer`, {
-    team_id: teamId,
+    team_ids: teamIds,
+  });
+  return res.data;
+};
+
+// owner, team_pick after the deadline: the correct teams (again = correction)
+export const resolveBonusQuestion = async (leagueId, questionId, teamIds) => {
+  const res = await api.post(`/leagues/${leagueId}/bonus-questions/${questionId}/resolve`, {
+    team_ids: teamIds,
   });
   return res.data;
 };

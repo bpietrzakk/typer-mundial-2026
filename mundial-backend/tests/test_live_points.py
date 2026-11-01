@@ -71,3 +71,16 @@ def test_member_predictions_get_provisional_and_totals_sum_live_only():
     assert out[0]["member_predictions"][1]["provisional_hit_type"] == "miss"
     assert out[2]["member_predictions"][0]["provisional_points"] is None
     assert member_provisional_totals(out) == {3: 8, 4: 0}
+
+
+def test_joker_pick_counts_double_in_member_totals():
+    live = _match(goals=(2, 0)) | {"id": 1, "member_predictions": [
+        {"user_id": 3, "pred_home": 2, "pred_away": 0, "is_joker": True},
+        {"user_id": 4, "pred_home": 3, "pred_away": 1, "is_joker": False},
+    ]}
+    out = with_provisional([live], {5: PROFILE})
+    # the prediction itself keeps its normal points, only the total doubles
+    assert [p["provisional_points"] for p in out[0]["member_predictions"]] == [5, 3]
+    assert member_provisional_totals(out) == {3: 10, 4: 3}
+    # scope league: no doubling
+    assert member_provisional_totals(out, multiplier=1) == {3: 5, 4: 3}

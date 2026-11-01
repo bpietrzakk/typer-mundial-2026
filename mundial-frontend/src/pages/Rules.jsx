@@ -113,8 +113,18 @@ export default function Rules() {
         <BulletList items={[
           'Ranking ligi używa tych samych punktów co ranking rozgrywek, ale pokazuje tylko członków ligi.',
           'Właściciel może zawęzić ligę do wybranych rozgrywek — liczą się wtedy tylko ich mecze. Bez zawężenia liczą się wszystkie.',
-          'Właściciel może dodać pytanie bonusowe „kto wygra sezon” z własną liczbą punktów (1–100) i terminem. Odpowiadasz do terminu, a cudze odpowiedzi widać dopiero po nim.',
-          'Punkty z bonusu liczą się tylko w rankingu tej ligi i przyznawane są po rozstrzygnięciu sezonu.',
+          'Właściciel może dodać pytanie bonusowe z własną liczbą punktów (1–100) i terminem: „kto wygra sezon” albo własne pytanie o drużynę, np. „Kto spadnie z Premier League?”. Odpowiadasz do terminu, a cudze odpowiedzi widać dopiero po nim.',
+          'W pytaniu własnym może być kilka poprawnych odpowiedzi (np. 3 spadkowiczów) — wybierasz tyle drużyn i dostajesz punkty za każdą trafioną. Po terminie właściciel zaznacza poprawne drużyny.',
+          'Punkty z bonusu liczą się tylko w rankingu tej ligi. Mistrza rozstrzyga aplikacja po zakończeniu sezonu, pytania własne — właściciel ligi.',
+        ]} />
+      </InfoCard>
+
+      <InfoCard title="Joker w kuponie">
+        <BulletList items={[
+          'W lidze, której ranking liczy mecze z kuponu, raz w tygodniu możesz oznaczyć jeden mecz kuponu jako jokera 🃏 — punkty za ten mecz liczą się podwójnie.',
+          'Jokera stawiasz, przenosisz i zdejmujesz tylko na mecze, które się jeszcze nie zaczęły. Gdy mecz z jokerem ruszy, joker zostaje na nim.',
+          'Podwójne punkty widać w rankingu tej ligi i w wynikach tygodnia. Twoje punkty za mecz i rankingi rozgrywek się nie zmieniają.',
+          'Cudzego jokera zobaczysz dopiero po starcie meczu.',
         ]} />
       </InfoCard>
 

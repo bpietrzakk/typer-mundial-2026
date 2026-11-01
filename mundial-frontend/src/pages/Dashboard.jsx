@@ -1,8 +1,9 @@
 import { useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { getFeed } from '../api/competitions';
-import { getMyCoupon } from '../api/coupon';
+import { clearCouponJoker, getMyCoupon, setCouponJoker } from '../api/coupon';
 import { getMyPredictions } from '../api/predictions';
 import CompetitionBadge from '../components/CompetitionBadge';
 import ErrorState from '../components/ErrorState';
@@ -16,7 +17,8 @@ import useLivePolling from '../hooks/useLivePolling';
 import useCompetitions from '../hooks/useCompetitions';
 import useMyLeagues from '../hooks/useMyLeagues';
 import useMySeasonStandings from '../hooks/useMySeasonStandings';
-import { VOID_STATUSES, formatDayShort, isArchiveCompetition } from '../utils/matchUi';
+import { isJokerLocked } from '../utils/coupon';
+import { VOID_STATUSES, errorMessage, formatDayShort, isArchiveCompetition } from '../utils/matchUi';
 
 // live matches only — the coupon replaced the long "upcoming" list
 const fetchFeed = () => getFeed(1);
@@ -24,6 +26,7 @@ const fetchPredictions = () => getMyPredictions();
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const couponQ = useAsync(getMyCoupon);
   const compsQ = useCompetitions();
 
@@ -58,6 +61,26 @@ export default function Dashboard() {
     }));
   }, [mutateCoupon]);
 
+  // joker of one league: matchId = put / move it there, null = take it back.
+  // the start screen only marks it on the league tags of the matches
+  const changeJoker = useCallback(async (leagueId, matchId) => {
+    try {
+      if (matchId) await setCouponJoker(leagueId, matchId);
+      else await clearCouponJoker(leagueId);
+      mutateCoupon((c) => c && ({
+        ...c,
+        matches: c.matches.map((m) => ({
+          ...m,
+          leagues: m.leagues.map((l) => (l.id === leagueId ? { ...l, is_my_joker: m.id === matchId } : l)),
+        })),
+      }));
+      addToast(matchId ? 'Joker postawiony — ten mecz liczy się podwójnie' : 'Joker zdjęty');
+    } catch (err) {
+      addToast(errorMessage(err, 'Nie udało się zmienić jokera'), 'error');
+      throw err;
+    }
+  }, [mutateCoupon, addToast]);
+
   const mutateFeed = feedQ.mutate;
   const handleFeedChange = useCallback((matchId, patch) => {
     mutateFeed((list) => list.map((m) => (m.id === matchId ? { ...m, ...patch } : m)));
@@ -78,6 +101,22 @@ export default function Dashboard() {
   // league tags only make sense with more than one league
   const leagueNames = new Set((coupon?.matches ?? []).flatMap((m) => m.leagues.map((l) => l.id)));
   const showLeagues = (leaguesQ.data?.total ?? leagueNames.size) > 1;
+
+  // joker button only when the match is on the coupon of exactly one league
+  // and that league plays for coupon points (otherwise: which league?)
+  const couponMatches = coupon?.matches ?? [];
+  const jokerOf = (m) => {
+    if (m.leagues.length !== 1 || m.leagues[0].ranking_mode !== 'coupon') return undefined;
+    const leagueId = m.leagues[0].id;
+    const jokerMatch = couponMatches.find((x) => x.leagues.some((l) => l.id === leagueId && l.is_my_joker));
+    return {
+      active: Boolean(m.leagues[0].is_my_joker),
+      locked: isJokerLocked(jokerMatch),
+      onSet: () => changeJoker(leagueId, m.id),
+      onClear: () => changeJoker(leagueId, null),
+    };
+  };
+  const anyJoker = couponMatches.some((m) => m.leagues.some((l) => l.ranking_mode === 'coupon'));
 
   const standings = standingsQ.data ?? [];
   const codeBySeason = Object.fromEntries(
@@ -119,6 +158,8 @@ export default function Dashboard() {
               showLeagues={showLeagues}
               onSaved={handleSaved}
               onLocked={handleLocked}
+              jokerOf={jokerOf}
+              showJokerRule={anyJoker}
             />
           )}
 

@@ -136,13 +136,14 @@ gdy w bazie będzie więcej niż jeden sezon. Zostało: „średni typ ligi” p
   bez gubienia wpisywanych typów.
 - Zostało: osobna „tabela ligi na żywo” (dziś tabela w wynikach tygodnia jest oficjalna).
 
-### Grywalizacja (z umiarem)
-- **Joker:** raz na kolejkę podwójne punkty za wybrany mecz. Prosta zasada, która mocno zwiększa emocje.
-- **Seria:** „5 kolejek z rzędu bez pudła”.
-- **Odznaki sezonowe:** król dokładnych wyników, prorok (najwięcej typów pod prąd, które weszły),
-  maruda (najwięcej pudeł). Na koniec sezonu podsumowanie, które chce się wrzucić do grupy.
-- **Więcej pytań bonusowych:** król strzelców, kto spadnie, kto awansuje do LM. Mechanizm pytań
-  w lidze już jest, a dziś ma tylko „mistrza”.
+### ◐ Grywalizacja (z umiarem)
+- ✅ *(etap 4, 01.11)* **Joker:** raz na kupon podwójne punkty za wybrany mecz (tylko w lidze w trybie
+  „tylko kupon”; liczy się w rankingu ligi i wynikach tygodnia, także na żywo).
+- ✅ *(etap 4, 01.11)* **Więcej pytań bonusowych:** „własne pytanie o drużynę” z treścią od
+  organizatora (np. kto spadnie, kto wygra LM), kilka poprawnych odpowiedzi, rozstrzyga organizator.
+  Król strzelców wymaga danych o zawodnikach, których nie mamy.
+- Zostało: **seria** („5 kolejek z rzędu bez pudła”) i **odznaki sezonowe** (król dokładnych
+  wyników, prorok, maruda) z podsumowaniem sezonu.
 
 ### Komunikacja w lidze
 Komentarze lub reakcje pod meczem albo pod podsumowaniem kolejki. Nie pełny czat, bo ludzie mają

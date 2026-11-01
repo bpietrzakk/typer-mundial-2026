@@ -228,21 +228,27 @@ SQL_COUNT_TYPED_PER_MATCH = """
 """
 
 # every member with: how many coupon matches typed + points of the week
-# (finished matches only, same columns as rankings). params: coupon, league
+# (finished matches only, same columns as rankings). the member's joker match
+# counts with the multiplier (domain.joker, 1 = no jokers).
+# params: multiplier, coupon, league
 SQL_LIST_MEMBER_COUPON_PROGRESS = """
     SELECT u.id AS user_id, u.nick,
            COUNT(cp.match_id) AS typed,
-           COALESCE(SUM(cp.points_awarded) FILTER (WHERE cp.status = 'finished'), 0) AS total_points,
+           COALESCE(SUM(cp.points_awarded * cp.factor) FILTER (WHERE cp.status = 'finished'), 0)
+               AS total_points,
            COUNT(*) FILTER (WHERE cp.status = 'finished' AND cp.hit_type = 'exact') AS exact_hits,
            COUNT(*) FILTER (WHERE cp.status = 'finished' AND cp.hit_type = 'diff') AS diff_hits,
            COUNT(cp.points_awarded) FILTER (WHERE cp.status = 'finished') AS scored_predictions
     FROM private_league_members plm
     JOIN users u ON u.id = plm.user_id
     LEFT JOIN (
-        SELECT p.user_id, p.match_id, p.points_awarded, p.hit_type, m.status
+        SELECT p.user_id, p.match_id, p.points_awarded, p.hit_type, m.status,
+               CASE WHEN j.match_id IS NULL THEN 1 ELSE %s END AS factor
         FROM league_coupon_matches lcm
         JOIN predictions p ON p.match_id = lcm.match_id
         JOIN matches m ON m.id = lcm.match_id
+        LEFT JOIN league_coupon_jokers j
+            ON j.coupon_id = lcm.coupon_id AND j.user_id = p.user_id AND j.match_id = p.match_id
         WHERE lcm.coupon_id = %s
     ) cp ON cp.user_id = u.id
     WHERE plm.private_league_id = %s
@@ -273,12 +279,20 @@ SQL_LIST_STARTED_MEMBER_PREDICTIONS = """
 # same as db.queries.ranking.SQL_LEAGUE_SEASONS_RANKING, but match points
 # only from matches on ANY coupon of this league (EXISTS, so a match on two
 # coupons is still counted once). bonuses exactly like in scope mode.
-# params: season ids, league, season ids, season ids, league, season ids, league
+# a match that is the member's joker on a coupon of this league counts with
+# the multiplier (domain.joker.JOKER_MULTIPLIER).
+# params: league, multiplier, season ids, league, season ids, season ids, league, season ids, league
 SQL_LEAGUE_COUPON_RANKING = """
     WITH
     pred AS (
         SELECT p.user_id,
-               COALESCE(SUM(p.points_awarded), 0) AS points,
+               COALESCE(SUM(p.points_awarded * CASE WHEN EXISTS (
+                   SELECT 1
+                   FROM league_coupon_jokers j
+                   JOIN league_coupons jc ON jc.id = j.coupon_id
+                   WHERE jc.private_league_id = %s
+                     AND j.user_id = p.user_id AND j.match_id = p.match_id
+               ) THEN %s ELSE 1 END), 0) AS points,
                COUNT(*) FILTER (WHERE p.hit_type = 'exact') AS exact_hits,
                COUNT(*) FILTER (WHERE p.hit_type = 'diff') AS diff_hits,
                COUNT(p.points_awarded) AS scored_predictions
@@ -327,6 +341,37 @@ SQL_LEAGUE_COUPON_RANKING = """
     LEFT JOIN gadv ON gadv.user_id = u.id
     LEFT JOIN league_bonus lb ON lb.user_id = u.id
     WHERE plm.private_league_id = %s
+"""
+
+
+# --- joker (domain/joker.py) ---
+
+# every joker of one coupon. params: coupon
+SQL_LIST_COUPON_JOKERS = """
+    SELECT user_id, match_id FROM league_coupon_jokers WHERE coupon_id = %s
+"""
+
+# my jokers on several coupons (start screen). params: user, coupon ids
+SQL_LIST_USER_JOKERS = """
+    SELECT coupon_id, match_id FROM league_coupon_jokers
+    WHERE user_id = %s AND coupon_id = ANY(%s::bigint[])
+"""
+
+# set / move. the update only goes through when the joker is still where the
+# router saw it (two tabs at once -> the second one gets nothing back).
+# params: coupon, user, match, expected current match
+SQL_UPSERT_JOKER = """
+    INSERT INTO league_coupon_jokers (coupon_id, user_id, match_id)
+    VALUES (%s, %s, %s)
+    ON CONFLICT (coupon_id, user_id) DO UPDATE
+        SET match_id = EXCLUDED.match_id, set_at = NOW()
+        WHERE league_coupon_jokers.match_id = %s
+    RETURNING match_id
+"""
+
+SQL_DELETE_JOKER = """
+    DELETE FROM league_coupon_jokers
+    WHERE coupon_id = %s AND user_id = %s AND match_id = %s
 """
 
 
@@ -495,9 +540,10 @@ def count_typed_per_match(league_id: int, coupon_id: int) -> dict[int, int]:
     return {r["match_id"]: int(r["typed_count"]) for r in rows}
 
 
-def list_member_coupon_progress(league_id: int, coupon_id: int | None) -> list[dict]:
-    # every member, also without a single prediction. no coupon = zeros
-    rows = _fetch_all(SQL_LIST_MEMBER_COUPON_PROGRESS, (coupon_id, league_id))
+def list_member_coupon_progress(league_id: int, coupon_id: int | None, joker_multiplier: int = 1) -> list[dict]:
+    # every member, also without a single prediction. no coupon = zeros.
+    # joker_multiplier from domain.joker (1 = jokers do not count)
+    rows = _fetch_all(SQL_LIST_MEMBER_COUPON_PROGRESS, (joker_multiplier, coupon_id, league_id))
     # ranking columns as plain ints + the typed counter
     typed = {r["user_id"]: int(r["typed"]) for r in rows}
     return [{**r, "typed": typed[r["user_id"]]} for r in _ranking_rows(rows)]
@@ -508,10 +554,36 @@ def list_started_member_predictions(league_id: int, coupon_id: int, now: datetim
     return _fetch_all(SQL_LIST_STARTED_MEMBER_PREDICTIONS, (league_id, coupon_id, now))
 
 
-def get_league_coupon_ranking(league_id: int, season_ids: list[int]) -> list[dict]:
+def get_league_coupon_ranking(league_id: int, season_ids: list[int], joker_multiplier: int = 1) -> list[dict]:
     # unsorted rows like get_league_season_ranking, router sorts with the domain
     rows = _fetch_all(
         SQL_LEAGUE_COUPON_RANKING,
-        (season_ids, league_id, season_ids, season_ids, league_id, season_ids, league_id),
+        (league_id, joker_multiplier, season_ids, league_id, season_ids, season_ids, league_id,
+         season_ids, league_id),
     )
     return _ranking_rows(rows)
+
+
+# --- joker ---
+
+def list_coupon_jokers(coupon_id: int) -> dict[int, int]:
+    # user id -> joker match id
+    return {r["user_id"]: r["match_id"] for r in _fetch_all(SQL_LIST_COUPON_JOKERS, (coupon_id,))}
+
+
+def list_user_jokers(user_id: int, coupon_ids: list[int]) -> dict[int, int]:
+    # coupon id -> my joker match id
+    if not coupon_ids:
+        return {}
+    rows = _fetch_all(SQL_LIST_USER_JOKERS, (user_id, coupon_ids))
+    return {r["coupon_id"]: r["match_id"] for r in rows}
+
+
+def set_joker(coupon_id: int, user_id: int, match_id: int, expected_current: int | None) -> bool:
+    # False = the joker moved in the meantime (another request), nothing written
+    row = _fetch_one(SQL_UPSERT_JOKER, (coupon_id, user_id, match_id, expected_current))
+    return row is not None
+
+
+def clear_joker(coupon_id: int, user_id: int, match_id: int) -> None:
+    _execute(SQL_DELETE_JOKER, (coupon_id, user_id, match_id))

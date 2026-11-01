@@ -81,7 +81,7 @@ export default function LeagueBonusQuestions({ leagueId, isOwner, scope, competi
       <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
         <div>
           <h2 id="league-bonus-title" className="text-xl font-semibold text-gray-100">Pytania bonusowe</h2>
-          <p className="text-sm text-gray-400 mt-0.5">Dodatkowe punkty w rankingu tej ligi, np. za mistrza sezonu.</p>
+          <p className="text-sm text-gray-400 mt-0.5">Dodatkowe punkty w rankingu tej ligi, np. za mistrza sezonu albo „kto spadnie”.</p>
         </div>
         {canCreate && !showForm && (
           <button type="button" onClick={() => setShowForm(true)} className="btn-secondary text-sm !py-2">
@@ -95,7 +95,7 @@ export default function LeagueBonusQuestions({ leagueId, isOwner, scope, competi
           leagueId={leagueId}
           scope={scope}
           competitions={competitions}
-          takenSeasonIds={(questions || []).map((q) => q.season.id)}
+          takenSeasonIds={(questions || []).filter((q) => q.kind === 'champion').map((q) => q.season.id)}
           onCreated={handleCreated}
           onCancel={() => setShowForm(false)}
         />

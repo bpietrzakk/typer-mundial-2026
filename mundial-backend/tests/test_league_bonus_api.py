@@ -65,13 +65,14 @@ def _access(user_id: int) -> dict | None:
 def _row(**over) -> dict:
     # flat sql row of one open question, nothing answered, nothing resolved
     row = {
-        "id": 4, "kind": "champion", "points": 20, "deadline_at": FUTURE, "resolved_at": None,
+        "id": 4, "kind": "champion", "title": None, "answers_count": 1,
+        "points": 20, "deadline_at": FUTURE, "resolved_at": None,
         "season_id": SEASON_ID, "season_label": "2026/27",
         "competition_id": 2, "competition_code": "EPL", "competition_name": "Premier League",
         "resolved_team_id": None, "resolved_team_name": None,
         "resolved_team_short_name": None, "resolved_team_crest_url": None,
-        "my_team_id": None, "my_team_name": None,
-        "my_team_short_name": None, "my_team_crest_url": None,
+        "correct_teams": None,  # json list from the sql aggregate
+        "my_teams": None,
         "my_points_awarded": None,
     }
     row.update(over)
@@ -128,10 +129,7 @@ def test_list_open_question_has_contract_shape_and_hides_answers(monkeypatch):
 
     def fake_list(lid, uid):
         asked["list"] = (lid, uid)
-        return [_row(
-            my_team_id=ARSENAL["id"], my_team_name="Arsenal",
-            my_team_short_name="ARS", my_team_crest_url="https://x/ars.png",
-        )]
+        return [_row(my_teams=[ARSENAL])]
 
     def must_not_load_answers(ids):
         raise AssertionError("answers of an open question must not be loaded")
@@ -148,10 +146,10 @@ def test_list_open_question_has_contract_shape_and_hides_answers(monkeypatch):
             "id": SEASON_ID, "label": "2026/27",
             "competition": {"id": 2, "code": "EPL", "name": "Premier League"},
         },
-        "kind": "champion", "points": 20,
+        "kind": "champion", "title": None, "answers_count": 1, "points": 20,
         "deadline_at": "2026-11-03T12:00:00Z", "is_open": True,
-        "resolved_team": None, "resolved_at": None,
-        "my_answer": {"team": ARSENAL, "points_awarded": None},
+        "resolved_team": None, "resolved_teams": [], "resolved_at": None,
+        "my_answer": {"team": ARSENAL, "teams": [ARSENAL], "points_awarded": None},
         "answers": [],
     }]
 
@@ -183,8 +181,8 @@ def test_list_closed_question_shows_all_answers(monkeypatch):
     assert loaded["ids"] == [4]
     assert body["is_open"] is False
     assert body["answers"] == [
-        {"user_id": 1, "nick": "bartek", "team": ARSENAL, "points_awarded": None},
-        {"user_id": 2, "nick": "daniel", "team": CHELSEA, "points_awarded": None},
+        {"user_id": 1, "nick": "bartek", "team": ARSENAL, "teams": [ARSENAL], "points_awarded": None},
+        {"user_id": 2, "nick": "daniel", "team": CHELSEA, "teams": [CHELSEA], "points_awarded": None},
     ]
 
 
@@ -204,8 +202,7 @@ def test_list_resolved_question_shows_winner_and_points(monkeypatch):
         deadline_at=PAST, resolved_at=NOW,
         resolved_team_id=1, resolved_team_name="Arsenal",
         resolved_team_short_name="ARS", resolved_team_crest_url="https://x/ars.png",
-        my_team_id=1, my_team_name="Arsenal", my_team_short_name="ARS",
-        my_team_crest_url="https://x/ars.png", my_points_awarded=20,
+        my_teams=[ARSENAL], my_points_awarded=20,
     )])
     monkeypatch.setattr(lb, "list_question_answers", lambda ids: [
         _answer_row(1, "bartek", ARSENAL, points=20),
@@ -214,7 +211,8 @@ def test_list_resolved_question_shows_winner_and_points(monkeypatch):
     body = client.get(f"/leagues/{LEAGUE_ID}/bonus-questions", cookies=cookies).json()[0]
     assert body["resolved_team"] == ARSENAL
     assert body["resolved_at"] == "2026-11-01T12:00:00Z"
-    assert body["my_answer"] == {"team": ARSENAL, "points_awarded": 20}
+    assert body["my_answer"] == {"team": ARSENAL, "teams": [ARSENAL], "points_awarded": 20}
+    assert body["resolved_teams"] == [ARSENAL]
     assert [a["points_awarded"] for a in body["answers"]] == [20, 0]
 
 
@@ -294,8 +292,8 @@ def test_create_returns_201_with_question(monkeypatch):
     cookies = _as(monkeypatch, OWNER)
     captured = {}
 
-    def fake_create(league_id, season_id, kind, points, deadline_at, created_by):
-        captured["args"] = (league_id, season_id, kind, points, deadline_at, created_by)
+    def fake_create(league_id, season_id, kind, points, deadline_at, created_by, title, answers_count):
+        captured["args"] = (league_id, season_id, kind, points, deadline_at, created_by, title, answers_count)
         return 4
 
     _setup_create(monkeypatch, create=fake_create)
@@ -309,7 +307,7 @@ def test_create_returns_201_with_question(monkeypatch):
     assert body["my_answer"] is None
     assert captured["args"] == (
         LEAGUE_ID, SEASON_ID, "champion", 20,
-        datetime(2026, 11, 30, 22, 59, 59, tzinfo=timezone.utc), OWNER["id"],
+        datetime(2026, 11, 30, 22, 59, 59, tzinfo=timezone.utc), OWNER["id"], None, 1,
     )
 
 
@@ -317,7 +315,7 @@ def test_create_deadline_without_timezone_is_stored_as_utc(monkeypatch):
     cookies = _as(monkeypatch, OWNER)
     captured = {}
 
-    def fake_create(league_id, season_id, kind, points, deadline_at, created_by):
+    def fake_create(league_id, season_id, kind, points, deadline_at, created_by, title, answers_count):
         captured["deadline_at"] = deadline_at
         return 4
 
@@ -528,13 +526,9 @@ def _setup_answer(monkeypatch, row=None, in_season=True, save=None):
     monkeypatch.setattr(lb, "get_league_question", lambda lid, qid, uid: holder["row"])
     monkeypatch.setattr(lb, "is_team_in_season", lambda sid, tid: in_season)
 
-    def default_save(qid, uid, tid):
+    def default_save(qid, uid, team_ids):
         # after the save the question comes back with my answer filled in
-        holder["row"] = {
-            **holder["row"],
-            "my_team_id": ARSENAL["id"], "my_team_name": "Arsenal",
-            "my_team_short_name": "ARS", "my_team_crest_url": "https://x/ars.png",
-        }
+        holder["row"] = {**holder["row"], "my_teams": [ARSENAL]}
 
     monkeypatch.setattr(lb, "save_answer", save or default_save)
 
@@ -614,19 +608,17 @@ def test_answer_returns_200_with_question_and_my_answer(monkeypatch):
     cookies = _as(monkeypatch, MEMBER)
     saved = {}
     # the row the db returns after the save already holds my answer
-    answered_row = _row(
-        my_team_id=1, my_team_name="Arsenal", my_team_short_name="ARS", my_team_crest_url="https://x/ars.png",
-    )
+    answered_row = _row(my_teams=[ARSENAL])
     _setup_answer(
         monkeypatch, row=answered_row,
         save=lambda qid, uid, tid: saved.setdefault("args", (qid, uid, tid)),
     )
     resp = client.put(f"/leagues/{LEAGUE_ID}/bonus-questions/4/answer", json={"team_id": 1}, cookies=cookies)
     assert resp.status_code == 200
-    assert saved["args"] == (4, MEMBER["id"], 1)
+    assert saved["args"] == (4, MEMBER["id"], [1])
     body = resp.json()
     assert body["id"] == 4
-    assert body["my_answer"] == {"team": ARSENAL, "points_awarded": None}
+    assert body["my_answer"] == {"team": ARSENAL, "teams": [ARSENAL], "points_awarded": None}
     assert body["is_open"] is True
     # other people's answers stay secret while the question is open
     assert body["answers"] == []
@@ -711,3 +703,151 @@ def test_resolve_returns_counts(monkeypatch):
     assert resp.status_code == 200
     assert resp.json() == {"questions_resolved": 2, "answers_scored": 7}
     assert called["args"] == (SEASON_ID, 1)
+
+
+# --- team_pick: own question about teams (010) ---
+
+TEAM_PICK_BODY = {
+    "season_id": SEASON_ID, "kind": "team_pick", "title": "  Kto  spadnie z Premier League? ",
+    "answers_count": 3, "points": 5, "deadline_at": "2026-11-30T22:59:59Z",
+}
+WOLVES = {"id": 3, "name": "Wolves", "short_name": "WOL", "crest_url": None}
+
+
+def test_create_team_pick_passes_title_and_answers_count(monkeypatch):
+    cookies = _as(monkeypatch, OWNER)
+    captured = {}
+
+    def fake_create(*args):
+        captured["args"] = args
+        return 4
+
+    _setup_create(monkeypatch, create=fake_create)
+    resp = client.post(f"/leagues/{LEAGUE_ID}/bonus-questions", json=TEAM_PICK_BODY, cookies=cookies)
+    assert resp.status_code == 201
+    # title is trimmed, the rest goes as sent
+    assert captured["args"][2] == "team_pick"
+    assert captured["args"][6:] == ("Kto spadnie z Premier League?", 3)
+
+
+@pytest.mark.parametrize("over, detail", [
+    ({"title": None}, "Podaj treść pytania"),
+    ({"title": "   "}, "Podaj treść pytania"),
+    ({"title": "ab"}, "Treść pytania musi mieć od 3 do 120 znaków"),
+    ({"answers_count": 0}, "Liczba poprawnych odpowiedzi musi być od 1 do 10"),
+    ({"answers_count": 11}, "Liczba poprawnych odpowiedzi musi być od 1 do 10"),
+    ({"kind": "champion", "answers_count": 2}, "Liczba poprawnych odpowiedzi musi być od 1 do 10"),
+])
+def test_create_team_pick_validation(monkeypatch, over, detail):
+    cookies = _as(monkeypatch, OWNER)
+    _setup_create(monkeypatch, create=lambda *a: pytest.fail("must not create"))
+    resp = client.post(f"/leagues/{LEAGUE_ID}/bonus-questions", json={**TEAM_PICK_BODY, **over}, cookies=cookies)
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == detail
+
+
+def test_answer_team_pick_with_several_teams(monkeypatch):
+    cookies = _as(monkeypatch, MEMBER)
+    saved = {}
+    row = _row(kind="team_pick", title="Kto spadnie?", answers_count=3, my_teams=[ARSENAL, CHELSEA, WOLVES])
+    _setup_answer(monkeypatch, row=row, save=lambda qid, uid, team_ids: saved.setdefault("ids", team_ids))
+    resp = client.put(
+        f"/leagues/{LEAGUE_ID}/bonus-questions/4/answer", json={"team_ids": [1, 2, 3]}, cookies=cookies,
+    )
+    assert resp.status_code == 200
+    assert saved["ids"] == [1, 2, 3]
+    body = resp.json()
+    assert body["title"] == "Kto spadnie?" and body["answers_count"] == 3
+    assert body["my_answer"]["teams"] == [ARSENAL, CHELSEA, WOLVES]
+
+
+@pytest.mark.parametrize("payload, detail", [
+    ({"team_ids": [1, 2]}, "Wybierz dokładnie 3 drużyn"),
+    ({"team_ids": [1, 1, 2]}, "Każda drużyna może być wybrana tylko raz"),
+    ({"team_id": 1}, "Wybierz dokładnie 3 drużyn"),
+    ({}, "Wybierz drużynę"),
+])
+def test_answer_team_pick_wrong_picks_returns_422(monkeypatch, payload, detail):
+    cookies = _as(monkeypatch, MEMBER)
+    _setup_answer(
+        monkeypatch, row=_row(kind="team_pick", title="Kto spadnie?", answers_count=3),
+        save=lambda *a: pytest.fail("must not save"),
+    )
+    resp = client.put(f"/leagues/{LEAGUE_ID}/bonus-questions/4/answer", json=payload, cookies=cookies)
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == detail
+
+
+def test_closed_team_pick_groups_answers_per_player(monkeypatch):
+    cookies = _as(monkeypatch, MEMBER)
+    monkeypatch.setattr(lb, "list_league_questions", lambda lid, uid: [_row(
+        kind="team_pick", title="Kto spadnie?", answers_count=2, deadline_at=PAST, resolved_at=NOW,
+        correct_teams=[ARSENAL, WOLVES],
+    )])
+    monkeypatch.setattr(lb, "list_question_answers", lambda ids: [
+        _answer_row(1, "bartek", ARSENAL, points=5),
+        _answer_row(1, "bartek", WOLVES, points=5),
+        _answer_row(2, "daniel", CHELSEA, points=0),
+        _answer_row(2, "daniel", WOLVES, points=5),
+    ])
+    body = client.get(f"/leagues/{LEAGUE_ID}/bonus-questions", cookies=cookies).json()[0]
+    assert body["resolved_teams"] == [ARSENAL, WOLVES]
+    assert body["resolved_team"] == ARSENAL
+    assert [(a["nick"], [t["id"] for t in a["teams"]], a["points_awarded"]) for a in body["answers"]] == [
+        ("bartek", [1, 3], 10), ("daniel", [2, 3], 5),
+    ]
+
+
+def _setup_resolve(monkeypatch, row, in_season=True, resolve=None):
+    holder = {"row": row}
+    monkeypatch.setattr(lb, "get_league_question", lambda lid, qid, uid: holder["row"])
+    monkeypatch.setattr(lb, "is_team_in_season", lambda sid, tid: in_season)
+
+    def default_resolve(qid, team_ids):
+        holder["row"] = {**holder["row"], "resolved_at": NOW, "correct_teams": [ARSENAL]}
+        return {"questions_resolved": 1, "answers_scored": 0}
+
+    monkeypatch.setattr(lb, "resolve_team_pick_question", resolve or default_resolve)
+    monkeypatch.setattr(lb, "list_question_answers", lambda ids: [])
+
+
+CLOSED_PICK = _row(kind="team_pick", title="Kto spadnie?", answers_count=3, deadline_at=PAST)
+
+
+def test_owner_resolves_team_pick(monkeypatch):
+    cookies = _as(monkeypatch, OWNER)
+    _setup_resolve(monkeypatch, CLOSED_PICK)
+    resp = client.post(f"/leagues/{LEAGUE_ID}/bonus-questions/4/resolve", json={"team_ids": [1]}, cookies=cookies)
+    assert resp.status_code == 200
+    assert resp.json()["resolved_teams"] == [ARSENAL]
+
+
+def test_resolve_team_pick_by_member_returns_403(monkeypatch):
+    cookies = _as(monkeypatch, MEMBER)
+    _setup_resolve(monkeypatch, CLOSED_PICK, resolve=lambda *a: pytest.fail("must not resolve"))
+    resp = client.post(f"/leagues/{LEAGUE_ID}/bonus-questions/4/resolve", json={"team_ids": [1]}, cookies=cookies)
+    assert resp.status_code == 403
+
+
+@pytest.mark.parametrize("row, payload, code, detail", [
+    (_row(kind="team_pick", title="Kto?", answers_count=3), {"team_ids": [1]}, 409,
+     "Pytanie można rozstrzygnąć dopiero po terminie odpowiedzi"),
+    (_row(deadline_at=PAST), {"team_ids": [1]}, 422,
+     "Mistrza sezonu rozstrzyga aplikacja po zakończeniu rozgrywek"),
+    (CLOSED_PICK, {"team_ids": []}, 422, "Zaznacz od 1 do 3 poprawnych drużyn"),
+    (CLOSED_PICK, {"team_ids": [1, 2, 3, 4]}, 422, "Zaznacz od 1 do 3 poprawnych drużyn"),
+    (CLOSED_PICK, {"team_ids": [1, 1]}, 422, "Każda drużyna może być zaznaczona tylko raz"),
+])
+def test_resolve_team_pick_errors(monkeypatch, row, payload, code, detail):
+    cookies = _as(monkeypatch, OWNER)
+    _setup_resolve(monkeypatch, row, resolve=lambda *a: pytest.fail("must not resolve"))
+    resp = client.post(f"/leagues/{LEAGUE_ID}/bonus-questions/4/resolve", json=payload, cookies=cookies)
+    assert resp.status_code == code
+    assert resp.json()["detail"] == detail
+
+
+def test_resolve_team_pick_team_not_in_season_returns_422(monkeypatch):
+    cookies = _as(monkeypatch, OWNER)
+    _setup_resolve(monkeypatch, CLOSED_PICK, in_season=False, resolve=lambda *a: pytest.fail("must not resolve"))
+    resp = client.post(f"/leagues/{LEAGUE_ID}/bonus-questions/4/resolve", json={"team_ids": [1]}, cookies=cookies)
+    assert resp.status_code == 422

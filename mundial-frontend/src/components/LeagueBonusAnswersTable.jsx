@@ -34,7 +34,11 @@ export default function LeagueBonusAnswersTable({ answers, resolved }) {
                   {isMe && <span className="ml-2 text-xs text-mundial-teal/70">(Ty)</span>}
                 </td>
                 <td className="px-3 py-2 text-gray-300 max-w-[12rem]">
-                  <LeagueTeamLabel team={answer.team} />
+                  <div className="flex flex-col gap-1">
+                    {(answer.teams?.length ? answer.teams : [answer.team]).map((t) => (
+                      <LeagueTeamLabel key={t.id} team={t} />
+                    ))}
+                  </div>
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">
                   {points == null ? (

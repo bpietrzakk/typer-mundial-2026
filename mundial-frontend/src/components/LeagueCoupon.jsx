@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getLeagueCoupon } from '../api/coupon';
+import { clearCouponJoker, getLeagueCoupon, setCouponJoker } from '../api/coupon';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import useAsync from '../hooks/useAsync';
 import useLivePolling from '../hooks/useLivePolling';
-import { formatWeekRange, nextOpenDeadline, shiftDay } from '../utils/coupon';
+import { JOKER_RULE, formatWeekRange, isJokerLocked, nextOpenDeadline, shiftDay } from '../utils/coupon';
+import { errorMessage } from '../utils/matchUi';
 import { distinctPoints } from '../utils/scoring';
 import CouponDayList from './CouponDayList';
 import CouponProgress from './CouponProgress';
@@ -21,6 +23,7 @@ const renderPredictions = (m) => <LeagueMatchPredictions match={m} />;
 // welcome = player just joined -> big "type the coupon" button
 export default function LeagueCoupon({ league, scope, competitions, welcome = false }) {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const [week, setWeek] = useState(null); // null = current week
   const [editing, setEditing] = useState(false);
   const sectionRef = useRef(null);
@@ -53,6 +56,21 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
     mutate((c) => c && ({ ...c, matches: c.matches.map((m) => (m.id === matchId ? { ...m, can_predict: false } : m)) }));
   }, [mutate]);
 
+  // joker: put / move (matchId) or take back (null). the reply is the whole coupon
+  const refreshCoupon = couponQ.refresh;
+  const changeJoker = useCallback(async (matchId) => {
+    try {
+      const next = matchId ? await setCouponJoker(league.id, matchId) : await clearCouponJoker(league.id);
+      mutate(() => next);
+      addToast(matchId ? 'Joker postawiony — ten mecz liczy się podwójnie' : 'Joker zdjęty');
+    } catch (err) {
+      addToast(errorMessage(err, 'Nie udało się zmienić jokera'), 'error');
+      // 409 = the match started or the joker moved in another tab
+      if (err.response?.status === 409) refreshCoupon();
+      throw err;
+    }
+  }, [league.id, mutate, addToast, refreshCoupon]);
+
   // live scores — silent refresh while a coupon match is in play
   const hasLive = (coupon?.matches ?? []).some((m) => m.status === 'live');
   const refresh = couponQ.refresh;
@@ -81,6 +99,19 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
   const scored = (coupon?.members ?? []).some((m) => m.scored_predictions > 0)
     || matches.some((m) => m.status === 'finished');
   const results = coupon && scored ? <LeagueWeekResults coupon={coupon} leagueName={league.name} /> : null;
+
+  // joker only in leagues ranked by the coupon. past weeks: just the badge
+  const jokerOn = coupon?.ranking_mode === 'coupon';
+  const jokerId = coupon?.my_joker_match_id ?? null;
+  const jokerLocked = !coupon?.is_current_week || isJokerLocked(matches.find((m) => m.id === jokerId));
+  const jokerOf = jokerOn
+    ? (m) => ({
+      active: m.id === jokerId,
+      locked: jokerLocked,
+      onSet: () => changeJoker(m.id),
+      onClear: () => changeJoker(null),
+    })
+    : undefined;
 
   return (
     <>
@@ -149,7 +180,7 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
           {coupon && (
             <p className="text-[11px] text-gray-500 mt-2">
               {coupon.ranking_mode === 'coupon'
-                ? 'Do rankingu ligi liczą się tylko mecze kuponu.'
+                ? `Do rankingu ligi liczą się tylko mecze kuponu. 🃏 ${JOKER_RULE}.`
                 : 'Kupon to wspólna porcja meczów — ranking ligi liczy wszystkie mecze z jej rozgrywek.'}
               {coupon.created_by === 'owner' ? ' Kupon ułożył organizator.' : coupon.created_by === 'auto' ? ' Kupon ułożył się sam z hitów tygodnia.' : ''}
             </p>
@@ -206,6 +237,7 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
                 matches={matches}
                 onSaved={handleSaved}
                 onLocked={handleLocked}
+                jokerOf={jokerOf}
                 renderExtra={renderPredictions}
               />
             )}
