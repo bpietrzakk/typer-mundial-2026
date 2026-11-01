@@ -281,7 +281,9 @@ SQL_LIST_STARTED_MEMBER_PREDICTIONS = """
 # coupons is still counted once). bonuses exactly like in scope mode.
 # a match that is the member's joker on a coupon of this league counts with
 # the multiplier (domain.joker.JOKER_MULTIPLIER).
-# params: league, multiplier, season ids, league, season ids, season ids, league, season ids, league
+# include_bonuses = false switches the old global Mundial bonuses off.
+# params: league, multiplier, season ids, league, season ids, flag, season ids, flag,
+#         league, season ids, league
 SQL_LEAGUE_COUPON_RANKING = """
     WITH
     pred AS (
@@ -310,13 +312,13 @@ SQL_LEAGUE_COUPON_RANKING = """
     bonus AS (
         SELECT user_id, SUM(points_awarded) AS total
         FROM bonus_predictions
-        WHERE season_id = ANY(%s::bigint[])
+        WHERE season_id = ANY(%s::bigint[]) AND %s
         GROUP BY user_id
     ),
     gadv AS (
         SELECT user_id, SUM(points_awarded) AS total
         FROM group_advance_predictions
-        WHERE season_id = ANY(%s::bigint[])
+        WHERE season_id = ANY(%s::bigint[]) AND %s
         GROUP BY user_id
     ),
     league_bonus AS (
@@ -331,6 +333,8 @@ SQL_LEAGUE_COUPON_RANKING = """
         u.nick,
         COALESCE(pred.points, 0) + COALESCE(bonus.total, 0) + COALESCE(gadv.total, 0)
             + COALESCE(lb.total, 0) AS total_points,
+        COALESCE(pred.points, 0) AS match_points,
+        COALESCE(bonus.total, 0) + COALESCE(gadv.total, 0) + COALESCE(lb.total, 0) AS bonus_points,
         COALESCE(pred.exact_hits, 0) AS exact_hits,
         COALESCE(pred.diff_hits, 0) AS diff_hits,
         COALESCE(pred.scored_predictions, 0) AS scored_predictions
@@ -554,12 +558,15 @@ def list_started_member_predictions(league_id: int, coupon_id: int, now: datetim
     return _fetch_all(SQL_LIST_STARTED_MEMBER_PREDICTIONS, (league_id, coupon_id, now))
 
 
-def get_league_coupon_ranking(league_id: int, season_ids: list[int], joker_multiplier: int = 1) -> list[dict]:
+def get_league_coupon_ranking(
+    league_id: int, season_ids: list[int], joker_multiplier: int = 1, include_bonuses: bool = True,
+) -> list[dict]:
     # unsorted rows like get_league_season_ranking, router sorts with the domain
+    flag = bool(include_bonuses)
     rows = _fetch_all(
         SQL_LEAGUE_COUPON_RANKING,
-        (league_id, joker_multiplier, season_ids, league_id, season_ids, season_ids, league_id,
-         season_ids, league_id),
+        (league_id, joker_multiplier, season_ids, league_id, season_ids, flag, season_ids, flag,
+         league_id, season_ids, league_id),
     )
     return _ranking_rows(rows)
 

@@ -26,8 +26,9 @@ function PositionChange({ entry }) {
 
 // league standings with exact / diff hit columns, highlights the logged-in user.
 // live = show the live table (live_rank / live_total from the api) in its order.
-// streaks = optional Map user_id -> current round streak (🔥 from 2 up)
-export default function LeagueRankingTable({ entries, onSelectUser, live = false, streaks, streakUnit }) {
+// streaks = optional Map user_id -> current round streak (🔥 from 2 up).
+// showBreakdown = "match points + bonus points" under the total (Mundial archive)
+export default function LeagueRankingTable({ entries, onSelectUser, live = false, streaks, streakUnit, showBreakdown = false }) {
   const { user } = useAuth();
 
   if (entries.length === 0) {
@@ -89,6 +90,11 @@ export default function LeagueRankingTable({ entries, onSelectUser, live = false
                   {live && entry.live_points > 0 && (
                     <span className="block text-[10px] font-semibold text-live/90 tabular-nums" title="punkty z trwających meczów, gdyby skończyły się teraz">
                       +{entry.live_points} na żywo
+                    </span>
+                  )}
+                  {showBreakdown && !live && (
+                    <span className="block text-[10px] text-gray-500 tabular-nums" title="mecze + bonusy">
+                      {entry.match_points} + {entry.bonus_points}
                     </span>
                   )}
                 </td>

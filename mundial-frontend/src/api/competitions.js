@@ -40,8 +40,10 @@ export const getSeasonTeams = async (seasonId) => {
   return res.data;
 };
 
-export const getSeasonRanking = async (seasonId) => {
-  const res = await api.get(`/seasons/${seasonId}/ranking`);
+// bonuses: false -> only match points (archived Mundial without the old bonuses)
+export const getSeasonRanking = async (seasonId, { bonuses = true } = {}) => {
+  const params = bonuses ? {} : { bonuses: false };
+  const res = await api.get(`/seasons/${seasonId}/ranking`, { params });
   return res.data;
 };
 

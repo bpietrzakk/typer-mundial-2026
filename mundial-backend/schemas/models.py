@@ -481,6 +481,10 @@ class SeasonRankingEntry(BaseModel):
     user_id: int
     nick: str
     total_points: int
+    # breakdown: total_points = match_points + bonus_points
+    # (bonus = old Mundial champion / group advances + league bonus answers)
+    match_points: int = 0
+    bonus_points: int = 0
     exact_hits: int
     diff_hits: int
     scored_predictions: int

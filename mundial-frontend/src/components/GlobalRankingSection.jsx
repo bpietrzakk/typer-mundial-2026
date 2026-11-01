@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { getSeasonRanking } from '../api/competitions';
+import BonusesToggle from './BonusesToggle';
 import CompetitionPicker from './CompetitionPicker';
 import EmptyState from './EmptyState';
 import ErrorState from './ErrorState';
@@ -26,13 +27,19 @@ export default function GlobalRankingSection() {
   const sel = useSeasonSelection();
   const { competition, seasons, season, seasonId } = sel;
   const [selectedUser, setSelectedUser] = useState(null);
+  // season id where the player picked "Bez bonusów", another season = back to the default
+  const [noBonusSeasonId, setNoBonusSeasonId] = useState(null);
+  const withBonuses = noBonusSeasonId !== seasonId;
 
   const rankingFetcher = useMemo(
-    () => (seasonId ? () => getSeasonRanking(seasonId) : null),
-    [seasonId],
+    () => (seasonId ? () => getSeasonRanking(seasonId, { bonuses: withBonuses }) : null),
+    [seasonId, withBonuses],
   );
   const rankingQ = useAsync(rankingFetcher);
   const entries = rankingQ.data ?? [];
+  // archived Mundial: old champion / group advance bonuses -> two tables
+  const hasBonuses = competition?.code === 'WC'
+    && (!withBonuses || entries.some((e) => e.bonus_points > 0));
 
   const handleShare = async (entry) => {
     const text = `Jestem #${entry.rank} z ${entry.total_points} pkt w czutce!`;
@@ -131,6 +138,14 @@ export default function GlobalRankingSection() {
         </div>
       )}
 
+      {hasBonuses && (
+        <BonusesToggle
+          withBonuses={withBonuses}
+          onChange={(on) => setNoBonusSeasonId(on ? null : seasonId)}
+          className="mb-6"
+        />
+      )}
+
       {rankingQ.loading && rankingSkeleton}
 
       {rankingQ.error && (
@@ -212,7 +227,12 @@ export default function GlobalRankingSection() {
             </div>
           )}
 
-          <RankingTable entries={entries} showStats onSelectUser={setSelectedUser} />
+          <RankingTable
+            entries={entries}
+            showStats
+            showBreakdown={hasBonuses && withBonuses}
+            onSelectUser={setSelectedUser}
+          />
           <p className="text-xs text-gray-400 mt-3 px-1">
             Kolejność: punkty, dokładne wyniki, trafione różnice, nick. Równi gracze dzielą miejsce.
             Kliknij gracza, żeby zobaczyć jego typy na zakończone mecze.

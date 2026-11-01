@@ -3,7 +3,8 @@ import * as fx from './fixtures.js';
 // fake backend: every /api/* call of the page is answered here.
 // returns { requests } so a test can check what the app sent
 // live = a coupon match is on: live coupon + live league table
-export async function mockApi(page, { loggedIn = false, live = false } = {}) {
+// mundial = the archived Mundial 2026 is in the competition list (ranking with bonuses)
+export async function mockApi(page, { loggedIn = false, live = false, mundial = false } = {}) {
   const state = { loggedIn, joined: loggedIn, requests: [] };
 
   const routes = [
@@ -13,7 +14,11 @@ export async function mockApi(page, { loggedIn = false, live = false } = {}) {
     ['POST', /^\/auth\/refresh$/, () => fx.USER],
     ['POST', /^\/auth\/verify-email$/, (body) => (body.token === 'good-token'
       ? { detail: 'ok' } : [400, { detail: 'Link nieprawidłowy' }])],
-    ['GET', /^\/competitions$/, () => fx.COMPETITIONS],
+    ['GET', /^\/competitions$/, () => (mundial ? [...fx.COMPETITIONS, fx.WC_COMPETITION] : fx.COMPETITIONS)],
+    ['GET', /^\/competitions\/9\/seasons$/, () => [fx.WC_SEASON]],
+    ['GET', /^\/seasons\/50\/ranking$/, (body, query) => (
+      query.get('bonuses') === 'false' ? fx.WC_RANKING_NO_BONUSES : fx.WC_RANKING
+    )],
     ['GET', /^\/competitions\/2\/seasons$/, () => [fx.SEASON]],
     ['GET', /^\/seasons\/5$/, () => fx.SEASON],
     ['GET', /^\/seasons\/5\/rounds$/, () => fx.ROUNDS],
@@ -45,7 +50,8 @@ export async function mockApi(page, { loggedIn = false, live = false } = {}) {
   await page.route((url) => url.pathname.startsWith('/api/'), async (route) => {
     const req = route.request();
     const method = req.method();
-    const path = new URL(req.url()).pathname.replace(/^\/api/, '');
+    const url = new URL(req.url());
+    const path = url.pathname.replace(/^\/api/, '');
     const body = req.postData() ? req.postDataJSON() : null;
     state.requests.push({ method, path, body });
 
@@ -56,7 +62,7 @@ export async function mockApi(page, { loggedIn = false, live = false } = {}) {
       return route.fulfill({ status: 404, json: { detail: 'brak fixture' } });
     }
 
-    let result = match[2](body);
+    let result = match[2](body, url.searchParams);
     // handlers return data (200) or [status, data]
     if (!Array.isArray(result) || typeof result[0] !== 'number') result = [200, result];
     const [status, data] = result;

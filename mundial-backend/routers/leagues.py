@@ -306,9 +306,11 @@ def _league_season_ids(league_id: int, season_id: int | None) -> list[int]:
 def get_league_scoped_ranking(
     league_id: int,
     season_id: int | None = Query(default=None),
+    bonuses: bool = Query(default=True),
     current_user: dict = Depends(get_current_user),
 ) -> list[dict]:
     # members only. with season_id: that season (must be in the league scope),
+    # bonuses=false leaves out the old global Mundial bonuses (champion / group advances),
     # without it: every active season in the scope added up.
     # league bonus answers of the chosen seasons are included either way.
     # ranking_mode 'coupon': match points only from this league's weekly coupons.
@@ -319,9 +321,11 @@ def get_league_scoped_ranking(
     mode = detail.get("ranking_mode") or "scope"
     if mode == "coupon":
         # each member's joker match counts double (domain/joker.py)
-        ranking = sort_ranking(get_league_coupon_ranking(league_id, season_ids, joker_multiplier("coupon")))
+        ranking = sort_ranking(
+            get_league_coupon_ranking(league_id, season_ids, joker_multiplier("coupon"), bonuses)
+        )
     else:
-        ranking = sort_ranking(get_league_season_ranking(league_id, season_ids))
+        ranking = sort_ranking(get_league_season_ranking(league_id, season_ids, bonuses))
     # official order stays, live matches only add the live_* fields
     return add_live_ranking(ranking, league_id, season_ids, mode)
 

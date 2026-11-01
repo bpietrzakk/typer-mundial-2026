@@ -94,6 +94,9 @@ def get_global_ranking() -> list[dict]:
                         "user_id": r["id"],
                         "nick": r["nick"],
                         "total_points": int(r["total_points"]),
+            # breakdown, queries without it (coupon progress) = all match points
+            "match_points": int(r.get("match_points", r["total_points"])),
+            "bonus_points": int(r.get("bonus_points", 0)),
                     }
                     for i, r in enumerate(rows)
                 ]
@@ -116,6 +119,9 @@ def get_league_ranking(league_id: int) -> list[dict]:
                         "user_id": r["id"],
                         "nick": r["nick"],
                         "total_points": int(r["total_points"]),
+            # breakdown, queries without it (coupon progress) = all match points
+            "match_points": int(r.get("match_points", r["total_points"])),
+            "bonus_points": int(r.get("bonus_points", 0)),
                     }
                     for i, r in enumerate(rows)
                 ]
@@ -131,7 +137,8 @@ def get_league_ranking(league_id: int) -> list[dict]:
 #   pred   - match points + hit counts of finished matches in the seasons
 #   bonus  - old global champion picks tagged with one of the seasons (Mundial archive)
 #   gadv   - old global group advance picks tagged with one of the seasons
-# the fragment takes the season id array three times
+# the fragment takes: season ids, season ids + include_bonuses, season ids + include_bonuses.
+# include_bonuses = false switches bonus/gadv off ("bez bonusów" Mundial ranking)
 
 _SQL_SCORE_CTES = """
     pred AS (
@@ -148,19 +155,21 @@ _SQL_SCORE_CTES = """
     bonus AS (
         SELECT user_id, SUM(points_awarded) AS total
         FROM bonus_predictions
-        WHERE season_id = ANY(%s::bigint[])
+        WHERE season_id = ANY(%s::bigint[]) AND %s
         GROUP BY user_id
     ),
     gadv AS (
         SELECT user_id, SUM(points_awarded) AS total
         FROM group_advance_predictions
-        WHERE season_id = ANY(%s::bigint[])
+        WHERE season_id = ANY(%s::bigint[]) AND %s
         GROUP BY user_id
     )
 """
 
 # season ranking: everyone who predicted a match of the season (or has an old
-# bonus pick for it). params: season ids x6
+# bonus pick for it, only while bonuses count). match_points / bonus_points
+# = the breakdown of total_points.
+# params: season ids, (season ids, flag) x2, season ids, (season ids, flag) x2
 SQL_SEASON_RANKING = (
     "WITH" + _SQL_SCORE_CTES + """,
     participants AS (
@@ -169,15 +178,17 @@ SQL_SEASON_RANKING = (
         JOIN matches m ON m.id = p.match_id
         WHERE m.season_id = ANY(%s::bigint[])
         UNION
-        SELECT user_id FROM bonus_predictions WHERE season_id = ANY(%s::bigint[])
+        SELECT user_id FROM bonus_predictions WHERE season_id = ANY(%s::bigint[]) AND %s
         UNION
-        SELECT user_id FROM group_advance_predictions WHERE season_id = ANY(%s::bigint[])
+        SELECT user_id FROM group_advance_predictions WHERE season_id = ANY(%s::bigint[]) AND %s
     )
     SELECT
         u.id AS user_id,
         u.nick,
         COALESCE(pred.points, 0) + COALESCE(bonus.total, 0) + COALESCE(gadv.total, 0)
             AS total_points,
+        COALESCE(pred.points, 0) AS match_points,
+        COALESCE(bonus.total, 0) + COALESCE(gadv.total, 0) AS bonus_points,
         COALESCE(pred.exact_hits, 0) AS exact_hits,
         COALESCE(pred.diff_hits, 0) AS diff_hits,
         COALESCE(pred.scored_predictions, 0) AS scored_predictions
@@ -191,7 +202,8 @@ SQL_SEASON_RANKING = (
 
 # private league ranking: every member (also with 0 points), seasons chosen by
 # the caller, plus the points of this league's bonus answers for those seasons.
-# params: season ids x3, league id, season ids, league id
+# bonus_points = old global bonuses + league bonus answers.
+# params: season ids, (season ids, flag) x2, league id, season ids, league id
 SQL_LEAGUE_SEASONS_RANKING = (
     "WITH" + _SQL_SCORE_CTES + """,
     league_bonus AS (
@@ -206,6 +218,8 @@ SQL_LEAGUE_SEASONS_RANKING = (
         u.nick,
         COALESCE(pred.points, 0) + COALESCE(bonus.total, 0) + COALESCE(gadv.total, 0)
             + COALESCE(lb.total, 0) AS total_points,
+        COALESCE(pred.points, 0) AS match_points,
+        COALESCE(bonus.total, 0) + COALESCE(gadv.total, 0) + COALESCE(lb.total, 0) AS bonus_points,
         COALESCE(pred.exact_hits, 0) AS exact_hits,
         COALESCE(pred.diff_hits, 0) AS diff_hits,
         COALESCE(pred.scored_predictions, 0) AS scored_predictions
@@ -227,6 +241,9 @@ def _ranking_rows(rows) -> list[dict]:
             "user_id": r["user_id"],
             "nick": r["nick"],
             "total_points": int(r["total_points"]),
+            # breakdown, queries without it (coupon progress) = all match points
+            "match_points": int(r.get("match_points", r["total_points"])),
+            "bonus_points": int(r.get("bonus_points", 0)),
             "exact_hits": int(r["exact_hits"]),
             "diff_hits": int(r["diff_hits"]),
             "scored_predictions": int(r["scored_predictions"]),
@@ -235,28 +252,35 @@ def _ranking_rows(rows) -> list[dict]:
     ]
 
 
-def get_season_ranking(season_id: int) -> list[dict]:
-    # unsorted rows, the router ranks them with domain.ranking.sort_ranking
+def get_season_ranking(season_id: int, include_bonuses: bool = True) -> list[dict]:
+    # unsorted rows, the router ranks them with domain.ranking.sort_ranking.
+    # include_bonuses = False -> only match points (old Mundial bonuses left out)
+    ids = [season_id]
+    flag = bool(include_bonuses)
     conn = get_conn()
     try:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(SQL_SEASON_RANKING, ([season_id],) * 6)
+                cur.execute(SQL_SEASON_RANKING, (ids, ids, flag, ids, flag) * 2)
                 return _ranking_rows(cur.fetchall())
     finally:
         release_conn(conn)
 
 
-def get_league_season_ranking(league_id: int, season_ids: list[int]) -> list[dict]:
+def get_league_season_ranking(
+    league_id: int, season_ids: list[int], include_bonuses: bool = True,
+) -> list[dict]:
     # league members over the given seasons + league bonus answer points.
-    # an empty season list is fine: everybody has 0 points then
+    # an empty season list is fine: everybody has 0 points then.
+    # include_bonuses = False leaves out only the old global Mundial bonuses
     conn = get_conn()
     try:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
                     SQL_LEAGUE_SEASONS_RANKING,
-                    (season_ids,) * 3 + (league_id, season_ids, league_id),
+                    (season_ids, season_ids, bool(include_bonuses), season_ids, bool(include_bonuses),
+                     league_id, season_ids, league_id),
                 )
                 return _ranking_rows(cur.fetchall())
     finally:

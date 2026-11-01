@@ -138,11 +138,13 @@ def get_season_teams(season_id: int, _user: dict = Depends(get_current_user)) ->
 @router.get("/seasons/{season_id}/ranking", response_model=list[SeasonRankingEntry])
 def get_season_ranking_endpoint(
     season_id: int,
+    bonuses: bool = Query(default=True),
     _user: dict = Depends(get_current_user),
 ) -> list[dict]:
-    # points, hits and ranks come from the same domain rule as every ranking
+    # points, hits and ranks come from the same domain rule as every ranking.
+    # bonuses=false -> only match points (the "bez bonusów" Mundial table)
     _require_season(season_id)
-    return sort_ranking(get_season_ranking(season_id))
+    return sort_ranking(get_season_ranking(season_id, bonuses))
 
 
 # --- feed ---

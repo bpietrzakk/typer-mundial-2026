@@ -4,6 +4,7 @@ import useLivePolling from '../hooks/useLivePolling';
 import { useToast } from '../hooks/useToast';
 import { apiErrorMessage } from '../utils/apiError';
 import { competitionLabel } from '../utils/matchUi';
+import BonusesToggle from './BonusesToggle';
 import LeagueBadges from './LeagueBadges';
 import LeagueRankingTable from './LeagueRankingTable';
 import SkeletonRow from './SkeletonRow';
@@ -19,6 +20,7 @@ function buildSeasonOptions(scope, competitions) {
     .map((c) => ({
       id: c.current_season.id,
       label: `${competitionLabel(c.code, c.name)} ${c.current_season.label}`,
+      code: c.code,
       archived: c.current_season.status === 'archived',
     }));
 }
@@ -35,6 +37,7 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
   const [userPicked, setUserPicked] = useState(false);
   const [pollTick, setPollTick] = useState(0); // silent refresh while live, no loading state
   const [showLive, setShowLive] = useState(true); // live table first when a match is on
+  const [noBonusSeasonId, setNoBonusSeasonId] = useState(null); // season shown "Bez bonusów"
 
   const options = useMemo(() => buildSeasonOptions(scope, competitions), [scope, competitions]);
 
@@ -46,17 +49,20 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
   // scope changes the combined ranking, so it is part of the request key
   const scopeKey = !scope ? 'none' : scope.all ? 'all' : scope.competitions.map((c) => c.id).join(',');
   const requestKey = `${leagueId}|${activeSeasonId ?? 'all'}|${scopeKey}|${rankingMode}|${reloadKey}`;
+  // old Mundial bonuses on/off only for the chosen season, badges don't care
+  const withBonuses = activeSeasonId === null || noBonusSeasonId !== activeSeasonId;
+  const rankingKey = `${requestKey}|${withBonuses}`;
 
   useEffect(() => {
     let cancelled = false;
-    getLeagueStandings(leagueId, activeSeasonId ?? undefined)
+    getLeagueStandings(leagueId, activeSeasonId ?? undefined, { bonuses: withBonuses })
       .then((entries) => {
-        if (!cancelled) setResult({ key: requestKey, entries, error: '' });
+        if (!cancelled) setResult({ key: rankingKey, entries, error: '' });
       })
       .catch((err) => {
         if (cancelled) return;
         const message = apiErrorMessage(err, 'Nie udało się załadować rankingu');
-        setResult({ key: requestKey, entries: [], error: message });
+        setResult({ key: rankingKey, entries: [], error: message });
         // 422 = the season is not in the league scope (anymore)
         if (err.response?.status === 422) {
           addToast(message, 'error');
@@ -64,7 +70,7 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
         }
       });
     return () => { cancelled = true; };
-  }, [leagueId, activeSeasonId, requestKey, addToast, pollTick]);
+  }, [leagueId, activeSeasonId, withBonuses, rankingKey, addToast, pollTick]);
 
   // season badges + streaks for the same seasons, no live polling needed
   const [badges, setBadges] = useState({ key: null, data: null, error: false });
@@ -84,7 +90,7 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
 
   // combined view with zeros everywhere -> look for an archived season with points
   const archivedKey = options.filter((o) => o.archived).map((o) => o.id).join(',');
-  const combinedEmpty = result.key === requestKey && activeSeasonId === null && !result.error
+  const combinedEmpty = result.key === rankingKey && activeSeasonId === null && !result.error
     && result.entries.every((e) => e.total_points === 0);
   useEffect(() => {
     if (!combinedEmpty || userPicked || archivePick || !archivedKey) return undefined;
@@ -113,7 +119,10 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
   };
 
   const hasData = result.key !== null;
-  const loading = result.key !== requestKey;
+  const loading = result.key !== rankingKey;
+  // archived Mundial season: "Z bonusami / Bez bonusów" switch
+  const hasBonuses = selected?.code === 'WC'
+    && (!withBonuses || (!result.error && result.entries.some((e) => e.bonus_points > 0)));
 
   // a match in the league is live -> the api adds live_rank / live_total
   const isLive = !result.error && result.entries.some((e) => e.live_rank != null);
@@ -178,6 +187,14 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
           </div>
         )}
 
+        {hasBonuses && (
+          <BonusesToggle
+            withBonuses={withBonuses}
+            onChange={(on) => setNoBonusSeasonId(on ? null : activeSeasonId)}
+            className="px-5 py-3 border-b border-surface-500/20"
+          />
+        )}
+
         {!hasData && (
           <div className="divide-y divide-surface-500/10" role="status" aria-busy="true" aria-label="Ładuję ranking">
             {[...Array(4)].map((_, i) => <SkeletonRow key={i} variant="rank" />)}
@@ -209,6 +226,7 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
               live={liveView}
               streaks={streaks}
               streakUnit={badgeData?.unit}
+              showBreakdown={hasBonuses && withBonuses}
             />
           </div>
         )}

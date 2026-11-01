@@ -166,3 +166,21 @@ test('invite link survives the detour through login', async ({ page }) => {
   const join = api.requests.find((r) => r.method === 'POST' && r.path === '/leagues/join');
   expect(join.body).toEqual({ join_code: INVITE_CODE });
 });
+
+test('archived Mundial ranking switches between with and without bonuses', async ({ page }) => {
+  await mockApi(page, { loggedIn: true, mundial: true });
+  await page.goto('/ranking?competition=9');
+
+  const section = page.getByRole('region', { name: 'Wszyscy gracze czutki' });
+  const toggle = section.getByRole('group', { name: 'Bonusy w rankingu' });
+  await expect(toggle.getByRole('button', { name: 'Z bonusami' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(section.getByText('Bonusy: mistrz 20 pkt, awans z grupy 3 pkt za drużynę.')).toBeVisible();
+  // breakdown under the total: matches + bonuses
+  await expect(section.getByText('120 + 32')).toBeVisible();
+
+  await toggle.getByRole('button', { name: 'Bez bonusów' }).click();
+  await expect(toggle.getByRole('button', { name: 'Bez bonusów' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(section.locator('tbody tr').first()).toContainText('bartek');
+  // the table without bonuses comes from ?bonuses=false (bartek leads there)
+  await expect(section.getByText('120 + 32')).toHaveCount(0);
+});

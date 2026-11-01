@@ -39,7 +39,7 @@ wokół listy rozgrywek. Większość punktów niżej z tego wynika.
 
 ## Do zrobienia ręcznie (bartek)
 
-- [ ] **Keep-alive na cron-job.org** (decyzja 01.11, zamiast płatnego Rendera): job na
+- [x] **Keep-alive na cron-job.org** (działa od 01.11) (decyzja 01.11, zamiast płatnego Rendera): job na
   `https://<backend>.onrender.com/health` co 10 minut. `/health` pinguje też bazę, więc budzi
   Neona. Sprawdzić w historii jobu, że dostaje 200, a potem zmierzyć pierwsze wejście po kilku godzinach
   przerwy (było 72 s).

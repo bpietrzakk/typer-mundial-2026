@@ -223,3 +223,17 @@ export const MY_PREDICTIONS = [{
   competition_code: 'PL',
   round_name: 'Kolejka 8',
 }];
+
+// archived Mundial 2026 (only with mockApi({ mundial: true })): ranking with old bonuses
+const WC_REF = { id: 9, code: 'WC', name: 'Mistrzostwa Świata', logo_url: null };
+export const WC_SEASON = { id: 50, label: '2026', status: 'archived' };
+export const WC_COMPETITION = {
+  ...WC_REF, country: null, kind: 'cup', is_active: true, is_followed: false, current_season: WC_SEASON,
+};
+const wcRow = (rank, userId, nick, match, bonus, exact) => ({
+  rank, user_id: userId, nick, total_points: match + bonus, match_points: match, bonus_points: bonus,
+  exact_hits: exact, diff_hits: 4, scored_predictions: 60,
+});
+// with bonuses ola wins on her champion pick, without them bartek does
+export const WC_RANKING = [wcRow(1, 3, 'ola', 120, 32, 9), wcRow(2, 1, 'bartek', 135, 0, 12)];
+export const WC_RANKING_NO_BONUSES = [wcRow(1, 1, 'bartek', 135, 0, 12), wcRow(2, 3, 'ola', 120, 0, 9)];

@@ -185,3 +185,72 @@ def test_mundial_endpoints_serve_the_archive(wc):
         assert {r["user_id"]: r["total_points"] for r in league.json()} == old_league
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+
+
+def test_mundial_ranking_without_bonuses_counts_only_match_points(wc, conn):
+    # "bez bonusów": totals = match points, the breakdown adds up with bonuses on
+    from db.queries.ranking import get_league_season_ranking, get_season_ranking
+
+    match_points = {uid: int(pts) for uid, pts in _all(
+        conn,
+        "SELECT p.user_id, COALESCE(SUM(p.points_awarded), 0) FROM predictions p "
+        "JOIN matches m ON m.id = p.match_id WHERE m.status = 'finished' GROUP BY p.user_id",
+    )}
+    with_bonuses = {r["user_id"]: r for r in get_season_ranking(wc["season_id"])}
+    without = {r["user_id"]: r for r in get_season_ranking(wc["season_id"], include_bonuses=False)}
+
+    # the dataset has bonus points, so the two tables really differ
+    assert {u: r["total_points"] for u, r in with_bonuses.items()} != {
+        u: r["total_points"] for u, r in without.items()
+    }
+    assert any(r["bonus_points"] > 0 for r in with_bonuses.values())
+    for uid, row in with_bonuses.items():
+        assert row["total_points"] == row["match_points"] + row["bonus_points"], row["nick"]
+        assert row["match_points"] == match_points.get(uid, 0), row["nick"]
+    for uid, row in without.items():
+        assert (row["total_points"], row["bonus_points"]) == (match_points.get(uid, 0), 0), row["nick"]
+
+    league = {
+        r["user_id"]: r["total_points"]
+        for r in get_league_season_ranking(wc["private_league"], [wc["season_id"]], include_bonuses=False)
+    }
+    assert league == {uid: match_points.get(uid, 0) for uid in league}
+
+
+def test_users_with_only_old_bonuses_drop_out_without_bonuses(wc, conn):
+    from db.queries.ranking import get_season_ranking
+
+    season_id = wc["season_id"]
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO users (nick, email, password_hash) VALUES ('frank', 'frank@example.com', 'h') "
+                "RETURNING id"
+            )
+            frank = cur.fetchone()[0]
+            cur.execute(
+                "INSERT INTO bonus_predictions (user_id, champion_team_id, season_id, points_awarded) "
+                "VALUES (%s, %s, %s, 20)",
+                (frank, wc["teams"]["ARG"], season_id),
+            )
+
+    assert frank in {r["user_id"] for r in get_season_ranking(season_id)}
+    assert frank not in {r["user_id"] for r in get_season_ranking(season_id, include_bonuses=False)}
+
+
+def test_mundial_season_ranking_endpoint_bonuses_flag(wc):
+    client = TestClient(app)
+    user = {"id": wc["users"]["ala"], "nick": "ala", "email": "ala@example.com", "is_admin": False}
+    app.dependency_overrides[get_current_user] = lambda: user
+    try:
+        on = client.get(f"/seasons/{wc['season_id']}/ranking").json()
+        off = client.get(f"/seasons/{wc['season_id']}/ranking?bonuses=false").json()
+        assert sum(r["total_points"] for r in on) > sum(r["total_points"] for r in off)
+        assert all(r["bonus_points"] == 0 for r in off)
+        league = client.get(
+            f"/leagues/{wc['private_league']}/ranking?season_id={wc['season_id']}&bonuses=false"
+        )
+        assert league.status_code == 200
+        assert all(r["total_points"] == r["match_points"] for r in league.json())
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)

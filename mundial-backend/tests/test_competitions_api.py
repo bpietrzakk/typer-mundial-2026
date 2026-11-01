@@ -372,7 +372,7 @@ def test_season_ranking_is_sorted_and_ranked_in_the_domain(monkeypatch):
         }
     monkeypatch.setattr(competitions_module, "get_season", lambda sid: _season(sid))
     # unsorted on purpose; ola and bea tie on everything, kasia has the same points but fewer exacts
-    monkeypatch.setattr(competitions_module, "get_season_ranking", lambda sid: [
+    monkeypatch.setattr(competitions_module, "get_season_ranking", lambda sid, bonuses=True: [
         row(1, "kasia", 20, 1, 5, 10),
         row(2, "ola", 41, 4, 6, 20),
         row(3, "bea", 41, 4, 6, 20),
@@ -384,7 +384,7 @@ def test_season_ranking_is_sorted_and_ranked_in_the_domain(monkeypatch):
     assert [(e["rank"], e["nick"]) for e in body] == [(1, "bea"), (1, "ola"), (3, "kasia"), (4, "adam")]
     assert body[0] == {
         "rank": 1, "user_id": 3, "nick": "bea", "total_points": 41,
-        "exact_hits": 4, "diff_hits": 6, "scored_predictions": 20,
+        "match_points": 0, "bonus_points": 0, "exact_hits": 4, "diff_hits": 6, "scored_predictions": 20,
     }
 
 
@@ -395,10 +395,36 @@ def test_season_ranking_unknown_season_returns_404(monkeypatch):
 
 def test_season_ranking_empty(monkeypatch):
     monkeypatch.setattr(competitions_module, "get_season", lambda sid: _season(sid))
-    monkeypatch.setattr(competitions_module, "get_season_ranking", lambda sid: [])
+    monkeypatch.setattr(competitions_module, "get_season_ranking", lambda sid, bonuses=True: [])
     resp = client.get("/seasons/5/ranking", cookies=_cookie())
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+def test_season_ranking_bonuses_flag_defaults_to_true_and_can_be_turned_off(monkeypatch):
+    seen = []
+
+    def fake_ranking(sid, bonuses=True):
+        seen.append(bonuses)
+        # with bonuses ola wins on the old champion pick, without them kasia does
+        bonus = 20 if bonuses else 0
+        return [
+            {"user_id": 1, "nick": "kasia", "total_points": 30, "match_points": 30, "bonus_points": 0,
+             "exact_hits": 3, "diff_hits": 0, "scored_predictions": 10},
+            {"user_id": 2, "nick": "ola", "total_points": 25 + bonus, "match_points": 25, "bonus_points": bonus,
+             "exact_hits": 2, "diff_hits": 0, "scored_predictions": 10},
+        ]
+    monkeypatch.setattr(competitions_module, "get_season", lambda sid: _season(sid))
+    monkeypatch.setattr(competitions_module, "get_season_ranking", fake_ranking)
+
+    with_bonuses = client.get("/seasons/5/ranking", cookies=_cookie()).json()
+    without = client.get("/seasons/5/ranking?bonuses=false", cookies=_cookie()).json()
+    assert seen == [True, False]
+    assert [(e["nick"], e["total_points"], e["match_points"], e["bonus_points"]) for e in with_bonuses] == [
+        ("ola", 45, 25, 20), ("kasia", 30, 30, 0),
+    ]
+    assert [(e["nick"], e["total_points"]) for e in without] == [("kasia", 30), ("ola", 25)]
+    assert client.get("/seasons/5/ranking?bonuses=nope", cookies=_cookie()).status_code == 422
 
 
 # --- feed ---

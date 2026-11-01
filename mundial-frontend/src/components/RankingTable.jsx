@@ -1,8 +1,9 @@
 import { useAuth } from '../hooks/useAuth';
 import { TIPS, countOf } from '../utils/plural';
 
-// showStats (optional) adds exact / diff / scored columns from RankingEntry
-export default function RankingTable({ entries, title, onSelectUser, showStats = false }) {
+// showStats (optional) adds exact / diff / scored columns from RankingEntry.
+// showBreakdown (optional) adds "match points + bonus points" under the total
+export default function RankingTable({ entries, title, onSelectUser, showStats = false, showBreakdown = false }) {
   const { user } = useAuth();
 
   if (!entries || entries.length === 0) {
@@ -93,6 +94,11 @@ export default function RankingTable({ entries, title, onSelectUser, showStats =
                     }`}>
                       {entry.total_points}
                     </span>
+                    {showBreakdown && (
+                      <span className="block text-[10px] text-gray-500 tabular-nums" title="mecze + bonusy">
+                        {entry.match_points} + {entry.bonus_points}
+                      </span>
+                    )}
                   </td>
                 </tr>
               );

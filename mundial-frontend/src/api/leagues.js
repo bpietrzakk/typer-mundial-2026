@@ -77,9 +77,11 @@ export const setLeagueScope = async (id, competitionIds) => {
   return res.data;
 };
 
-// seasonId optional — without it: sum of all active seasons in the league scope
-export const getLeagueStandings = async (id, seasonId) => {
+// seasonId optional — without it: sum of all active seasons in the league scope.
+// bonuses: false -> leaves out the old Mundial bonuses (champion / group advances)
+export const getLeagueStandings = async (id, seasonId, { bonuses = true } = {}) => {
   const params = seasonId ? { season_id: seasonId } : {};
+  if (!bonuses) params.bonuses = false;
   const res = await api.get(`/leagues/${id}/ranking`, { params });
   return res.data;
 };

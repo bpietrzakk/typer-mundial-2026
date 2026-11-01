@@ -236,7 +236,8 @@ def _stub_ranking(monkeypatch, rows=None, active_seasons=(5,), in_scope=True, se
     )
     monkeypatch.setattr(
         leagues_module, "get_league_season_ranking",
-        lambda lid, sids: seen.update(league_id=lid, season_ids=sids) or (rows if rows is not None else []),
+        lambda lid, sids, bonuses=True: seen.update(league_id=lid, season_ids=sids, bonuses=bonuses)
+        or (rows if rows is not None else []),
     )
     return seen
 
@@ -245,14 +246,14 @@ def test_ranking_for_a_season(monkeypatch):
     seen = _stub_ranking(monkeypatch, rows=[_row(1, "bartek", 12, 1, 2, 5), _row(2, "daniel", 30, 3, 1, 8)])
     resp = client.get("/leagues/10/ranking?season_id=5", cookies=_cookie(MEMBER))
     assert resp.status_code == 200
-    assert seen == {"league_id": 10, "season_ids": [5], "live_coupon_only": False}
+    assert seen == {"league_id": 10, "season_ids": [5], "bonuses": True, "live_coupon_only": False}
     # nothing live -> live fields empty
     assert resp.json() == [
         {"rank": 1, "user_id": 2, "nick": "daniel", "total_points": 30,
-         "exact_hits": 3, "diff_hits": 1, "scored_predictions": 8,
+         "match_points": 0, "bonus_points": 0, "exact_hits": 3, "diff_hits": 1, "scored_predictions": 8,
          "live_points": 0, "live_total": None, "live_rank": None},
         {"rank": 2, "user_id": 1, "nick": "bartek", "total_points": 12,
-         "exact_hits": 1, "diff_hits": 2, "scored_predictions": 5,
+         "match_points": 0, "bonus_points": 0, "exact_hits": 1, "diff_hits": 2, "scored_predictions": 5,
          "live_points": 0, "live_total": None, "live_rank": None},
     ]
 
@@ -281,7 +282,7 @@ def test_live_table_in_a_coupon_league_counts_coupon_matches_and_jokers(monkeypa
     monkeypatch.setattr(
         leagues_module, "get_league_with_owner", lambda lid: {**LEAGUE, "ranking_mode": "coupon"},
     )
-    monkeypatch.setattr(leagues_module, "get_league_coupon_ranking", lambda lid, sids, mult: [
+    monkeypatch.setattr(leagues_module, "get_league_coupon_ranking", lambda lid, sids, mult, bonuses=True: [
         _row(1, "bartek", 12), _row(2, "daniel", 14),
     ])
     seen = _stub_ranking(monkeypatch, live=[_live(1, (2, 1), is_joker=True), _live(2, (2, 1))])
@@ -291,6 +292,13 @@ def test_live_table_in_a_coupon_league_counts_coupon_matches_and_jokers(monkeypa
     # diff 3 each, bartek's joker doubles it -> 12 + 6 = 18 vs 14 + 3 = 17
     by_nick = {e["nick"]: (e["live_points"], e["live_total"], e["live_rank"]) for e in resp.json()}
     assert by_nick == {"bartek": (6, 18, 1), "daniel": (3, 17, 2)}
+
+
+def test_ranking_bonuses_false_is_passed_to_the_query(monkeypatch):
+    seen = _stub_ranking(monkeypatch, rows=[_row(1, "bartek", 12)])
+    resp = client.get("/leagues/10/ranking?season_id=5&bonuses=false", cookies=_cookie(MEMBER))
+    assert resp.status_code == 200
+    assert seen["bonuses"] is False
 
 
 def test_ranking_without_season_adds_up_active_seasons_in_scope(monkeypatch):
