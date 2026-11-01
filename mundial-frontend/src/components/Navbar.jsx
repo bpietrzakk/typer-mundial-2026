@@ -95,7 +95,7 @@ export default function Navbar() {
                   {user?.is_admin && (
                     <Link
                       to="/admin"
-                      className="md:hidden text-xs font-semibold px-2 py-1 rounded-lg text-mundial-red bg-mundial-red/10 hover:bg-mundial-red/20 transition-colors"
+                      className="md:hidden text-xs font-semibold px-2 py-1 rounded-lg text-brand bg-brand/10 hover:bg-brand/20 transition-colors"
                     >
                       Admin
                     </Link>
@@ -114,7 +114,7 @@ export default function Navbar() {
                   {/* on phones logging out lives in the settings page */}
                   <button
                     onClick={handleLogout}
-                    className="hidden md:inline-flex text-sm text-gray-400 hover:text-mundial-red transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-700/30"
+                    className="hidden md:inline-flex text-sm text-gray-400 hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-700/30"
                   >
                     Wyloguj
                   </button>
@@ -152,10 +152,10 @@ export default function Navbar() {
                   key={to}
                   to={to}
                   className={`relative flex-1 flex flex-col items-center justify-center gap-1 py-2.5 transition-colors min-h-[56px]
-                    ${active ? 'text-mundial-teal' : 'text-gray-500 active:text-gray-300'}`}
+                    ${active ? 'text-brand' : 'text-gray-500 active:text-gray-300'}`}
                 >
                   {active && (
-                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-mundial-teal rounded-full" />
+                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand rounded-full" />
                   )}
                   <NavIcon d={d} />
                   <span className="text-[10px] font-medium leading-none">{label}</span>

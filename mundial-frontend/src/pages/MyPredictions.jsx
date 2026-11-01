@@ -168,7 +168,7 @@ export default function MyPredictions() {
       {predictions.length === 0 ? (
         <div className="glass-card p-10 text-center text-gray-400">
           Nie masz jeszcze żadnych typów — przejdź do{' '}
-          <Link to="/matches" className="text-mundial-teal hover:underline">Meczów</Link>{' '}
+          <Link to="/matches" className="text-brand hover:underline">Meczów</Link>{' '}
           i zacznij typować!
         </div>
       ) : (
@@ -193,7 +193,7 @@ export default function MyPredictions() {
             </div>
             <div className="glass-card p-4 text-center">
               <p className="text-xs text-gray-500 mb-1">Dokładne wyniki</p>
-              <p className="text-2xl font-bold text-emerald-400 tabular-nums">{cats.exact}</p>
+              <p className="text-2xl font-bold text-hit-exact tabular-nums">{cats.exact}</p>
             </div>
             <div className="glass-card p-4 text-center">
               <p className="text-xs text-gray-500 mb-1">Skuteczność</p>
@@ -221,7 +221,7 @@ export default function MyPredictions() {
                 </div>
               </div>
               {streak >= 2 && (
-                <span className={`text-sm font-bold ${streak >= 5 ? 'text-mundial-gold' : 'text-emerald-400'}`}>
+                <span className={`text-sm font-bold ${streak >= 5 ? 'text-accent' : 'text-emerald-400'}`}>
                   Ale masz czutkę! {streak} z rzędu!
                 </span>
               )}

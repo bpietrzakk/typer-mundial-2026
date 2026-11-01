@@ -19,7 +19,7 @@ export default function LeagueBadgeItem({ badge, nicks, unit }) {
           <span className="block text-sm font-semibold text-gray-200">{badge.title}</span>
           <span className="block text-xs text-gray-400 break-words">{nicks.join(', ')}</span>
         </span>
-        <span className="text-xs font-semibold tabular-nums text-mundial-teal whitespace-nowrap">
+        <span className="text-xs font-semibold tabular-nums text-brand whitespace-nowrap">
           {badgeValueLabel(badge, unit)}
         </span>
       </button>

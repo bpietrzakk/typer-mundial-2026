@@ -129,7 +129,7 @@ export default function LeagueBonusQuestionForm({
     seasonField = (
       <div className="flex items-center gap-3 flex-wrap text-sm">
         <span className="text-red-400">{loadError}</span>
-        <button type="button" onClick={retry} className="text-mundial-teal hover:underline">Spróbuj ponownie</button>
+        <button type="button" onClick={retry} className="text-brand hover:underline">Spróbuj ponownie</button>
       </div>
     );
   } else if (seasons === null) {
@@ -175,7 +175,7 @@ export default function LeagueBonusQuestionForm({
             disabled={saving}
             className={`px-3 py-2 rounded-xl text-sm font-semibold border transition-colors
               ${kind === k.value
-                ? 'bg-mundial-teal/15 border-mundial-teal/50 text-mundial-teal'
+                ? 'bg-brand/15 border-brand/50 text-brand'
                 : 'bg-surface-600/30 border-surface-500/30 text-gray-300 hover:text-white'}`}
           >
             {k.label}

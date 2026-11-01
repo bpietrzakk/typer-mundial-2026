@@ -74,7 +74,6 @@ def build_world_cup(conn) -> dict:
     """
     from db.queries import (
         create_league,
-        join_league,
         score_all_champion_bonuses,
         score_all_group_advances,
     )
@@ -179,8 +178,14 @@ def build_world_cup(conn) -> dict:
     score_all_group_advances("B", [t["BRA"], t["ARG"]])
 
     league = create_league("Biuro", ids["users"]["bartek"])
-    for nick in ("ala", "celina", "daniel"):
-        join_league(league["join_code"], ids["users"][nick])
+    # members inserted directly: today's join_league also follows the league
+    # scope, and user_competitions only exists from 005 on
+    from db.queries.leagues import SQL_INSERT_LEAGUE_MEMBER
+
+    with conn:
+        with conn.cursor() as cur:
+            for nick in ("ala", "celina", "daniel"):
+                cur.execute(SQL_INSERT_LEAGUE_MEMBER, (league["id"], ids["users"][nick], False))
     ids["private_league"] = league["id"]
     return ids
 

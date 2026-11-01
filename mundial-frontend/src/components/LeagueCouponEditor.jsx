@@ -150,7 +150,7 @@ export default function LeagueCouponEditor({ coupon, scope, competitions, onSave
                     disabled={full || Boolean(busy)}
                     aria-label={`Dodaj ${m.home_team.name} – ${m.away_team.name}`}
                     title={full ? `Kupon ma już ${MAX_SIZE} meczów` : 'Dodaj do kuponu'}
-                    className="w-8 h-8 shrink-0 rounded-lg bg-mundial-teal/10 text-mundial-teal font-bold hover:bg-mundial-teal/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="w-8 h-8 shrink-0 rounded-lg bg-brand/10 text-brand font-bold hover:bg-brand/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     +
                   </button>

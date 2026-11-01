@@ -7,7 +7,7 @@ export default function HomeRoute({ guest, children }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-10 h-10 border-4 border-mundial-teal/30 border-t-mundial-teal rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-brand/30 border-t-brand rounded-full animate-spin" />
       </div>
     );
   }

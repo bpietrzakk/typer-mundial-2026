@@ -17,10 +17,10 @@ export default function AdminRunningBanner({ kind, code, startedAt, external = f
   }, []);
 
   return (
-    <div className="rounded-xl border border-mundial-teal/30 bg-mundial-teal/5 px-4 py-3" role="status" aria-live="polite">
+    <div className="rounded-xl border border-brand/30 bg-brand/5 px-4 py-3" role="status" aria-live="polite">
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="w-4 h-4 rounded-full border-2 border-mundial-teal border-t-transparent animate-spin" aria-hidden="true" />
-        <span className="text-sm font-semibold text-mundial-teal">
+        <span className="w-4 h-4 rounded-full border-2 border-brand border-t-transparent animate-spin" aria-hidden="true" />
+        <span className="text-sm font-semibold text-brand">
           {external ? 'Trwa przebieg uruchomiony gdzie indziej' : 'Trwa synchronizacja'}
           {': '}<AdminRunKind kind={kind} />{code ? ` · ${code}` : ''}
         </span>

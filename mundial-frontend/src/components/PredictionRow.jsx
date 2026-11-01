@@ -38,7 +38,7 @@ export default function PredictionRow({ prediction: p, hit }) {
                 <span className="text-gray-400 text-lg">→</span>
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Wynik</p>
-                  <p className={`score-num text-2xl font-black leading-none ${p.status === 'live' ? 'text-mundial-red' : hit === 'exact' ? 'text-emerald-400' : hit === 'miss' ? 'text-gray-500' : 'text-gray-200'}`}>
+                  <p className={`score-num text-2xl font-black leading-none ${p.status === 'live' ? 'text-live' : hit === 'exact' ? 'text-hit-exact' : hit === 'miss' ? 'text-gray-500' : 'text-gray-200'}`}>
                     {p.home_goals} : {p.away_goals}
                   </p>
                 </div>

@@ -12,14 +12,14 @@ export default function LandingPreview() {
   return (
     <div className="relative mx-auto w-full max-w-sm" aria-hidden="true">
       {/* glow behind the cards */}
-      <div className="absolute -inset-6 rounded-[2rem] bg-gradient-to-br from-mundial-teal/20 via-transparent to-mundial-red/20 blur-2xl" />
+      <div className="absolute -inset-6 rounded-[2rem] bg-brand/10 blur-2xl" />
 
       {/* weekly coupon header */}
       <div className="relative glass-card px-4 py-3 mb-3 flex items-center justify-between">
         <div>
           <p className="text-[11px] uppercase tracking-widest text-gray-500">Kupon tygodnia</p>
           <p className="text-sm font-semibold text-gray-100">
-            <span className="text-mundial-teal tabular-nums">7 z 10</span> wytypowane
+            <span className="text-brand tabular-nums">7 z 10</span> wytypowane
           </p>
         </div>
         <span className="text-[11px] text-gray-400 text-right leading-tight">
@@ -35,22 +35,22 @@ export default function LandingPreview() {
         </div>
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
           <div className="flex flex-col items-center gap-1.5">
-            <span className="w-11 h-11 rounded-full bg-red-600/80 ring-2 ring-white/10 flex items-center justify-center text-xs font-black">ARS</span>
+            <span className="w-11 h-11 rounded-full bg-surface-600 ring-2 ring-white/10 flex items-center justify-center text-xs font-black">ARS</span>
             <span className="text-xs text-gray-300">Arsenal</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-11 h-12 rounded-xl bg-surface-600/60 border border-mundial-teal/50 flex items-center justify-center score-num text-2xl font-black">2</span>
+            <span className="w-11 h-12 rounded-xl bg-surface-600/60 border border-brand/50 flex items-center justify-center score-num text-2xl font-black">2</span>
             <span className="text-gray-500 font-bold">:</span>
-            <span className="w-11 h-12 rounded-xl bg-surface-600/60 border border-mundial-teal/50 flex items-center justify-center score-num text-2xl font-black">1</span>
+            <span className="w-11 h-12 rounded-xl bg-surface-600/60 border border-brand/50 flex items-center justify-center score-num text-2xl font-black">1</span>
           </div>
           <div className="flex flex-col items-center gap-1.5">
-            <span className="w-11 h-11 rounded-full bg-blue-600/80 ring-2 ring-white/10 flex items-center justify-center text-xs font-black">CHE</span>
+            <span className="w-11 h-11 rounded-full bg-surface-600 ring-2 ring-white/10 flex items-center justify-center text-xs font-black">CHE</span>
             <span className="text-xs text-gray-300">Chelsea</span>
           </div>
         </div>
         <div className="mt-3 pt-3 border-t border-surface-500/20 flex items-center justify-between text-xs">
           <span className="text-gray-400">Twój typ · wynik meczu 2:1</span>
-          <span className="px-2 py-0.5 rounded-full border bg-emerald-400/15 text-emerald-300 border-emerald-400/30 font-bold">+5 dokładny</span>
+          <span className="px-2 py-0.5 rounded-full border bg-hit-exact/15 text-hit-exact border-hit-exact/40 font-bold">+5 dokładny</span>
         </div>
       </div>
 
@@ -61,9 +61,9 @@ export default function LandingPreview() {
           {FRIENDS.map((f, i) => (
             <li
               key={f.nick}
-              className={`flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm ${f.me ? 'bg-mundial-teal/10 text-white' : 'text-gray-300'}`}
+              className={`flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm ${f.me ? 'bg-brand/10 text-white' : 'text-gray-300'}`}
             >
-              <span className="w-4 text-mundial-gold font-black tabular-nums">{i + 1}</span>
+              <span className="w-4 text-accent font-black tabular-nums">{i + 1}</span>
               <span className="flex-1 font-medium">{f.nick}</span>
               <span className={`text-[10px] ${f.move === '▲' ? 'text-emerald-400' : 'text-red-400'}`}>{f.move}</span>
               <span className="font-bold tabular-nums">{f.pts} pkt</span>

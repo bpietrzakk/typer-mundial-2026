@@ -63,7 +63,7 @@ export default function LeagueCouponSettings({ league, isOwner, onChanged }) {
           </p>
         </div>
         {isOwner && !editing && (
-          <button type="button" onClick={startEditing} className="text-xs text-gray-400 hover:text-mundial-teal transition-colors">
+          <button type="button" onClick={startEditing} className="text-xs text-gray-400 hover:text-brand transition-colors">
             Zmień
           </button>
         )}
@@ -78,7 +78,7 @@ export default function LeagueCouponSettings({ league, isOwner, onChanged }) {
                 key={m.value}
                 className={`flex items-start gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors
                   ${mode === m.value
-                    ? 'border-mundial-teal/50 bg-mundial-teal/10'
+                    ? 'border-brand/50 bg-brand/10'
                     : 'border-surface-500/30 bg-surface-700/30 hover:border-surface-500/60'}`}
               >
                 <input
@@ -87,10 +87,10 @@ export default function LeagueCouponSettings({ league, isOwner, onChanged }) {
                   value={m.value}
                   checked={mode === m.value}
                   onChange={() => setMode(m.value)}
-                  className="accent-[#00B4D8] mt-1"
+                  className="accent-brand mt-1"
                 />
                 <span>
-                  <span className={`block text-sm font-semibold ${mode === m.value ? 'text-mundial-teal' : 'text-gray-200'}`}>{m.label}</span>
+                  <span className={`block text-sm font-semibold ${mode === m.value ? 'text-brand' : 'text-gray-200'}`}>{m.label}</span>
                   <span className="block text-xs text-gray-400 mt-0.5">{m.text}</span>
                 </span>
               </label>
@@ -113,7 +113,7 @@ export default function LeagueCouponSettings({ league, isOwner, onChanged }) {
                 type="checkbox"
                 checked={auto}
                 onChange={(e) => setAuto(e.target.checked)}
-                className="accent-[#00B4D8] w-4 h-4"
+                className="accent-brand w-4 h-4"
               />
               Układaj kupon automatycznie
             </label>

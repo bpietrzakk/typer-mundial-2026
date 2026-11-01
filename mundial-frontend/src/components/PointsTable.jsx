@@ -31,9 +31,9 @@ export default function PointsTable({ title, subtitle, rows }) {
             {rows.map((r, i) => (
               <tr key={r.label} className={`border-b border-surface-500/10 ${i % 2 === 0 ? '' : 'bg-surface-800/30'}`}>
                 <td className="px-3 sm:px-5 py-3 font-medium text-gray-200">{r.label}</td>
-                <td className={`${num} text-emerald-400`}>{r.pts[0]}</td>
-                <td className={`${num} text-yellow-400`}>{r.pts[1]}</td>
-                <td className={`${num} text-orange-400`}>{r.pts[2]}</td>
+                <td className={`${num} text-hit-exact`}>{r.pts[0]}</td>
+                <td className={`${num} text-hit-diff`}>{r.pts[1]}</td>
+                <td className={`${num} text-hit-winner`}>{r.pts[2]}</td>
               </tr>
             ))}
           </tbody>

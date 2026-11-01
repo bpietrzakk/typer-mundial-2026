@@ -134,7 +134,7 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
   return (
     <>
       {welcome && coupon?.is_current_week && matches.some((m) => m.can_predict) && (
-        <div className="glass-card p-5 mb-4 border-mundial-teal/40 bg-gradient-to-br from-mundial-teal/15 to-transparent animate-slide-up">
+        <div className="glass-card p-5 mb-4 border-brand/40 bg-gradient-to-br from-brand/15 to-transparent animate-slide-up">
           <p className="font-semibold text-white">Jesteś w lidze »{league.name}«!</p>
           <p className="text-sm text-gray-300 mt-0.5 mb-3">Co tydzień typujecie ten sam kupon. Zacznij od tego tygodnia.</p>
           <button type="button" onClick={startTyping} className="btn-primary text-sm !py-2.5 w-full sm:w-auto">
@@ -150,7 +150,7 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
         aria-labelledby="league-coupon-title"
       >
         {/* header + week switcher */}
-        <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-surface-500/20 bg-gradient-to-br from-mundial-teal/10 via-transparent to-transparent">
+        <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-surface-500/20 bg-gradient-to-br from-brand/10 via-transparent to-transparent">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <h2 id="league-coupon-title" className="text-lg font-bold text-white">
               Kupon tygodnia
@@ -162,7 +162,7 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
                 <button
                   type="button"
                   onClick={() => goToWeek(shiftDay(coupon.week_start, -7))}
-                  className="px-2.5 py-1 rounded-lg bg-surface-600/40 text-gray-300 hover:text-mundial-teal text-xs font-semibold"
+                  className="px-2.5 py-1 rounded-lg bg-surface-600/40 text-gray-300 hover:text-brand text-xs font-semibold"
                   aria-label="Poprzedni tydzień"
                 >
                   ← poprzedni
@@ -172,14 +172,14 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
                     <button
                       type="button"
                       onClick={() => goToWeek(null)}
-                      className="px-2.5 py-1 rounded-lg bg-mundial-teal/15 text-mundial-teal text-xs font-semibold"
+                      className="px-2.5 py-1 rounded-lg bg-brand/15 text-brand text-xs font-semibold"
                     >
                       bieżący
                     </button>
                     <button
                       type="button"
                       onClick={() => goToWeek(shiftDay(coupon.week_start, 7))}
-                      className="px-2.5 py-1 rounded-lg bg-surface-600/40 text-gray-300 hover:text-mundial-teal text-xs font-semibold"
+                      className="px-2.5 py-1 rounded-lg bg-surface-600/40 text-gray-300 hover:text-brand text-xs font-semibold"
                       aria-label="Następny tydzień"
                     >
                       →
@@ -266,7 +266,7 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
                 <button
                   type="button"
                   onClick={() => setEditing(true)}
-                  className="px-3 py-1.5 rounded-lg bg-surface-600/40 text-gray-200 hover:text-mundial-teal text-xs font-semibold transition-colors"
+                  className="px-3 py-1.5 rounded-lg bg-surface-600/40 text-gray-200 hover:text-brand text-xs font-semibold transition-colors"
                 >
                   Edytuj kupon
                 </button>

@@ -28,7 +28,7 @@ export default function CompetitionPicker({ competitions, selectedId, onSelect }
         return (
           <ChipButton key={c.id} active={active} onClick={() => onSelect(c.id)}>
             {c.is_followed && !archive && (
-              <span className={`mr-1.5 ${active ? 'text-white' : 'text-mundial-gold'}`} aria-label="obserwowana">★</span>
+              <span className={`mr-1.5 ${active ? 'text-surface-900' : 'text-brand'}`} aria-label="obserwowana">★</span>
             )}
             {c.name}
             {archive && <span className="ml-1.5 text-[10px] uppercase tracking-wider opacity-70">archiwum</span>}

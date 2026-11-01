@@ -10,8 +10,8 @@ const KIND_LABELS = {
 };
 
 const STATUS_CLS = {
-  active: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/30',
-  upcoming: 'bg-sky-400/15 text-sky-300 border-sky-400/30',
+  active: 'bg-brand/10 text-brand border-brand/30',
+  upcoming: 'bg-surface-600/40 text-gray-300 border-surface-500/30',
   archived: 'bg-surface-600/40 text-gray-400 border-surface-500/30',
 };
 
@@ -22,7 +22,7 @@ export default function CompetitionCard({ competition, busy, onToggleFollow }) {
   const seasonQuery = season ? `&season=${season.id}` : '';
 
   return (
-    <div className={`glass-card p-5 flex flex-col gap-4 ${followed && !archive ? '!border-mundial-teal/40' : ''}`}>
+    <div className={`glass-card p-5 flex flex-col gap-4 ${followed && !archive ? '!border-brand/40' : ''}`}>
       <div className="flex items-start gap-4">
         <CompetitionBadge code={code} name={name} logoUrl={logoUrl} size="lg" />
         <div className="min-w-0 flex-1">
@@ -44,7 +44,7 @@ export default function CompetitionCard({ competition, busy, onToggleFollow }) {
       <div className="flex items-center flex-wrap gap-x-4 gap-y-2 pt-3 border-t border-surface-500/20 text-sm">
         <Link
           to={`/matches?competition=${id}${seasonQuery}`}
-          className="font-semibold text-mundial-teal hover:text-mundial-teal/80 transition-colors whitespace-nowrap"
+          className="font-semibold text-brand hover:text-brand/80 transition-colors whitespace-nowrap"
         >
           Mecze →
         </Link>

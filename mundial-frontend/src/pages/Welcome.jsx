@@ -23,7 +23,7 @@ export default function Welcome() {
         {/* progress dots */}
         <div className="flex gap-2 mb-6" aria-hidden="true">
           {Array.from({ length: STEPS }, (_, i) => (
-            <span key={i} className={`h-1 flex-1 rounded-full ${i < step ? 'bg-mundial-teal' : 'bg-surface-600/60'}`} />
+            <span key={i} className={`h-1 flex-1 rounded-full ${i < step ? 'bg-brand' : 'bg-surface-600/60'}`} />
           ))}
         </div>
 

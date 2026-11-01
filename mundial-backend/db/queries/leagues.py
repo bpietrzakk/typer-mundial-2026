@@ -7,7 +7,7 @@ from psycopg2.extras import RealDictCursor
 
 from db.connection import get_conn, release_conn
 from db.queries.errors import AlreadyMember, LeagueNotFound
-from domain.leagues import generate_join_code
+from domain.leagues import added_scope_competitions, generate_join_code
 
 # private leagues
 # create_league does TWO inserts in one transaction: the league row + the
@@ -220,6 +220,8 @@ def join_league(join_code: str, user_id: int) -> dict:
                     # composite PK (private_league_id, user_id) collided —
                     # user already in this league
                     raise AlreadyMember()
+                # the league's competitions land in the user's followed list
+                cur.execute(SQL_FOLLOW_LEAGUE_SCOPE, (user_id, league["id"]))
                 return league
     finally:
         release_conn(conn)
@@ -304,6 +306,35 @@ SQL_INSERT_LEAGUE_COMPETITIONS = """
     ON CONFLICT DO NOTHING
 """
 
+SQL_LIST_LEAGUE_COMPETITION_IDS = """
+    SELECT competition_id FROM private_league_competitions WHERE private_league_id = %s
+"""
+
+# joining a league follows its scope (params: user, league)
+# only active competitions (archived Mundial stays out), never unfollows anything
+# empty scope (= every competition) follows nothing
+SQL_FOLLOW_LEAGUE_SCOPE = """
+    INSERT INTO user_competitions (user_id, competition_id)
+    SELECT %s, plc.competition_id
+    FROM private_league_competitions plc
+    JOIN competitions c ON c.id = plc.competition_id
+    WHERE plc.private_league_id = %s
+      AND c.is_active
+    ON CONFLICT (user_id, competition_id) DO NOTHING
+"""
+
+# competitions just added to the scope get followed by every member
+# (params: league, competition ids)
+SQL_FOLLOW_COMPETITIONS_FOR_MEMBERS = """
+    INSERT INTO user_competitions (user_id, competition_id)
+    SELECT plm.user_id, c.id
+    FROM private_league_members plm
+    JOIN competitions c ON c.id = ANY(%s::bigint[])
+    WHERE plm.private_league_id = %s
+      AND c.is_active
+    ON CONFLICT (user_id, competition_id) DO NOTHING
+"""
+
 # is the season's competition inside the league scope? (params: season, league, league)
 SQL_IS_SEASON_IN_LEAGUE_SCOPE = """
     SELECT 1
@@ -365,13 +396,19 @@ def list_existing_competition_ids(competition_ids: list[int]) -> set[int]:
 def replace_league_competitions(league_id: int, competition_ids: list[int]) -> None:
     # delete + insert in one transaction, so a failure keeps the old scope
     # empty list just clears the scope
+    # competitions new to the scope get followed by all members in the same transaction
     conn = get_conn()
     try:
         with conn:
             with conn.cursor() as cur:
+                cur.execute(SQL_LIST_LEAGUE_COMPETITION_IDS, (league_id,))
+                old_ids = [row[0] for row in cur.fetchall()]
                 cur.execute(SQL_DELETE_LEAGUE_COMPETITIONS, (league_id,))
                 if competition_ids:
                     cur.execute(SQL_INSERT_LEAGUE_COMPETITIONS, (league_id, competition_ids))
+                added = added_scope_competitions(old_ids, competition_ids)
+                if added:
+                    cur.execute(SQL_FOLLOW_COMPETITIONS_FOR_MEMBERS, (added, league_id))
     finally:
         release_conn(conn)
 

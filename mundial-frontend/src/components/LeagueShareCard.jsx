@@ -12,7 +12,7 @@ export default function LeagueShareCard({ league, onDismiss }) {
   };
 
   return (
-    <div className="glass-card p-5 mb-6 border-mundial-teal/40 bg-gradient-to-br from-mundial-teal/15 via-transparent to-mundial-red/10 animate-slide-up">
+    <div className="glass-card p-5 mb-6 border-brand/40 bg-gradient-to-br from-brand/15 via-transparent to-transparent animate-slide-up">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-lg font-bold text-white">Wyślij link znajomym</p>
@@ -25,7 +25,7 @@ export default function LeagueShareCard({ league, onDismiss }) {
         )}
       </div>
       <div className="mt-4 flex items-center gap-2 flex-wrap">
-        <code className="flex-1 min-w-0 truncate px-3 py-2.5 rounded-xl bg-surface-700/60 border border-surface-500/30 text-sm text-mundial-teal">
+        <code className="flex-1 min-w-0 truncate px-3 py-2.5 rounded-xl bg-surface-700/60 border border-surface-500/30 text-sm text-brand">
           {url}
         </code>
         <button type="button" onClick={share} className="btn-primary text-sm !py-2.5 w-full sm:w-auto">

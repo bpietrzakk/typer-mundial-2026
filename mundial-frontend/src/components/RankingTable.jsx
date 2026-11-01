@@ -50,13 +50,13 @@ export default function RankingTable({ entries, title, onSelectUser, showStats =
                   className={`border-b border-surface-500/10 transition-colors
                     ${onSelectUser ? 'cursor-pointer' : ''}
                     ${isCurrentUser
-                      ? 'bg-mundial-teal/10 hover:bg-mundial-teal/15'
+                      ? 'bg-brand/10 hover:bg-brand/15'
                       : 'hover:bg-surface-700/30'
                     }`}
                 >
                   <td className="px-4 sm:px-5 py-3.5">
                     <span className={`font-bold tabular-nums text-sm ${
-                      entry.rank === 1 ? 'text-mundial-gold text-base' :
+                      entry.rank === 1 ? 'text-accent text-base' :
                       entry.rank === 2 ? 'text-gray-300' :
                       entry.rank === 3 ? 'text-amber-600' :
                       'text-gray-500 font-mono'
@@ -65,11 +65,11 @@ export default function RankingTable({ entries, title, onSelectUser, showStats =
                     </span>
                   </td>
                   <td className="px-3 sm:px-5 py-3.5">
-                    <span className={`font-medium ${isCurrentUser ? 'text-mundial-teal' : 'text-gray-200'}`}>
+                    <span className={`font-medium ${isCurrentUser ? 'text-brand' : 'text-gray-200'}`}>
                       {entry.nick}
                     </span>
                     {isCurrentUser && (
-                      <span className="ml-2 text-xs text-mundial-teal/70">(Ty)</span>
+                      <span className="ml-2 text-xs text-brand/70">(Ty)</span>
                     )}
                     {showStats && (
                       <p className="sm:hidden text-[11px] text-gray-400 mt-0.5 tabular-nums">
@@ -79,14 +79,14 @@ export default function RankingTable({ entries, title, onSelectUser, showStats =
                   </td>
                   {showStats && (
                     <>
-                      <td className={`${statCell} text-emerald-400/80`}>{entry.exact_hits}</td>
-                      <td className={`${statCell} text-yellow-400/80`}>{entry.diff_hits}</td>
+                      <td className={`${statCell} text-hit-exact/80`}>{entry.exact_hits}</td>
+                      <td className={`${statCell} text-hit-diff/80`}>{entry.diff_hits}</td>
                       <td className={statCell}>{entry.scored_predictions}</td>
                     </>
                   )}
                   <td className="px-4 sm:px-5 py-3.5 text-right">
                     <span className={`font-bold text-lg ${
-                      entry.rank === 1 ? 'text-mundial-gold' :
+                      entry.rank === 1 ? 'text-accent' :
                       entry.rank === 2 ? 'text-gray-300' :
                       entry.rank === 3 ? 'text-amber-600' :
                       'text-gray-400'

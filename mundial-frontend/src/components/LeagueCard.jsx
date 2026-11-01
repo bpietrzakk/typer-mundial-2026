@@ -6,11 +6,11 @@ export default function LeagueCard({ league, scope }) {
   return (
     <Link
       to={`/leagues/${league.id}`}
-      className="glass-card p-5 block group hover:border-mundial-teal/30 transition-all duration-300"
+      className="glass-card p-5 block group hover:border-brand/30 transition-all duration-300"
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="font-semibold text-gray-200 group-hover:text-mundial-teal transition-colors truncate">
+          <h3 className="font-semibold text-gray-200 group-hover:text-brand transition-colors truncate">
             {league.name}
           </h3>
           <p className="text-sm text-gray-500 mt-1">
@@ -27,7 +27,7 @@ export default function LeagueCard({ league, scope }) {
                   <span
                     key={c.id}
                     title={c.name}
-                    className="px-2 py-0.5 rounded-md bg-mundial-teal/10 text-[11px] font-semibold text-mundial-teal"
+                    className="px-2 py-0.5 rounded-md bg-brand/10 text-[11px] font-semibold text-brand"
                   >
                     {competitionLabel(c.code, c.name)}
                   </span>
@@ -44,7 +44,7 @@ export default function LeagueCard({ league, scope }) {
             </span>
           )}
           <svg
-            className="w-5 h-5 text-gray-600 group-hover:text-mundial-teal transition-colors"
+            className="w-5 h-5 text-gray-600 group-hover:text-brand transition-colors"
             fill="none" stroke="currentColor" viewBox="0 0 24 24"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

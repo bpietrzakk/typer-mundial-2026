@@ -48,7 +48,7 @@ export default function Ranking() {
           type="button"
           onClick={() => setShowGlobal(true)}
           aria-expanded="false"
-          className="w-full flex items-center justify-between gap-3 px-5 py-4 rounded-2xl border border-surface-500/30 bg-surface-800/40 text-left hover:border-mundial-teal/40 transition-colors"
+          className="w-full flex items-center justify-between gap-3 px-5 py-4 rounded-2xl border border-surface-500/30 bg-surface-800/40 text-left hover:border-brand/40 transition-colors"
         >
           <span>
             <span className="block text-sm font-semibold text-gray-200">Pokaż ranking wszystkich graczy</span>

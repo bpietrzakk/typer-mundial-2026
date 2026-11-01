@@ -4,7 +4,7 @@ import { joinLeague } from '../api/leagues';
 import { apiErrorMessage } from '../utils/apiError';
 
 const optionCls = `w-full flex items-center gap-4 p-4 rounded-2xl border text-left transition-colors cursor-pointer
-  border-surface-500/30 bg-surface-800/40 hover:border-mundial-teal/50`;
+  border-surface-500/30 bg-surface-800/40 hover:border-brand/50`;
 
 // onboarding step 2: "Z kim grasz?" — create a league, join with a code or play solo
 export default function WelcomeLeagueStep({ onBack }) {
@@ -46,7 +46,7 @@ export default function WelcomeLeagueStep({ onBack }) {
         </button>
 
         {showCode ? (
-          <form onSubmit={handleJoin} className="p-4 rounded-2xl border border-mundial-teal/40 bg-mundial-teal/5">
+          <form onSubmit={handleJoin} className="p-4 rounded-2xl border border-brand/40 bg-brand/5">
             <label htmlFor="welcome-code" className="block font-semibold text-gray-100 mb-2">Kod zaproszenia</label>
             <div className="flex gap-2">
               <input

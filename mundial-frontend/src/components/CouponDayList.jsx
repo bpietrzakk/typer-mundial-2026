@@ -14,7 +14,7 @@ export default function CouponDayList({ matches, onSaved, onLocked, showCompetit
         return (
           <section key={group.key}>
             <h3 className="flex items-baseline gap-2 px-3 sm:px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-widest">
-              {relative && <span className="text-mundial-teal">{relative}</span>}
+              {relative && <span className="text-brand">{relative}</span>}
               <span className="text-gray-500">{formatDayLong(group.iso)}</span>
             </h3>
             <div className="divide-y divide-surface-500/10">

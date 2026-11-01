@@ -33,7 +33,7 @@ export default function LeagueCouponProgress({ coupon, league, canRemind }) {
           <button
             type="button"
             onClick={remind}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-mundial-teal/10 border border-mundial-teal/30 text-mundial-teal text-xs font-semibold hover:bg-mundial-teal/20 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand/10 border border-brand/30 text-brand text-xs font-semibold hover:bg-brand/20 transition-colors"
           >
             <span aria-hidden="true">⏰</span> Przypomnij resztę
           </button>

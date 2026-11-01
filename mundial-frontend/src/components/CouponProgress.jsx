@@ -28,7 +28,7 @@ export default function CouponProgress({ typed, total, nextDeadline }) {
           aria-label="Wytypowane mecze kuponu"
         >
           <div
-            className={`h-full rounded-full transition-all duration-500 ${done ? 'bg-emerald-400' : 'bg-gradient-to-r from-mundial-teal to-mundial-teal/70'}`}
+            className={`h-full rounded-full transition-all duration-500 ${done ? 'bg-emerald-400' : 'bg-gradient-to-r from-brand to-brand/70'}`}
             style={{ width: `${pct}%` }}
           />
         </div>

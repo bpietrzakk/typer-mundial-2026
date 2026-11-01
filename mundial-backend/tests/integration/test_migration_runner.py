@@ -160,6 +160,10 @@ def test_rollback_restores_schema_and_data(conn, app_pool):
                 (ids["private_league"], match_id, ids["private_league"]),
             )
             assert cur.rowcount == 1
+    # 012 is a data backfill, its rollback only drops the ledger row
+    assert run_rollback(conn, "012") == "012_follow_league_scope.down.sql"
+    assert "012_follow_league_scope.sql" not in _ledger(conn)
+
     assert run_rollback(conn, "011") == "011_pick_reactions.down.sql"
     assert "011_pick_reactions.sql" not in _ledger(conn)
 

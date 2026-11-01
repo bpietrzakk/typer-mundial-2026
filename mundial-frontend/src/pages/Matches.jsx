@@ -161,13 +161,13 @@ export default function Matches() {
           </div>
 
           {isArchive && (
-            <div className="rounded-xl border border-mundial-gold/30 bg-mundial-gold/10 px-4 py-3 mb-5 text-sm text-gray-300 flex items-center justify-between gap-3 flex-wrap">
+            <div className="rounded-xl border border-surface-500/30 bg-surface-700/40 px-4 py-3 mb-5 text-sm text-gray-300 flex items-center justify-between gap-3 flex-wrap">
               <span>
-                <span className="font-semibold text-mundial-gold">Archiwum.</span>{' '}
+                <span className="font-semibold text-gray-100">Archiwum.</span>{' '}
                 Sezon zakończony — typy tylko do odczytu.
               </span>
               {competition.code === 'WC' && (
-                <Link to="/bonus" className="text-mundial-teal hover:underline whitespace-nowrap">
+                <Link to="/bonus" className="text-brand hover:underline whitespace-nowrap">
                   Bonusy Mundialu →
                 </Link>
               )}

@@ -22,12 +22,12 @@ export default function MatchCard({ match, readOnly = false, showCompetition = f
   const handleLocked = () => onMatchChange?.(match.id, { can_predict: false });
 
   // slightly tint the card of a scored prediction
-  const hitBorder = pred?.hit_type === 'exact' ? 'border-emerald-400/40'
-    : pred?.hit_type === 'diff' ? 'border-yellow-400/30'
+  const hitBorder = pred?.hit_type === 'exact' ? 'border-hit-exact/40'
+    : pred?.hit_type === 'diff' ? 'border-hit-diff/30'
     : '';
 
   return (
-    <div className={`glass-card p-4 sm:p-5 animate-fade-in ${isLive ? 'border-mundial-red/70 shadow-glow-red' : hitBorder}`}>
+    <div className={`glass-card p-4 sm:p-5 animate-fade-in ${isLive ? 'border-live/70 shadow-glow-live' : hitBorder}`}>
       <div className="flex items-center justify-between gap-2 mb-3 min-h-[22px]">
         <div className="flex items-center gap-2 min-w-0">
           {showCompetition && match.competition && (
@@ -47,7 +47,7 @@ export default function MatchCard({ match, readOnly = false, showCompetition = f
           )}
           {statusMeta && (
             <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ${statusMeta.cls}`}>
-              {statusMeta.pulse && <span className="w-1.5 h-1.5 rounded-full bg-mundial-red animate-pulse" />}
+              {statusMeta.pulse && <span className="w-1.5 h-1.5 rounded-full bg-live animate-pulse" />}
               {statusMeta.label}
             </span>
           )}

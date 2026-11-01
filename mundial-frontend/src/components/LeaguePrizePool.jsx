@@ -44,10 +44,10 @@ export default function LeaguePrizePool({ league, memberCount, isOwner, onChange
             <div className="space-y-0.5">
               <p className="text-xs text-gray-400">
                 {perPerson} zł/os · łącznie{' '}
-                <span className="text-mundial-gold font-bold">{perPerson * memberCount} zł</span>
+                <span className="text-accent font-bold">{perPerson * memberCount} zł</span>
               </p>
               <div className="flex gap-3 text-xs text-gray-400 mt-2">
-                <span className="text-mundial-gold font-semibold">1. {Math.round(perPerson * memberCount * 0.5)} zł</span>
+                <span className="text-accent font-semibold">1. {Math.round(perPerson * memberCount * 0.5)} zł</span>
                 <span className="text-gray-300 font-semibold">2. {Math.round(perPerson * memberCount * 0.3)} zł</span>
                 <span className="text-amber-600 font-semibold">3. {Math.round(perPerson * memberCount * 0.2)} zł</span>
               </div>
@@ -87,7 +87,7 @@ export default function LeaguePrizePool({ league, memberCount, isOwner, onChange
             <button
               type="button"
               onClick={() => { setInput(perPerson ? String(perPerson) : ''); setEditing(true); }}
-              className="text-xs text-gray-400 hover:text-mundial-teal transition-colors"
+              className="text-xs text-gray-400 hover:text-brand transition-colors"
             >
               {perPerson ? 'Zmień' : 'Ustaw'}
             </button>

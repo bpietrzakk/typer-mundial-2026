@@ -71,7 +71,7 @@ export default function LeagueScopeEditor({ leagueId, isOwner, scope, competitio
               {scope.competitions.map((c) => (
                 <li
                   key={c.id}
-                  className="px-2.5 py-1 rounded-lg bg-mundial-teal/10 border border-mundial-teal/20 text-xs font-semibold text-mundial-teal"
+                  className="px-2.5 py-1 rounded-lg bg-brand/10 border border-brand/20 text-xs font-semibold text-brand"
                   title={c.name}
                 >
                   {competitionLabel(c.code, c.name)}
@@ -87,7 +87,7 @@ export default function LeagueScopeEditor({ leagueId, isOwner, scope, competitio
           <button
             type="button"
             onClick={startEditing}
-            className="text-xs text-gray-400 hover:text-mundial-teal transition-colors"
+            className="text-xs text-gray-400 hover:text-brand transition-colors"
           >
             Zmień
           </button>
@@ -104,7 +104,7 @@ export default function LeagueScopeEditor({ leagueId, isOwner, scope, competitio
                   key={value}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors text-sm font-medium
                     ${mode === value
-                      ? 'border-mundial-teal/50 bg-mundial-teal/10 text-mundial-teal'
+                      ? 'border-brand/50 bg-brand/10 text-brand'
                       : 'border-surface-500/30 bg-surface-700/30 text-gray-300 hover:border-surface-500/60'}`}
                 >
                   <input
@@ -113,7 +113,7 @@ export default function LeagueScopeEditor({ leagueId, isOwner, scope, competitio
                     value={value}
                     checked={mode === value}
                     onChange={() => { setMode(value); setError(''); }}
-                    className="accent-[#00B4D8]"
+                    className="accent-brand"
                   />
                   {label}
                 </label>
@@ -129,14 +129,14 @@ export default function LeagueScopeEditor({ leagueId, isOwner, scope, competitio
                       key={c.id}
                       className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border cursor-pointer transition-colors text-sm
                         ${checked
-                          ? 'border-mundial-teal/40 bg-mundial-teal/5 text-gray-100'
+                          ? 'border-brand/40 bg-brand/5 text-gray-100'
                           : 'border-surface-500/20 bg-surface-700/20 text-gray-400 hover:border-surface-500/50'}`}
                     >
                       <input
                         type="checkbox"
                         checked={checked}
                         onChange={() => toggleCompetition(c.id)}
-                        className="accent-[#00B4D8] w-4 h-4"
+                        className="accent-brand w-4 h-4"
                       />
                       <span className="flex-1 min-w-0 truncate">{competitionLabel(c.code, c.name)}</span>
                       {!c.is_active && (

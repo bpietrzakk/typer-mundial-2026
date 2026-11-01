@@ -9,7 +9,7 @@ export default function MatchContextButton({ open, onToggle, controls, className
       aria-label={open ? 'Ukryj formę drużyn' : 'Pokaż formę drużyn'}
       title="Forma i tabela"
       className={`inline-flex items-center justify-center w-5 h-5 rounded-full border text-[11px] font-black italic font-serif leading-none transition-colors
-        ${open ? 'bg-mundial-teal/20 border-mundial-teal/60 text-mundial-teal' : 'border-surface-500/50 text-gray-400 hover:text-mundial-teal hover:border-mundial-teal/50'} ${className}`}
+        ${open ? 'bg-brand/20 border-brand/60 text-brand' : 'border-surface-500/50 text-gray-400 hover:text-brand hover:border-brand/50'} ${className}`}
     >
       i
     </button>

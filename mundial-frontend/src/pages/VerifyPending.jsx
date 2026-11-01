@@ -27,7 +27,7 @@ export default function VerifyPending() {
     <div className="auth-bg min-h-screen flex items-center justify-center px-4">
       <div className="relative w-full max-w-md animate-fade-in text-center">
         <div className="glass-card p-10 space-y-4">
-          <h1 className="text-2xl font-extrabold gradient-text">Potwierdź swój email</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-white">Potwierdź swój email</h1>
           <p className="text-gray-400">
             Wysłaliśmy link aktywacyjny{email ? <> na <span className="text-gray-200">{email}</span></> : ''}.
             Kliknij go, żeby aktywować konto i móc się zalogować.
@@ -43,7 +43,7 @@ export default function VerifyPending() {
           )}
 
           <div className="pt-2">
-            <Link to="/login" className="text-mundial-teal hover:text-mundial-teal/80 text-sm font-medium transition-colors">
+            <Link to="/login" className="text-brand hover:text-brand/80 text-sm font-medium transition-colors">
               Mam już potwierdzone konto — zaloguj się
             </Link>
           </div>

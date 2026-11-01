@@ -57,13 +57,13 @@ export default function BonusPicks() {
   return (
     <div className="page-container">
       <div className="flex items-center gap-3 mb-3 flex-wrap">
-        <h1 className="text-3xl sm:text-4xl font-bold font-display text-white">Bonusy Mundialu</h1>
-        <span className="badge bg-mundial-gold/20 text-mundial-gold">Archiwum</span>
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">Bonusy Mundialu</h1>
+        <span className="badge bg-surface-600/50 text-gray-300">Archiwum</span>
       </div>
       <p className="text-sm text-gray-400 mb-8 max-w-xl">
         Typowanie bonusów Mundialu 2026 zakończyło się 13 czerwca 2026, więc możesz tu tylko
         zobaczyć swoje wybory. Nowe bonusy (np. „kto wygra sezon”) dodają właściciele{' '}
-        <Link to="/leagues" className="text-mundial-teal hover:underline">lig prywatnych</Link>.
+        <Link to="/leagues" className="text-brand hover:underline">lig prywatnych</Link>.
       </p>
 
       {/* champion */}
@@ -77,7 +77,7 @@ export default function BonusPicks() {
             <>
               <p className="text-sm text-gray-400 mb-3">Twój wybór na mistrza:</p>
               <TeamCrest team={championTeam} size="w-20 h-20" />
-              <p className="text-3xl sm:text-4xl font-black text-mundial-gold my-4 uppercase tracking-wider">
+              <p className="text-3xl sm:text-4xl font-black text-accent my-4 uppercase tracking-wider">
                 {championTeam.name}
               </p>
               <BonusPointsPill points={champion.points_awarded} />
@@ -122,8 +122,8 @@ export default function BonusPicks() {
                           ${!pick
                             ? 'bg-surface-700/20 border-surface-500/10 text-gray-500'
                             : hit
-                              ? 'bg-emerald-400/15 border-emerald-400/40 text-emerald-300'
-                              : 'bg-sky-400/15 border-sky-400/40 text-sky-300'}`}
+                              ? 'bg-hit-exact/15 border-hit-exact/40 text-hit-exact'
+                              : 'bg-brand/10 border-brand/40 text-brand'}`}
                       >
                         <TeamCrest team={team} size="w-5 h-5" />
                         <span className="flex-1 truncate">{team.name}</span>

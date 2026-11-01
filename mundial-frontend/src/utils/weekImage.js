@@ -60,10 +60,10 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 async function loadFonts() {
-  // the app loads Inter + Bebas Neue from google fonts, wait for them (best effort)
+  // the app loads Inter from google fonts, wait for it (best effort)
   try {
     await Promise.all([
-      document.fonts?.load('64px "Bebas Neue"'),
+      document.fonts?.load('800 40px Inter'),
       document.fonts?.load('700 40px Inter'),
       document.fonts?.load('500 32px Inter'),
     ]);
@@ -107,7 +107,7 @@ export async function renderWeekImage({ leagueName, weekLabel, rows, statusLabel
 
   // header: app name, league, week
   ctx.fillStyle = COLORS.teal;
-  ctx.font = '84px "Bebas Neue", Inter, sans-serif';
+  ctx.font = '800 76px Inter, system-ui, sans-serif';
   ctx.fillText('czutka', PAD, 140);
   ctx.fillStyle = COLORS.text;
   ctx.font = '800 60px Inter, system-ui, sans-serif';

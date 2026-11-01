@@ -31,7 +31,7 @@ export default function LeagueMatchPredictions({ match, onReact }) {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls={panelId}
-        className="inline-flex items-center gap-1 text-[11px] font-semibold text-mundial-teal hover:text-mundial-teal/80"
+        className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-brand/80"
       >
         Typy ligi ({preds.length})
         {summary && (
@@ -51,10 +51,10 @@ export default function LeagueMatchPredictions({ match, onReact }) {
               return (
                 <li key={p.user_id} className="py-1.5 text-xs">
                   <div className="flex items-center justify-between gap-2">
-                    <span className={`truncate ${isMe ? 'text-mundial-teal font-semibold' : 'text-gray-200'}`}>
+                    <span className={`truncate ${isMe ? 'text-brand font-semibold' : 'text-gray-200'}`}>
                       {p.nick}{isMe && ' (Ty)'}
                       {p.is_joker && (
-                        <span className="ml-1.5 px-1 rounded bg-mundial-gold/20 text-mundial-gold text-[10px] font-bold" title="Joker: punkty za ten mecz liczą się podwójnie">🃏 ×2</span>
+                        <span className="ml-1.5 px-1 rounded bg-accent/20 text-accent text-[10px] font-bold" title="Joker: punkty za ten mecz liczą się podwójnie">🃏 ×2</span>
                       )}
                     </span>
                     <span className="flex items-center gap-2 shrink-0">

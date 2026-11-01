@@ -46,7 +46,7 @@ export default function LeagueBonusResolveForm({ leagueId, question, onResolved,
   if (teams === null) return <div className="skeleton h-12 rounded-xl" aria-label="Ładuję drużyny" />;
 
   return (
-    <div className="rounded-xl border border-mundial-gold/25 bg-mundial-gold/5 p-4 space-y-3">
+    <div className="rounded-xl border border-accent/25 bg-accent/5 p-4 space-y-3">
       <div>
         <p className="text-sm font-semibold text-gray-100">Rozstrzygnij pytanie</p>
         <p className="text-xs text-gray-400 mt-0.5">

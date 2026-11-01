@@ -123,7 +123,7 @@ export default function Login() {
 
         {/* forgot password */}
         <p className="text-center mt-4 text-sm">
-          <Link to="/forgot-password" className="text-gray-500 hover:text-mundial-teal transition-colors">
+          <Link to="/forgot-password" className="text-gray-500 hover:text-brand transition-colors">
             Nie pamiętasz hasła?
           </Link>
         </p>
@@ -131,7 +131,7 @@ export default function Login() {
         {/* register link */}
         <p className="text-center mt-2 text-gray-500 text-sm">
           Nie masz konta?{' '}
-          <Link to="/register" state={{ from: { pathname: from } }} className="text-mundial-teal hover:text-mundial-teal/80 font-medium transition-colors">
+          <Link to="/register" state={{ from: { pathname: from } }} className="text-brand hover:text-brand/80 font-medium transition-colors">
             Zarejestruj się
           </Link>
         </p>

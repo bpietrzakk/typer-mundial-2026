@@ -12,7 +12,7 @@ export default function StakeBadge({ points, roundName, className = '' }) {
       title={title}
       aria-label={`Wyższa stawka — ${title}`}
       className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider
-        bg-mundial-gold/15 text-mundial-gold border-mundial-gold/30 cursor-help ${className}`}
+        bg-accent/15 text-accent border-accent/30 cursor-help ${className}`}
     >
       <span aria-hidden="true">punkty ×{String(multiplier).replace('.', ',')}</span>
     </span>

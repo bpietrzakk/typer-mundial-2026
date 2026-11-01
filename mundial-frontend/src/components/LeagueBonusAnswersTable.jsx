@@ -27,11 +27,11 @@ export default function LeagueBonusAnswersTable({ answers, resolved }) {
             return (
               <tr
                 key={answer.user_id}
-                className={`border-b border-surface-500/10 last:border-0 ${isMe ? 'bg-mundial-teal/10' : ''}`}
+                className={`border-b border-surface-500/10 last:border-0 ${isMe ? 'bg-brand/10' : ''}`}
               >
-                <td className={`px-3 py-2 font-medium ${isMe ? 'text-mundial-teal' : 'text-gray-200'}`}>
+                <td className={`px-3 py-2 font-medium ${isMe ? 'text-brand' : 'text-gray-200'}`}>
                   {answer.nick}
-                  {isMe && <span className="ml-2 text-xs text-mundial-teal/70">(Ty)</span>}
+                  {isMe && <span className="ml-2 text-xs text-brand/70">(Ty)</span>}
                 </td>
                 <td className="px-3 py-2 text-gray-300 max-w-[12rem]">
                   <div className="flex flex-col gap-1">

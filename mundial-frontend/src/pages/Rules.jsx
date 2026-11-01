@@ -137,7 +137,7 @@ export default function Rules() {
         <p className="text-sm text-gray-400">
           Mundial 2026 zostaje w aplikacji jako archiwum: mecze, ranking i typy są tylko do odczytu.
           W tamtym turnieju były też bonusy — mistrz turnieju (+20 pkt) i awans z grupy (+3 pkt za drużynę).{' '}
-          <Link to="/bonus" className="text-mundial-teal hover:underline">Zobacz swoje bonusy z Mundialu →</Link>
+          <Link to="/bonus" className="text-brand hover:underline">Zobacz swoje bonusy z Mundialu →</Link>
         </p>
       </div>
     </div>

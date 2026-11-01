@@ -18,7 +18,7 @@ export default function PointsExplain({ hit, points, joker = false, compact = fa
       <span aria-hidden="true">·</span>
       <span>{meta.explain}</span>
       {joker && points > 0 && (
-        <span className="text-mundial-gold">
+        <span className="text-accent">
           · ×{JOKER_MULTIPLIER} joker = <span className="font-black tabular-nums">+{points * JOKER_MULTIPLIER}</span>
         </span>
       )}

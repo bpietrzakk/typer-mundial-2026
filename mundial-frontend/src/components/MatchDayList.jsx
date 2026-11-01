@@ -13,7 +13,7 @@ export default function MatchDayList({ matches, readOnly, showCompetition, onMat
           <section key={group.key}>
             <h3 className="flex items-baseline gap-2 mb-3 text-xs font-semibold uppercase tracking-widest">
               {relative && (
-                <span className="text-mundial-teal">{relative}</span>
+                <span className="text-brand">{relative}</span>
               )}
               <span className="text-gray-500">{formatDayLong(group.iso)}</span>
             </h3>

@@ -49,9 +49,9 @@ export default function JoinByLink() {
       <div className="glass-card p-10 text-center max-w-sm w-full animate-fade-in">
         {status === 'joining' && (
           <>
-            <div className="w-12 h-12 border-2 border-mundial-teal/30 border-t-mundial-teal rounded-full animate-spin mx-auto mb-4" />
+            <div className="w-12 h-12 border-2 border-brand/30 border-t-brand rounded-full animate-spin mx-auto mb-4" />
             <p className="text-gray-200 font-semibold">Dołączam do ligi…</p>
-            <p className="text-gray-500 text-sm mt-1">Kod: <span className="font-mono text-mundial-teal">{code}</span></p>
+            <p className="text-gray-500 text-sm mt-1">Kod: <span className="font-mono text-brand">{code}</span></p>
           </>
         )}
         {status === 'success' && (
@@ -67,8 +67,8 @@ export default function JoinByLink() {
         )}
         {status === 'already' && (
           <>
-            <div className="w-12 h-12 rounded-full bg-mundial-teal/15 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-mundial-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <div className="w-12 h-12 rounded-full bg-brand/15 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>

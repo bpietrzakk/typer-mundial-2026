@@ -133,7 +133,7 @@ export default function LeagueTeamPicker({
                 onClick={() => pick(team)}
                 className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg cursor-pointer text-sm
                   ${index === activeIndex ? 'bg-surface-700/70' : ''}
-                  ${team.id === value ? 'text-mundial-teal' : 'text-gray-200'}`}
+                  ${team.id === value ? 'text-brand' : 'text-gray-200'}`}
               >
                 <LeagueTeamLabel team={team} />
                 {team.id === value && (

@@ -98,6 +98,7 @@ def create_new_league(
     # creator becomes the owner AND first admin member, both in one transaction
     league = create_league(body.name, current_user["id"])
     # coupon settings + scope go right after (left out = database defaults)
+    # saving the scope also follows its competitions for the owner
     if body.ranking_mode is not None or body.coupon_size is not None:
         update_league_coupon_settings(league["id"], body.ranking_mode, body.coupon_size, None)
     if competition_ids:
@@ -281,6 +282,7 @@ def set_league_scope(
             detail="Nieznane rozgrywki: " + ", ".join(str(i) for i in sorted(unknown)),
         )
 
+    # competitions new to the scope get followed by every member (never unfollows)
     replace_league_competitions(league_id, competition_ids)
     return _scope_response(league_id)
 

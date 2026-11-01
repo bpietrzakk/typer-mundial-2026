@@ -118,13 +118,13 @@ export default function Settings() {
             <button
               type="button"
               onClick={handleLogout}
-              className="shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border border-surface-500/50 text-gray-300 hover:border-mundial-red/50 hover:text-mundial-red transition-colors"
+              className="shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border border-surface-500/50 text-gray-300 hover:border-red-400/50 hover:text-red-400 transition-colors"
             >
               Wyloguj się
             </button>
           </div>
           <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-surface-500/20 text-sm">
-            <Link to="/rules" className="px-3 py-1.5 rounded-lg bg-surface-700/50 text-mundial-teal hover:bg-surface-700 transition-colors">
+            <Link to="/rules" className="px-3 py-1.5 rounded-lg bg-surface-700/50 text-brand hover:bg-surface-700 transition-colors">
               Zasady punktacji
             </Link>
             <Link to="/competitions" className="px-3 py-1.5 rounded-lg bg-surface-700/50 text-gray-300 hover:bg-surface-700 transition-colors">

@@ -76,7 +76,7 @@ export default function Register() {
         {/* header */}
         <div className="text-center mb-8">
           <img src="/favicon.svg" alt="czutka" className="w-16 h-16 mx-auto mb-4 rounded-xl" />
-          <h1 className="text-3xl font-extrabold gradient-text mb-2">
+          <h1 className="text-3xl font-extrabold tracking-tight text-white mb-2">
             Dołącz do gry!
           </h1>
           <p className="text-gray-400">Stwórz konto i rywalizuj ze znajomymi</p>
@@ -89,7 +89,7 @@ export default function Register() {
             <Link
               to="/login"
               state={{ from: { pathname: from } }}
-              className="flex items-center justify-center w-full mb-4 px-4 py-2.5 rounded-xl border border-surface-500/50 bg-surface-800/50 text-sm font-semibold text-gray-300 hover:border-mundial-teal/50 hover:text-mundial-teal transition-colors"
+              className="flex items-center justify-center w-full mb-4 px-4 py-2.5 rounded-xl border border-surface-500/50 bg-surface-800/50 text-sm font-semibold text-gray-300 hover:border-brand/50 hover:text-brand transition-colors"
             >
               Mam już konto — zaloguj się
             </Link>
@@ -183,7 +183,7 @@ export default function Register() {
         {/* login link */}
         <p className="text-center mt-6 text-gray-500 text-sm">
           Masz już konto?{' '}
-          <Link to="/login" state={from ? { from: { pathname: from } } : undefined} className="text-mundial-teal hover:text-mundial-teal/80 font-medium transition-colors">
+          <Link to="/login" state={from ? { from: { pathname: from } } : undefined} className="text-brand hover:text-brand/80 font-medium transition-colors">
             Zaloguj się
           </Link>
         </p>

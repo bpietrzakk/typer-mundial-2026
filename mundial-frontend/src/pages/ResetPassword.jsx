@@ -41,7 +41,7 @@ export default function ResetPassword() {
     <div className="auth-bg min-h-screen flex items-center justify-center px-4">
       <div className="relative w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold gradient-text mb-2">Nowe hasło</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white mb-2">Nowe hasło</h1>
           <p className="text-gray-400">Ustaw nowe hasło do swojego konta</p>
         </div>
 

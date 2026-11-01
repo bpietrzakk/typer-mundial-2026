@@ -133,9 +133,9 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
                   type="button"
                   onClick={() => setShowLive(true)}
                   aria-pressed={liveView}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-colors ${liveView ? 'bg-mundial-red/15 text-mundial-red' : 'text-gray-400 hover:text-gray-200'}`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-colors ${liveView ? 'bg-live/15 text-live' : 'text-gray-400 hover:text-gray-200'}`}
                 >
-                  <span className="w-1.5 h-1.5 bg-mundial-red rounded-full animate-pulse" aria-hidden="true" />
+                  <span className="w-1.5 h-1.5 bg-live rounded-full animate-pulse" aria-hidden="true" />
                   Na żywo
                 </button>
                 <button
@@ -166,13 +166,13 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
         </div>
 
         {archivePick && activeSeasonId === archivePick.id && (
-          <div className="px-5 py-3 border-b border-surface-500/20 bg-mundial-gold/10 flex items-center justify-between gap-3 flex-wrap">
+          <div className="px-5 py-3 border-b border-surface-500/20 bg-surface-700/40 flex items-center justify-between gap-3 flex-wrap">
             <p className="text-sm text-gray-200">
               <span aria-hidden="true">🏆 </span>
               {archivePick.label} – końcowa tabela.
               <span className="text-gray-400"> W bieżących sezonach nikt nie ma jeszcze punktów.</span>
             </p>
-            <button type="button" onClick={() => pickSeason(null)} className="text-xs font-semibold text-mundial-teal hover:text-mundial-teal/80">
+            <button type="button" onClick={() => pickSeason(null)} className="text-xs font-semibold text-brand hover:text-brand/80">
               Pokaż bieżące sezony
             </button>
           </div>
@@ -194,8 +194,8 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
         )}
 
         {liveView && hasData && (
-          <p className="px-5 py-2.5 border-b border-surface-500/20 bg-mundial-red/5 text-xs text-gray-300">
-            <span className="font-semibold text-mundial-red">Tabela na żywo</span> — oficjalne punkty plus punkty z trwających
+          <p className="px-5 py-2.5 border-b border-surface-500/20 bg-live/5 text-xs text-gray-300">
+            <span className="font-semibold text-live">Tabela na żywo</span> — oficjalne punkty plus punkty z trwających
             meczów, gdyby skończyły się teraz. To jeszcze nie jest wynik końcowy; strzałki pokazują zmianę względem
             oficjalnej tabeli.
           </p>

@@ -64,7 +64,7 @@ export default function Competitions() {
       <h1 className="page-title !mb-3">Rozgrywki</h1>
       <p className="text-gray-400 text-sm mb-8 max-w-xl">
         Obserwuj ligi, które typujesz — ich mecze pojawią się na{' '}
-        <Link to="/" className="text-mundial-teal hover:underline">Starcie</Link>.
+        <Link to="/" className="text-brand hover:underline">Starcie</Link>.
         {active.length > 0 && (
           <span className="text-gray-500"> Obserwujesz {followedCount} z {active.length}.</span>
         )}

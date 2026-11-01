@@ -182,7 +182,7 @@ export default function Dashboard() {
           )}
 
           {coupon?.source === 'hits' && (
-            <div className="glass-card p-5 border-mundial-teal/30 flex items-center justify-between gap-4 flex-wrap">
+            <div className="glass-card p-5 border-brand/30 flex items-center justify-between gap-4 flex-wrap">
               <div className="min-w-0">
                 <p className="font-semibold text-gray-100">Załóż ligę i zaproś znajomych</p>
                 <p className="text-sm text-gray-400 mt-0.5">Wtedy gracie na tym samym kuponie i widzicie swoje typy.</p>
@@ -195,8 +195,8 @@ export default function Dashboard() {
 
           {live.length > 0 && (
             <section>
-              <h2 className="flex items-center gap-2 mb-3 text-xs font-semibold uppercase tracking-widest text-mundial-red">
-                <span className="w-1.5 h-1.5 bg-mundial-red rounded-full animate-pulse" />
+              <h2 className="flex items-center gap-2 mb-3 text-xs font-semibold uppercase tracking-widest text-live">
+                <span className="w-1.5 h-1.5 bg-live rounded-full animate-pulse" />
                 Na żywo
               </h2>
               <div className="grid gap-3">
@@ -232,7 +232,7 @@ export default function Dashboard() {
                         <>
                           <span className="font-bold tabular-nums text-gray-200">{s.mine?.total_points ?? 0} pkt</span>
                           {/* no rank before anything is scored, otherwise everyone is #1 */}
-                          {s.mine?.scored_predictions > 0 && <span className="text-mundial-gold font-bold tabular-nums">#{s.mine.rank}</span>}
+                          {s.mine?.scored_predictions > 0 && <span className={`font-bold tabular-nums ${s.mine.rank === 1 ? 'text-accent' : 'text-gray-400'}`}>#{s.mine.rank}</span>}
                         </>
                       )}
                     </Link>

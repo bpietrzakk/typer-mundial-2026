@@ -9,7 +9,7 @@ export default function MyLeaguesCard({ leaguesData, loading, userId, title = 'M
     <div className="glass-card overflow-hidden">
       <div className="px-5 py-3 border-b border-surface-500/20 flex items-center justify-between">
         <h2 className="font-semibold text-gray-200">{title}</h2>
-        <Link to="/leagues" className="text-xs text-mundial-teal hover:text-mundial-teal/80 transition-colors">
+        <Link to="/leagues" className="text-xs text-brand hover:text-brand/80 transition-colors">
           Wszystkie →
         </Link>
       </div>
@@ -45,7 +45,7 @@ export default function MyLeaguesCard({ leaguesData, loading, userId, title = 'M
                 {mine && (
                   <div className="flex items-center gap-4 shrink-0">
                     <div className="text-center">
-                      <p className="text-xl font-black text-mundial-gold tabular-nums">{ranked ? `#${mine.rank}` : '–'}</p>
+                      <p className={`text-xl font-black tabular-nums ${ranked && mine.rank === 1 ? 'text-accent' : 'text-white'}`}>{ranked ? `#${mine.rank}` : '–'}</p>
                       <p className="text-[10px] text-gray-500">miejsce</p>
                     </div>
                     <div className="text-center">
@@ -58,7 +58,7 @@ export default function MyLeaguesCard({ leaguesData, loading, userId, title = 'M
             );
           })}
           {leaguesData.total > leaguesData.items.length && (
-            <Link to="/leagues" className="block px-5 py-3 text-center text-xs text-mundial-teal hover:bg-surface-700/30">
+            <Link to="/leagues" className="block px-5 py-3 text-center text-xs text-brand hover:bg-surface-700/30">
               + {leaguesData.total - leaguesData.items.length} więcej
             </Link>
           )}

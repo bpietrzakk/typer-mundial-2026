@@ -39,8 +39,8 @@ export default function PickReactions({ pick, isMe, onReact }) {
           aria-pressed={mine === e}
           aria-label={`${e} ${counts[e]}${mine === e ? ', Twoja reakcja — kliknij, żeby cofnąć' : ''}`}
           className={`${chip} ${mine === e
-            ? 'bg-mundial-teal/20 border-mundial-teal/50 text-white'
-            : 'bg-surface-600/40 border-surface-500/20 text-gray-300 hover:border-mundial-teal/40'}`}
+            ? 'bg-brand/20 border-brand/50 text-white'
+            : 'bg-surface-600/40 border-surface-500/20 text-gray-300 hover:border-brand/40'}`}
         >
           <span aria-hidden="true">{e}</span>
           <span className="font-semibold" aria-hidden="true">{counts[e]}</span>
@@ -58,7 +58,7 @@ export default function PickReactions({ pick, isMe, onReact }) {
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           aria-label="Dodaj reakcję"
-          className={`${chip} bg-transparent border-dashed border-surface-500/40 text-gray-400 hover:text-mundial-teal hover:border-mundial-teal/40`}
+          className={`${chip} bg-transparent border-dashed border-surface-500/40 text-gray-400 hover:text-brand hover:border-brand/40`}
         >
           <span aria-hidden="true">{open ? '×' : '+🙂'}</span>
         </button>
@@ -74,7 +74,7 @@ export default function PickReactions({ pick, isMe, onReact }) {
               disabled={busy}
               aria-label={`Reakcja ${e}`}
               aria-pressed={mine === e}
-              className={`w-7 h-7 rounded-full text-base leading-none hover:bg-surface-500/40 hover:scale-110 transition-transform ${mine === e ? 'bg-mundial-teal/25' : ''}`}
+              className={`w-7 h-7 rounded-full text-base leading-none hover:bg-surface-500/40 hover:scale-110 transition-transform ${mine === e ? 'bg-brand/25' : ''}`}
             >
               {e}
             </button>

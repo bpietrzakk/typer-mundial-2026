@@ -64,7 +64,7 @@ export default function LeagueBonusQuestionCard({
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="badge bg-mundial-teal/15 text-mundial-teal normal-case tracking-normal">
+          <span className="badge bg-brand/15 text-brand normal-case tracking-normal">
             +{question.points} pkt{count > 1 ? ' za drużynę' : ''}
           </span>
           <LeagueBonusStatusBadge question={question} />
@@ -82,18 +82,18 @@ export default function LeagueBonusQuestionCard({
 
       {/* resolved answer + my result */}
       {resolvedTeams.length > 0 && !resolving && (
-        <div className="mt-4 rounded-xl border border-mundial-gold/25 bg-mundial-gold/5 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+        <div className="mt-4 rounded-xl border border-accent/25 bg-accent/5 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">
               {isPick ? (resolvedTeams.length > 1 ? 'Poprawne odpowiedzi' : 'Poprawna odpowiedź') : 'Mistrz sezonu'}
             </p>
             <div className="flex flex-col gap-1">
               {resolvedTeams.map((t) => (
-                <LeagueTeamLabel key={t.id} team={t} className="text-mundial-gold font-semibold" />
+                <LeagueTeamLabel key={t.id} team={t} className="text-accent font-semibold" />
               ))}
             </div>
             {canResolve && (
-              <button type="button" onClick={() => setResolving(true)} className="mt-2 text-xs text-gray-400 hover:text-mundial-teal underline">
+              <button type="button" onClick={() => setResolving(true)} className="mt-2 text-xs text-gray-400 hover:text-brand underline">
                 Popraw rozstrzygnięcie
               </button>
             )}
@@ -160,7 +160,7 @@ export default function LeagueBonusQuestionCard({
               <button
                 type="button"
                 onClick={() => setEditing(true)}
-                className="text-sm px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-300 hover:text-mundial-teal transition-colors"
+                className="text-sm px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-300 hover:text-brand transition-colors"
               >
                 {myAnswer ? 'Zmień typ' : 'Oddaj typ'}
               </button>

@@ -14,14 +14,14 @@ export default function CompetitionChecklist({ competitions, selectedIds, onTogg
             key={c.id}
             className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors text-sm
               ${checked
-                ? 'border-mundial-teal/40 bg-mundial-teal/10 text-gray-100'
+                ? 'border-brand/40 bg-brand/10 text-gray-100'
                 : 'border-surface-500/20 bg-surface-700/20 text-gray-400 hover:border-surface-500/50'}`}
           >
             <input
               type="checkbox"
               checked={checked}
               onChange={() => onToggle(c.id)}
-              className="accent-[#00B4D8] w-4 h-4 shrink-0"
+              className="accent-brand w-4 h-4 shrink-0"
             />
             <span className="min-w-0 truncate">{competitionLabel(c.code, c.name)}</span>
           </label>

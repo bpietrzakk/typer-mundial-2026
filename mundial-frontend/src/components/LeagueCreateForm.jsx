@@ -93,7 +93,7 @@ export default function LeagueCreateForm({ onCancel }) {
               key={m.value}
               className={`flex items-start gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors
                 ${mode === m.value
-                  ? 'border-mundial-teal/50 bg-mundial-teal/10'
+                  ? 'border-brand/50 bg-brand/10'
                   : 'border-surface-500/30 bg-surface-700/30 hover:border-surface-500/60'}`}
             >
               <input
@@ -102,13 +102,13 @@ export default function LeagueCreateForm({ onCancel }) {
                 value={m.value}
                 checked={mode === m.value}
                 onChange={() => { setMode(m.value); setError(''); }}
-                className="accent-[#00B4D8] mt-1"
+                className="accent-brand mt-1"
               />
               <span>
-                <span className={`flex items-center gap-2 text-sm font-semibold ${mode === m.value ? 'text-mundial-teal' : 'text-gray-200'}`}>
+                <span className={`flex items-center gap-2 text-sm font-semibold ${mode === m.value ? 'text-brand' : 'text-gray-200'}`}>
                   {m.title}
                   {m.badge && (
-                    <span className="px-1.5 py-0.5 rounded-md bg-mundial-gold/15 text-mundial-gold text-[10px] uppercase tracking-wider">{m.badge}</span>
+                    <span className="px-1.5 py-0.5 rounded-md bg-brand/15 text-brand text-[10px] uppercase tracking-wider">{m.badge}</span>
                   )}
                 </span>
                 <span className="block text-xs text-gray-400 mt-0.5">{m.text}</span>
@@ -134,7 +134,7 @@ export default function LeagueCreateForm({ onCancel }) {
                 type="checkbox"
                 checked={narrow}
                 onChange={(e) => { setNarrow(e.target.checked); setError(''); }}
-                className="accent-[#00B4D8] w-4 h-4"
+                className="accent-brand w-4 h-4"
               />
               Tylko wybrane rozgrywki
             </label>

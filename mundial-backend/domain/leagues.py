@@ -11,3 +11,11 @@ def generate_join_code() -> str:
     # secrets.choice is cryptographically random — predictable codes would
     # let attackers guess and join private leagues
     return "".join(secrets.choice(_JOIN_CODE_ALPHABET) for _ in range(_JOIN_CODE_LENGTH))
+
+
+def added_scope_competitions(old_ids: list[int], new_ids: list[int]) -> list[int]:
+    # competitions that a scope change brings into the league, in the new order
+    # only these get followed for members — re-saving the same scope must not
+    # bring back a competition somebody unfollowed on purpose
+    old = set(old_ids)
+    return [cid for cid in dict.fromkeys(new_ids) if cid not in old]

@@ -2,24 +2,25 @@
 
 // --- hit types (how well a prediction scored) ---
 // label = short name, explain = text next to the points ("+3 · trafiona różnica bramek")
+// colours: shades of green (strongest = exact), miss = red
 
 export const HIT_META = {
-  exact:    { label: 'dokładny wynik', explain: 'dokładny wynik', short: 'dokładny', text: 'text-emerald-400', badge: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/30', bar: 'bg-emerald-400' },
-  diff:     { label: 'różnica bramek', explain: 'trafiona różnica bramek', short: 'różnica',  text: 'text-yellow-400',  badge: 'bg-yellow-400/15 text-yellow-300 border-yellow-400/30',   bar: 'bg-yellow-400' },
-  tendency: { label: 'zwycięzca',      explain: 'trafiony zwycięzca', short: 'zwycięzca', text: 'text-orange-400', badge: 'bg-orange-400/15 text-orange-300 border-orange-400/30',   bar: 'bg-orange-400' },
-  miss:     { label: 'pudło',          explain: 'pudło', short: 'pudło',     text: 'text-red-400',    badge: 'bg-red-400/15 text-red-300 border-red-400/30',            bar: 'bg-red-500' },
+  exact:    { label: 'dokładny wynik', explain: 'dokładny wynik', short: 'dokładny', text: 'text-hit-exact', badge: 'bg-hit-exact/15 text-hit-exact border-hit-exact/40', bar: 'bg-hit-exact' },
+  diff:     { label: 'różnica bramek', explain: 'trafiona różnica bramek', short: 'różnica',  text: 'text-hit-diff',  badge: 'bg-hit-diff/10 text-hit-diff border-hit-diff/30',   bar: 'bg-hit-diff' },
+  tendency: { label: 'zwycięzca',      explain: 'trafiony zwycięzca', short: 'zwycięzca', text: 'text-hit-winner', badge: 'bg-hit-winner/10 text-hit-winner border-hit-winner/25',   bar: 'bg-hit-winner' },
+  miss:     { label: 'pudło',          explain: 'pudło', short: 'pudło',     text: 'text-miss',    badge: 'bg-miss/10 text-miss border-miss/30',            bar: 'bg-miss' },
 };
 
 // --- match statuses ---
 
 // only non-obvious statuses get a badge (scheduled = nothing special)
 export const STATUS_META = {
-  live:      { label: 'Na żywo',   cls: 'bg-mundial-red/15 text-mundial-red border-mundial-red/40', pulse: true },
+  live:      { label: 'Na żywo',   cls: 'bg-live/15 text-live border-live/40', pulse: true },
   finished:  { label: 'Koniec',    cls: 'bg-surface-600/40 text-gray-400 border-surface-500/30' },
-  postponed: { label: 'Przełożony', cls: 'bg-amber-400/15 text-amber-300 border-amber-400/30' },
-  suspended: { label: 'Przerwany', cls: 'bg-amber-400/15 text-amber-300 border-amber-400/30' },
-  cancelled: { label: 'Odwołany',  cls: 'bg-red-400/15 text-red-300 border-red-400/30' },
-  awarded:   { label: 'Walkower',  cls: 'bg-purple-400/15 text-purple-300 border-purple-400/30' },
+  postponed: { label: 'Przełożony', cls: 'bg-warn/10 text-warn border-warn/30' },
+  suspended: { label: 'Przerwany', cls: 'bg-warn/10 text-warn border-warn/30' },
+  cancelled: { label: 'Odwołany',  cls: 'bg-miss/10 text-miss border-miss/30' },
+  awarded:   { label: 'Walkower',  cls: 'bg-surface-600/40 text-gray-300 border-surface-500/30' },
 };
 
 // predictions on these matches never count
@@ -27,19 +28,10 @@ export const VOID_STATUSES = ['cancelled', 'awarded'];
 
 // --- competitions ---
 
-// badge colours per competition code (the logo sits on top when there is one)
-const COMP_COLORS = {
-  UCL:  'bg-blue-500/20 text-blue-300 border-blue-400/30',
-  EPL:  'bg-purple-500/20 text-purple-300 border-purple-400/30',
-  LIGA: 'bg-orange-500/20 text-orange-300 border-orange-400/30',
-  SA:   'bg-sky-500/20 text-sky-300 border-sky-400/30',
-  BL:   'bg-red-500/20 text-red-300 border-red-400/30',
-  L1:   'bg-yellow-500/20 text-yellow-200 border-yellow-400/30',
-  WC:   'bg-mundial-gold/20 text-mundial-gold border-mundial-gold/30',
-};
-const COMP_COLOR_DEFAULT = 'bg-mundial-teal/15 text-mundial-teal border-mundial-teal/30';
+// one neutral look for every competition badge (the logo tells them apart)
+const COMP_COLOR = 'bg-surface-700/80 text-gray-200 border-surface-500/40';
 
-export const competitionColor = (code) => COMP_COLORS[code] || COMP_COLOR_DEFAULT;
+export const competitionColor = () => COMP_COLOR;
 
 // readable short names — the codes (SA, L1, LIGA...) mean nothing to a normal player
 const COMP_SHORT_NAMES = {

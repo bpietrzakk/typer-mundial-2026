@@ -63,7 +63,7 @@ export default function WelcomeCompetitionsStep({ onNext }) {
                 aria-pressed={checked}
                 className={`relative flex items-center gap-3 p-3 rounded-2xl border text-left transition-colors cursor-pointer
                   ${checked
-                    ? 'border-mundial-teal/60 bg-mundial-teal/10'
+                    ? 'border-brand/60 bg-brand/10'
                     : 'border-surface-500/30 bg-surface-800/40 hover:border-surface-500/60'}`}
               >
                 <CompetitionBadge code={c.code} name={c.name} logoUrl={c.logo_url} size="lg" className="!w-11 !h-11 !rounded-xl" />
@@ -72,7 +72,7 @@ export default function WelcomeCompetitionsStep({ onNext }) {
                   {c.country && <span className="block text-[11px] text-gray-500 mt-0.5">{c.country}</span>}
                 </span>
                 {checked && (
-                  <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-mundial-teal text-surface-900 flex items-center justify-center" aria-hidden="true">
+                  <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-brand text-surface-900 flex items-center justify-center" aria-hidden="true">
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                     </svg>

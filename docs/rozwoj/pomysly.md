@@ -37,6 +37,16 @@ wokół listy rozgrywek. Większość punktów niżej z tego wynika.
 
 ---
 
+## Do zrobienia ręcznie (bartek)
+
+- [ ] **Keep-alive na cron-job.org** (decyzja 01.11, zamiast płatnego Rendera): job na
+  `https://<backend>.onrender.com/health` co 10 minut. `/health` pinguje też bazę, więc budzi
+  Neona. Sprawdzić w historii jobu, że dostaje 200, a potem zmierzyć pierwsze wejście po kilku godzinach
+  przerwy (było 72 s).
+- [ ] **Sentry** (decyzja 01.11): załóż darmowe konto na sentry.io, dwa projekty (Python/FastAPI
+  i React), skopiuj oba DSN do `.env` / zmiennych na Renderze i Vercelu (nie do repo). Potem
+  Claude podpina SDK (backend `sentry-sdk[fastapi]`, front `@sentry/react`), wyłączone, gdy DSN pusty.
+
 ## ✅ Zrobione 01.11.2026: P0
 
 Wdrożone na branchu `feat/multi-competition` (backend + front, testy: 952 z bazą). Szczegóły
@@ -84,7 +94,7 @@ kuponu w [`spec-kupon-tygodnia.md`](spec-kupon-tygodnia.md), kontrakt w `docs/ap
 
 ## P0: co zostało
 
-### 1. Przypomnienia, które wysyłają się same
+### 1. Przypomnienia, które wysyłają się same (decyzja 01.11: na razie nie robimy)
 Jest przypomnienie „na grupę” od organizatora. Brakuje automatu: mail lub push „za 3 h
 pierwszy mecz kuponu, nie wytypowałeś 4”. Mail wymaga domeny w Resend, a push działa na iPhonie
 tylko po dodaniu aplikacji do ekranu głównego.
@@ -99,12 +109,14 @@ pierwsze logowanie po weryfikacji idzie na Start.
 
 ### ◐ 3. Mniej zakładek, jasny podział (częściowo, etap 1)
 ✅ Nawigacja ma 5 pozycji (Start, Mecze, Typy, Ligi, Ranking). „Rozgrywki” są w Ustawieniach i
-pod przyciskiem „Wybierz rozgrywki” w Meczach. Zostało: połączenie „obserwuj” z zakresem ligi
-w jedno pojęcie i ewentualne dalsze łączenie (Typy + Ranking).
+pod przyciskiem „Wybierz rozgrywki” w Meczach.
+✅ *(01.11)* dołączenie do ligi (i zmiana jej zakresu) automatycznie dodaje jej rozgrywki do
+obserwowanych (migracja 012 dociągnęła istniejące ligi). Zostało: ewentualne dalsze łączenie
+(Typy + Ranking).
 
 ### 4. Zimny start na produkcji
-`/health` budzi już bazę, ale darmowy Render nadal usypia (72 s). Decyzja: płatny plan (ok. 7 $/mies.)
-albo działający keep-alive na cron-job.org.
+`/health` budzi już bazę, ale darmowy Render nadal usypia (72 s). **Decyzja 01.11:** naprawiamy
+keep-alive na cron-job.org (patrz „Do zrobienia ręcznie”), płatny plan dopiero przy większym ruchu.
 
 ---
 
@@ -121,8 +133,14 @@ albo działający keep-alive na cron-job.org.
   akcentów boiska: kolorów klubów na karcie meczu, zdjęć lub tła stadionu w nagłówku kolejki,
   ilustracji w pustych stanach. Tytuły robione fontem z czasów „Mundial Typer” (szeroki,
   plakatowy) gryzą się z nową, minimalistyczną marką.
-- **Jedna paleta:** turkus, czerwień, złoto i fiolet badge'y rozgrywek konkurują ze sobą. Warto
-  wybrać 1 kolor marki + 1 akcent i używać kolorów tylko do znaczenia (wygrana, pudło, na żywo).
+  ✅ *(01.11)* font: Bebas Neue wyrzucony (też z Google Fonts i obrazka tygodnia), tytuły i wyniki
+  w Inter, pogrubione, z lekko ciaśniejszym odstępem liter.
+- ✅ *(01.11)* **Jedna paleta:** tokeny w `tailwind.config.js`: `brand` (turkus: przyciski, linki,
+  aktywna nawigacja, focus, paski postępu, wybrane chipy), `accent` (złoto, rzadko: podium/#1,
+  joker, wyższa stawka, odznaki), znaczeniowe `hit-exact/diff/winner` (odcienie zieleni, najmocniejszy
+  dokładny), `miss`, `live` (czerwień), `warn` (bursztyn). Badge rozgrywek neutralne (ciemne tło,
+  jasny tekst, logo), fiolet usunięty, przyciski bez gradientu turkus→czerwień (gradient został
+  tylko w logo).
 - ✅ *(etap 10, 01.11)* **Gęstość:** Start na desktopie ma dwie wyważone kolumny (kupon i „na żywo”
   po lewej, ligi, sezony i ostatnie wyniki w szerszej prawej, strona trochę szersza), na desktopie
   6 ostatnich wyników zamiast 4, mniejsze odstępy w nagłówkach i wierszach kart. Telefon bez zmian
@@ -201,11 +219,13 @@ i po meczu wyjaśnienie, czemu „+3”. Mecze pucharowe z większą punktacją 
 ### Dług techniczny
 - Stare endpointy i strony Mundialu (`/matches`, `/ranking`, `/bonus/*`, `leagues`, `scoring_rules`,
   `matches.stage`): zaplanować migrację „contract” i usunąć, gdy front z nich nie korzysta.
+  **Decyzja 01.11:** dopiero po wdrożeniu tego brancha na produkcję i sprawdzeniu archiwum Mundialu.
 - ✅ ~~3 stare błędy lintu i brak testów frontu~~ (01.11.2026): lint czysty i blokujący w CI,
   testy Playwright z podstawionym API (strona gościa, logowanie, typowanie, liga z kuponem,
   link z zaproszeniem przez logowanie, weryfikacja maila), `npm run test:e2e`, odpalane w CI.
 - Brak monitoringu błędów (Sentry ma darmowy plan) i podstawowej analityki (np. Plausible lub
   Umami): dziś nie wiadomo, ile osób wraca w weekend, gdzie odpadają i czy ktoś używa bonusów.
+  **Decyzja 01.11:** Sentry tak (patrz „Do zrobienia ręcznie”), analityka później.
 - `ADMIN_EMAILS` w env zamiast roli w bazie. Do 2 adminów jest OK, przy B2B (patrz monetyzacja) nie.
 - Weryfikacja emaila wyłączona (`REQUIRE_VERIFIED_EMAIL=false`), a domena Resend nieskonfigurowana.
   Maile (reset hasła!) mogą nie docierać.
@@ -213,6 +233,7 @@ i po meczu wyjaśnienie, czemu „+3”. Mecze pucharowe z większą punktacją 
 ### Drobne rzeczy z testu
 - Ranking per rozgrywka liczy wszystkich użytkowników aplikacji. Przy grupie znajomych to OK,
   przy większej skali to ranking obcych ludzi: warto rozważyć, czy w ogóle ma być.
+  **Decyzja 01.11:** zostaje zwinięty (jak po etapie 1); usunąć, jeśli zrobi się z tego ranking obcych.
 - ✅ *(etap 8, 01.11)* Strona „Ligi” bez ligi ma podwójne przyciski („Dołącz do ligi / Utwórz ligę” u góry i to samo
   w pustym stanie). Teraz bez ligi widać tylko przyciski z pustego stanu.
 - ✅ *(etap 8, 01.11)* Pusty ranking mówi „Pojawi się, gdy ktoś wytypuje mecze”, ale pojawia się dopiero, gdy mecze się

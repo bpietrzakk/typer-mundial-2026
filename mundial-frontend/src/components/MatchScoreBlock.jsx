@@ -11,7 +11,7 @@ export default function MatchScoreBlock({ match }) {
     return (
       <div className="text-center min-w-[84px]">
         {/* the score stays fully readable, only the badge pulses */}
-        <div className={`text-3xl font-black score-num tracking-tight whitespace-nowrap ${isLive ? 'text-mundial-red' : 'text-white'}`}>
+        <div className={`text-3xl font-black score-num tracking-tight whitespace-nowrap ${isLive ? 'text-live' : 'text-white'}`}>
           {home_goals} : {away_goals}
         </div>
         {/* only the 90 min score is scored — say so when the match went longer */}
@@ -29,7 +29,7 @@ export default function MatchScoreBlock({ match }) {
   }
   return (
     <div className="text-center min-w-[84px]">
-      <div className="text-2xl font-black font-display tracking-wide text-gray-200 tabular-nums">
+      <div className="text-2xl font-black tracking-tight text-gray-200 tabular-nums">
         {formatTime(kickoff_at)}
       </div>
     </div>

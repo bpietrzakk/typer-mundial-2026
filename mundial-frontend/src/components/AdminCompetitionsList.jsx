@@ -26,7 +26,7 @@ export default function AdminCompetitionsList({
           >
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-surface-600/60 text-mundial-teal">{c.code}</span>
+                <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-surface-600/60 text-brand">{c.code}</span>
                 <span className="font-medium text-gray-200">{c.name}</span>
               </div>
               <p className="text-xs text-gray-400 mt-1">
@@ -53,7 +53,7 @@ export default function AdminCompetitionsList({
                   onClick={() => onToggle(c)}
                   disabled={toggling}
                   className={`relative w-10 h-6 rounded-full transition-colors disabled:opacity-50 shrink-0
-                    ${c.is_active ? 'bg-mundial-teal' : 'bg-surface-500'}`}
+                    ${c.is_active ? 'bg-brand' : 'bg-surface-500'}`}
                 >
                   <span
                     className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform

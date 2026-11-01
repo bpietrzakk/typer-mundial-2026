@@ -60,10 +60,10 @@ export default function LeagueWeekResults({ coupon, leagueName }) {
             <p className="mt-1 text-sm text-gray-300">
               <span aria-hidden="true">🏆 </span>
               {settled ? 'Zwycięzca tygodnia' : 'Na razie prowadzi'}:{' '}
-              <span className="font-bold text-mundial-gold">{winners.map((w) => w.nick).join(', ')}</span>
+              <span className="font-bold text-accent">{winners.map((w) => w.nick).join(', ')}</span>
               <span className="text-gray-400"> · {winners[0].total_points} pkt</span>
               {anyLiveExtra && liveExtra(winners[0]) > 0 && (
-                <span className="text-mundial-red/90 text-xs"> (w tym +{liveExtra(winners[0])} na żywo)</span>
+                <span className="text-live/90 text-xs"> (w tym +{liveExtra(winners[0])} na żywo)</span>
               )}
             </p>
           ) : (
@@ -75,7 +75,7 @@ export default function LeagueWeekResults({ coupon, leagueName }) {
             type="button"
             onClick={shareAsImage}
             disabled={rendering}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-mundial-teal/15 text-mundial-teal hover:bg-mundial-teal/25 text-xs font-semibold transition-colors disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand/15 text-brand hover:bg-brand/25 text-xs font-semibold transition-colors disabled:opacity-60"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A1.5 1.5 0 0021.75 19.5V4.5A1.5 1.5 0 0020.25 3H3.75A1.5 1.5 0 002.25 4.5v15A1.5 1.5 0 003.75 21zm10.5-11.25h.008v.008h-.008V9.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
@@ -85,7 +85,7 @@ export default function LeagueWeekResults({ coupon, leagueName }) {
           <button
             type="button"
             onClick={share}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-600/40 text-gray-300 hover:text-mundial-teal text-xs font-semibold transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-600/40 text-gray-300 hover:text-brand text-xs font-semibold transition-colors"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />

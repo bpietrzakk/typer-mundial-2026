@@ -22,7 +22,7 @@ export default function ScoreInput({ value, onChange, label, hint = false }) {
         aria-label={label}
         onFocus={(e) => e.target.select()}
         onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 2))}
-        className={`w-10 h-10 text-center text-lg font-bold rounded-lg bg-surface-600/50 border border-surface-500/30 text-white ${hint ? 'placeholder-gray-400' : 'placeholder-gray-500'} focus:outline-none focus:border-mundial-teal/50 focus:ring-2 focus:ring-mundial-teal/20`}
+        className={`w-10 h-10 text-center text-lg font-bold rounded-lg bg-surface-600/50 border border-surface-500/30 text-white ${hint ? 'placeholder-gray-400' : 'placeholder-gray-500'} focus:outline-none focus:border-brand/50 focus:ring-2 focus:ring-brand/20`}
       />
       <button type="button" onClick={() => bump(1)} aria-label={`${label} plus`} className={stepBtn}>+</button>
     </div>

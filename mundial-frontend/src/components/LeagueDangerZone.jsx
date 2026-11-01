@@ -52,7 +52,7 @@ export default function LeagueDangerZone({ league, isOwner, embedded = false }) 
             className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors
               ${isOwner
                 ? 'bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20'
-                : 'bg-surface-700/50 border border-surface-500/30 text-gray-400 hover:text-mundial-red hover:border-red-500/30'}`}
+                : 'bg-surface-700/50 border border-surface-500/30 text-gray-400 hover:text-red-400 hover:border-red-500/30'}`}
           >
             {title}
           </button>

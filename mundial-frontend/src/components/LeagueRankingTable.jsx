@@ -2,7 +2,7 @@ import { useAuth } from '../hooks/useAuth';
 import StreakFlame from './StreakFlame';
 
 const RANK_COLORS = {
-  1: 'text-mundial-gold',
+  1: 'text-accent',
   2: 'text-gray-300',
   3: 'text-amber-600',
 };
@@ -15,7 +15,7 @@ function PositionChange({ entry }) {
   const n = Math.abs(change);
   return (
     <span
-      className={`ml-1 text-[10px] font-bold tabular-nums ${up ? 'text-mundial-teal' : 'text-mundial-red'}`}
+      className={`ml-1 text-[10px] font-bold tabular-nums ${up ? 'text-emerald-400' : 'text-red-400'}`}
       title={`oficjalnie ${entry.rank}. miejsce`}
     >
       <span aria-hidden="true">{up ? '▲' : '▼'}{n}</span>
@@ -67,7 +67,7 @@ export default function LeagueRankingTable({ entries, onSelectUser, live = false
                 tabIndex={clickable ? 0 : undefined}
                 className={`border-b border-surface-500/10 last:border-0 transition-colors
                   ${clickable ? 'cursor-pointer' : ''}
-                  ${isMe ? 'bg-mundial-teal/10 hover:bg-mundial-teal/15' : 'hover:bg-surface-700/30'}`}
+                  ${isMe ? 'bg-brand/10 hover:bg-brand/15' : 'hover:bg-surface-700/30'}`}
               >
                 <td className="pl-4 pr-1 sm:px-5 py-3.5 whitespace-nowrap">
                   <span className={`font-bold tabular-nums text-sm ${rankColor} ${rank <= 3 ? 'text-base' : 'font-mono'}`}>
@@ -76,18 +76,18 @@ export default function LeagueRankingTable({ entries, onSelectUser, live = false
                   {live && <PositionChange entry={entry} />}
                 </td>
                 <td className="px-2 sm:px-5 py-3.5 max-w-[10rem] sm:max-w-none">
-                  <span className={`font-medium break-words ${isMe ? 'text-mundial-teal' : 'text-gray-200'}`}>
+                  <span className={`font-medium break-words ${isMe ? 'text-brand' : 'text-gray-200'}`}>
                     {entry.nick}
                   </span>
                   {streaks && <StreakFlame count={streaks.get(entry.user_id)} unit={streakUnit} />}
-                  {isMe && <span className="ml-2 text-xs text-mundial-teal/70">(Ty)</span>}
+                  {isMe && <span className="ml-2 text-xs text-brand/70">(Ty)</span>}
                 </td>
                 <td className="px-2 sm:px-5 py-3.5 text-right">
                   <span className={`font-bold text-lg tabular-nums ${rankColor}`}>
                     {points}
                   </span>
                   {live && entry.live_points > 0 && (
-                    <span className="block text-[10px] font-semibold text-mundial-red/90 tabular-nums" title="punkty z trwających meczów, gdyby skończyły się teraz">
+                    <span className="block text-[10px] font-semibold text-live/90 tabular-nums" title="punkty z trwających meczów, gdyby skończyły się teraz">
                       +{entry.live_points} na żywo
                     </span>
                   )}

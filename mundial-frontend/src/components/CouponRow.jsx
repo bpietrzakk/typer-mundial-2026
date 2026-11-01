@@ -148,7 +148,7 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
   const tbd = match.kickoff_confirmed === false || match.status === 'postponed' || match.status === 'cancelled';
 
   const boxCls = (hint) => `w-8 sm:w-9 h-9 text-center text-base font-bold rounded-lg bg-surface-600/50 border
-    text-white focus:outline-none focus:border-mundial-teal/60 focus:ring-2 focus:ring-mundial-teal/20
+    text-white focus:outline-none focus:border-brand/60 focus:ring-2 focus:ring-brand/20
     ${state === 'error' ? 'border-red-500/50' : 'border-surface-500/30'}
     ${hint ? 'placeholder-gray-500' : 'placeholder-gray-600'}`;
 
@@ -183,7 +183,7 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
     </div>
   ) : (
     <div className={`min-w-[70px] text-center score-num font-black text-lg whitespace-nowrap
-      ${isLive ? 'text-mundial-red' : hasScore ? 'text-white' : 'text-gray-500'}`}
+      ${isLive ? 'text-live' : hasScore ? 'text-white' : 'text-gray-500'}`}
     >
       {hasScore ? `${match.home_goals} : ${match.away_goals}` : '– : –'}
     </div>
@@ -193,7 +193,7 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
   let stateIcon = null;
   if (editable) {
     if (state === 'saving') {
-      stateIcon = <span className="w-3.5 h-3.5 border-2 border-mundial-teal/30 border-t-mundial-teal rounded-full animate-spin" aria-label="Zapisuję" />;
+      stateIcon = <span className="w-3.5 h-3.5 border-2 border-brand/30 border-t-brand rounded-full animate-spin" aria-label="Zapisuję" />;
     } else if (state === 'error') {
       stateIcon = (
         <button type="button" onClick={retry} className="text-red-400 font-black text-sm" aria-label="Ponów zapis" title="Ponów zapis">!</button>
@@ -213,14 +213,14 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
   const showMeta = showCompetition || (leagues && leagues.length > 0) || showJoker;
 
   return (
-    <div className={`px-3 sm:px-4 py-2.5 ${jokerHere ? 'bg-mundial-gold/10 ring-1 ring-inset ring-mundial-gold/40' : isLive ? 'bg-mundial-red/5' : ''}`}>
+    <div className={`px-3 sm:px-4 py-2.5 ${jokerHere ? 'bg-accent/10 ring-1 ring-inset ring-accent/40' : isLive ? 'bg-live/5' : ''}`}>
       <div className="max-w-2xl mx-auto">
         <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto_minmax(0,1fr)_0.875rem] sm:grid-cols-[3rem_minmax(0,1fr)_auto_minmax(0,1fr)_1.25rem] items-center gap-1 sm:gap-3">
           {/* time / status + form toggle */}
           <div className="flex flex-col items-start gap-0.5 text-[11px] leading-tight tabular-nums">
             {isLive ? (
-              <span className="inline-flex items-center gap-1 font-bold text-mundial-red">
-                <span className="w-1.5 h-1.5 rounded-full bg-mundial-red animate-pulse" />live
+              <span className="inline-flex items-center gap-1 font-bold text-live">
+                <span className="w-1.5 h-1.5 rounded-full bg-live animate-pulse" />live
               </span>
             ) : SHORT_STATUS[match.status] ? (
               <span className="block truncate text-amber-300/90 font-semibold" title={statusMeta?.label}>{SHORT_STATUS[match.status]}</span>
@@ -294,7 +294,7 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
               <span className="text-gray-500">{competitionLabel(match.competition.code, match.competition.name)}</span>
             )}
             {leagues?.map((l) => (
-              <span key={l.id} className="px-1.5 rounded bg-mundial-teal/10 text-mundial-teal/90 font-semibold truncate max-w-[9rem]">
+              <span key={l.id} className="px-1.5 rounded bg-brand/10 text-brand/90 font-semibold truncate max-w-[9rem]">
                 {l.name}
               </span>
             ))}

@@ -149,9 +149,9 @@ export default function GlobalRankingSection() {
         <>
           {/* my position (if not on the podium) */}
           {hasPoints && myEntry && myEntry.rank > 3 && (
-            <div className="glass-card px-5 py-3 mb-6 flex items-center gap-x-3 gap-y-1 flex-wrap border-mundial-teal/20">
+            <div className="glass-card px-5 py-3 mb-6 flex items-center gap-x-3 gap-y-1 flex-wrap border-brand/20">
               <span className="text-sm text-gray-400">Twoja pozycja:</span>
-              <span className="text-2xl font-black tabular-nums text-mundial-gold">#{myEntry.rank}</span>
+              <span className="text-2xl font-black tabular-nums text-white">#{myEntry.rank}</span>
               <span className="text-gray-500 text-sm">·</span>
               <span className="text-lg font-bold tabular-nums text-gray-200">{myEntry.total_points} pkt</span>
               {myEntry.total_points < entries[0].total_points && (
@@ -161,7 +161,7 @@ export default function GlobalRankingSection() {
               )}
               <button
                 onClick={() => handleShare(myEntry)}
-                className="ml-auto p-2 rounded-lg text-gray-500 hover:text-mundial-teal hover:bg-surface-700/50 transition-colors"
+                className="ml-auto p-2 rounded-lg text-gray-500 hover:text-brand hover:bg-surface-700/50 transition-colors"
                 title="Udostępnij"
                 aria-label="Udostępnij swój wynik"
               >
@@ -196,11 +196,11 @@ export default function GlobalRankingSection() {
               </div>
               <div className="glass-card p-3 sm:p-4 text-center min-w-0">
                 <p className="text-xs sm:text-sm text-gray-400">Lider</p>
-                <p className="text-sm sm:text-lg font-bold text-mundial-gold truncate">{entries[0].nick}</p>
+                <p className="text-sm sm:text-lg font-bold text-accent truncate">{entries[0].nick}</p>
               </div>
               <div className="glass-card p-3 sm:p-4 text-center">
                 <p className="text-xs sm:text-sm text-gray-400">Wynik</p>
-                <p className="text-xl sm:text-2xl font-bold text-mundial-gold tabular-nums">{entries[0].total_points}</p>
+                <p className="text-xl sm:text-2xl font-bold text-accent tabular-nums">{entries[0].total_points}</p>
               </div>
             </div>
           ) : (

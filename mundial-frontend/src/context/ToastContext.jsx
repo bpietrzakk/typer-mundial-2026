@@ -27,7 +27,7 @@ export function ToastProvider({ children }) {
 const TYPE_STYLES = {
   success: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
   error: 'bg-red-500/10 border-red-500/30 text-red-400',
-  info: 'bg-mundial-teal/10 border-mundial-teal/30 text-mundial-teal',
+  info: 'bg-brand/10 border-brand/30 text-brand',
 };
 
 const TYPE_ICON = {

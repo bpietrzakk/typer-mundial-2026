@@ -51,20 +51,20 @@ export default function LeagueInviteCard({ league, memberCount, isOwner, onCodeR
         <div>
           <p className="text-sm text-gray-400">Kod zaproszenia</p>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <code className="bg-surface-600/50 px-3 py-1.5 rounded-lg text-mundial-teal font-mono font-bold text-lg tracking-widest">
+            <code className="bg-surface-600/50 px-3 py-1.5 rounded-lg text-brand font-mono font-bold text-lg tracking-widest">
               {league.join_code}
             </code>
             <button
               type="button"
               onClick={copyCode}
-              className="px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-400 hover:text-mundial-teal text-sm transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-400 hover:text-brand text-sm transition-colors"
             >
               {copied ? 'Skopiowano' : 'Kopiuj'}
             </button>
             <button
               type="button"
               onClick={shareLink}
-              className="px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-400 hover:text-mundial-teal text-sm transition-colors flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-400 hover:text-brand text-sm transition-colors flex items-center gap-1.5"
               title="Udostępnij link zaproszenia"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -76,7 +76,7 @@ export default function LeagueInviteCard({ league, memberCount, isOwner, onCodeR
               <button
                 type="button"
                 onClick={() => setConfirmingReset(true)}
-                className="px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-400 hover:text-mundial-red text-sm transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-400 hover:text-red-400 text-sm transition-colors"
                 title="Wygeneruj nowy kod — stary przestanie działać"
               >
                 Resetuj

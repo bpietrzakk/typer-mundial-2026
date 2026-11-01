@@ -37,7 +37,7 @@ function StatsCard() {
     <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
       {items.map((s) => (
         <div key={s.label} className="glass-card p-3 text-center">
-          <p className="text-xl font-black tabular-nums text-mundial-teal">{s.value}</p>
+          <p className="text-xl font-black tabular-nums text-brand">{s.value}</p>
           <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
         </div>
       ))}
@@ -105,8 +105,8 @@ function MatchesTab({ addToast }) {
             <div key={m.id} className="glass-card p-4 flex items-center gap-3 flex-wrap">
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-md shrink-0 ${
                 isFinished ? 'bg-gray-500/20 text-gray-500' :
-                m.status === 'live' ? 'bg-mundial-red/20 text-mundial-red' :
-                'bg-mundial-teal/10 text-mundial-teal'}`}>
+                m.status === 'live' ? 'bg-live/20 text-live' :
+                'bg-brand/10 text-brand'}`}>
                 {STAGE_LABELS[m.stage] || m.stage}
               </span>
               <div className="flex-1 min-w-[9rem]">
@@ -203,7 +203,7 @@ function UsersTab({ addToast, currentUserId }) {
   return (
     <div>
       <p className="text-xs text-gray-500 mb-4">
-        Aby nadać prawa admina dodaj email do <code className="text-mundial-teal">ADMIN_EMAILS</code> w <code className="text-mundial-teal">.env</code> i zrestartuj serwer.
+        Aby nadać prawa admina dodaj email do <code className="text-brand">ADMIN_EMAILS</code> w <code className="text-brand">.env</code> i zrestartuj serwer.
       </p>
       <div className="grid gap-2">
         {users.map((u, i) => {
@@ -222,15 +222,15 @@ function UsersTab({ addToast, currentUserId }) {
                   <div>
                     <p className="font-medium text-gray-200 flex items-center gap-2 flex-wrap">
                       {u.nick}
-                      {u.is_admin && <span className="text-xs px-1.5 py-0.5 rounded bg-mundial-gold/20 text-mundial-gold">admin</span>}
-                      {!u.email_verified && <span className="text-xs text-mundial-red">niezweryfikowany</span>}
+                      {u.is_admin && <span className="text-xs px-1.5 py-0.5 rounded bg-brand/15 text-brand">admin</span>}
+                      {!u.email_verified && <span className="text-xs text-warn">niezweryfikowany</span>}
                     </p>
                     <p className="text-xs text-gray-500">{u.email}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                   <div className="text-right mr-1">
-                    <p className="score-num font-bold text-mundial-teal">{u.total_points} pkt</p>
+                    <p className="score-num font-bold text-brand">{u.total_points} pkt</p>
                     <p className="text-xs text-gray-500">{u.prediction_count} typów</p>
                   </div>
                   {!u.email_verified && (
@@ -274,7 +274,7 @@ function UsersTab({ addToast, currentUserId }) {
                           {data.bonuses.crest_url && (
                             <img src={proxiedImageUrl(data.bonuses.crest_url)} alt="" loading="lazy" className="w-4 h-4 object-contain" />
                           )}
-                          <span className="text-mundial-gold font-semibold">{data.bonuses.champion_name}</span>
+                          <span className="text-accent font-semibold">{data.bonuses.champion_name}</span>
                           {data.bonuses.champion_points != null && (
                             <span className="text-emerald-400 text-xs font-bold">+{data.bonuses.champion_points}pkt</span>
                           )}
@@ -406,7 +406,7 @@ function LeaguesTab({ addToast }) {
               <div className="flex items-center gap-3 shrink-0">
                 <span className="text-sm font-bold text-gray-300 tabular-nums">{l.member_count} graczy</span>
                 <code
-                  className="bg-surface-600/50 px-2.5 py-1 rounded-lg text-mundial-teal font-mono text-sm tracking-widest cursor-pointer hover:bg-surface-600 transition-colors"
+                  className="bg-surface-600/50 px-2.5 py-1 rounded-lg text-brand font-mono text-sm tracking-widest cursor-pointer hover:bg-surface-600 transition-colors"
                   onClick={(e) => { e.stopPropagation(); copyCode(l.id, l.join_code); }}
                   title="Kliknij aby skopiować"
                 >
@@ -428,7 +428,7 @@ function LeaguesTab({ addToast }) {
                   <button
                     onClick={(e) => { e.stopPropagation(); handleReset(l.id); }}
                     disabled={resetting === l.id}
-                    className="text-xs px-2 py-1 rounded-lg text-gray-500 hover:text-mundial-red hover:bg-red-500/10 transition-colors"
+                    className="text-xs px-2 py-1 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                     title="Resetuj kod"
                   >
                     {resetting === l.id ? '…' : 'Reset'}
@@ -450,7 +450,7 @@ function LeaguesTab({ addToast }) {
                       <div key={m.user_id} className="flex items-center justify-between text-sm">
                         <span className="text-gray-300 flex items-center gap-2">
                           {m.nick}
-                          {m.is_admin && <span className="text-xs text-mundial-gold">admin ligi</span>}
+                          {m.is_admin && <span className="text-xs text-brand">admin ligi</span>}
                         </span>
                         {confirmKey === `kick-${l.id}-${m.user_id}` ? (
                           <span className="flex items-center gap-2">
@@ -468,7 +468,7 @@ function LeaguesTab({ addToast }) {
                           <button
                             onClick={() => handleKick(l.id, m.user_id, m.nick)}
                             disabled={kicking === `${l.id}-${m.user_id}` || m.is_admin}
-                            className="text-xs text-gray-500 hover:text-mundial-red transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            className="text-xs text-gray-500 hover:text-red-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                             title={m.is_admin ? 'Nie można wyrzucić właściciela' : 'Usuń z ligi'}
                           >
                             {kicking === `${l.id}-${m.user_id}` ? '…' : 'Wyrzuć'}
