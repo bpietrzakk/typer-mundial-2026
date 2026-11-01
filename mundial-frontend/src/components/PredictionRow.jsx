@@ -53,7 +53,7 @@ export default function PredictionRow({ prediction: p, hit }) {
               <span className={`text-xl font-bold tabular-nums ${HIT_META[hit]?.text ?? 'text-gray-300'}`}>
                 +{p.points_awarded}
               </span>
-              <HitBadge hitType={hit} />
+              <HitBadge hitType={hit} long />
             </>
           ) : isVoid ? (
             <span className="text-xs text-gray-500 max-w-[110px]">typ nie liczy się</span>

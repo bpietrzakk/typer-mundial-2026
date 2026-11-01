@@ -90,15 +90,17 @@ export default function LeagueList() {
     <div className="page-container">
       <h1 className="page-title">Ligi prywatne</h1>
 
-      {/* action buttons */}
-      <div className="flex flex-wrap gap-3 mb-6">
-        <button onClick={() => setShowJoin(!showJoin)} className="btn-primary text-sm">
-          Dołącz do ligi
-        </button>
-        <button onClick={() => setShowCreate(!showCreate)} className="btn-secondary text-sm">
-          Utwórz ligę
-        </button>
-      </div>
+      {/* action buttons — with no league the empty state has its own, so only one set shows */}
+      {(error || leagues.length > 0) && (
+        <div className="flex flex-wrap gap-3 mb-6">
+          <button onClick={() => setShowJoin(!showJoin)} className="btn-primary text-sm">
+            Dołącz do ligi
+          </button>
+          <button onClick={() => setShowCreate(!showCreate)} className="btn-secondary text-sm">
+            Utwórz ligę
+          </button>
+        </div>
+      )}
 
       {/* join form */}
       {showJoin && (

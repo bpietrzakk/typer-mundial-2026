@@ -200,3 +200,24 @@ export const LEAGUE_COUPON_LIVE = {
     },
   }],
 };
+
+// one settled pick from last week, hit_type missing on purpose (old row):
+// the app derives it from the scores — 2:1 vs 3:2 = goal difference
+export const MY_PREDICTIONS = [{
+  id: 801,
+  match_id: 1150,
+  pred_home: 2,
+  pred_away: 1,
+  points_awarded: 3,
+  hit_type: null,
+  created_at: '2026-10-20T10:00:00Z',
+  kickoff_at: '2026-10-25T15:00:00Z',
+  status: 'finished',
+  home_goals: 3,
+  away_goals: 2,
+  home_team_name: 'Liverpool',
+  away_team_name: 'Everton',
+  season_id: 5,
+  competition_code: 'PL',
+  round_name: 'Kolejka 8',
+}];

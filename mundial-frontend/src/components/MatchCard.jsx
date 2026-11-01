@@ -5,7 +5,9 @@ import MatchContextPanel from './MatchContextPanel';
 import MatchPredictionStrip from './MatchPredictionStrip';
 import MatchScoreBlock from './MatchScoreBlock';
 import MatchTeamSide from './MatchTeamSide';
+import StakeBadge from './StakeBadge';
 import { STATUS_META } from '../utils/matchUi';
+import { matchPoints } from '../utils/scoring';
 
 // one match: teams, score / time, status, my prediction (+ inline form).
 // onMatchChange(matchId, patch) lets the parent update its list after a save
@@ -36,6 +38,8 @@ export default function MatchCard({ match, readOnly = false, showCompetition = f
               )}
             </>
           )}
+          {/* cup knockouts are worth more than 5 · 3 · 2 */}
+          <StakeBadge points={matchPoints(match)} roundName={match.round?.name} className="shrink-0" />
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {confirmed === false && status === 'scheduled' && (

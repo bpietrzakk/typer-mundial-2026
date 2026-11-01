@@ -1,8 +1,8 @@
-import HitBadge from './HitBadge';
+import PointsExplain from './PointsExplain';
 import PredictionForm from './PredictionForm';
 import ProvisionalPoints from './ProvisionalPoints';
 import { HIT_META, VOID_STATUSES } from '../utils/matchUi';
-import { matchPoints } from '../utils/scoring';
+import { matchPoints, settledHit } from '../utils/scoring';
 
 // bottom strip of a match card: inline form, saved prediction or a short note.
 // renders nothing (not even the divider) when there is nothing to say
@@ -25,7 +25,8 @@ export default function MatchPredictionStrip({ match, readOnly, onSaved, onLocke
     }
 
     if (pred) {
-      const meta = HIT_META[pred.hit_type];
+      const hit = settledHit(pred, match.home_goals, match.away_goals);
+      const meta = HIT_META[hit];
       const isVoid = VOID_STATUSES.includes(status);
       return (
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -35,7 +36,7 @@ export default function MatchPredictionStrip({ match, readOnly, onSaved, onLocke
           </div>
           <div className="flex items-center gap-2">
             {isVoid && <span className="text-xs text-gray-400">typ nie liczy się do rankingu</span>}
-            {!isVoid && meta && <HitBadge hitType={pred.hit_type} points={pred.points_awarded} />}
+            {!isVoid && meta && <PointsExplain hit={hit} points={pred.points_awarded} />}
             {!isVoid && !meta && status === 'finished' && (
               <span className="text-xs text-gray-400">czeka na rozliczenie</span>
             )}

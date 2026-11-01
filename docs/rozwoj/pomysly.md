@@ -158,6 +158,13 @@ grupę. To bardziej realistyczne, bo rozmowa i tak dzieje się na Messengerze.
 Zamiast czytać „Zasady”: podgląd punktów na karcie („dokładny 5 · różnica 3 · zwycięzca 2”)
 i po meczu wyjaśnienie, czemu „+3”. Mecze pucharowe z większą punktacją oznaczone na karcie
 („1/8 finału · punkty x1.4”).
+- ✅ *(etap 8, 01.11)* **Wyjaśnienie punktów po meczu:** przy moim rozliczonym typie „+3 · trafiona
+  różnica bramek”, „+5 · dokładny wynik”, „+2 · trafiony zwycięzca”, „0 · pudło” (karta meczu,
+  kupon, Start, Moje typy), w kuponie z jokerem dopisek „×2 joker = +6”. Stare typy bez `hit_type`
+  dostają rodzaj trafienia liczony na froncie z wyniku (`utils/scoring.js`, remis = różnica).
+- ✅ *(etap 8, 01.11)* **Wyższa stawka na karcie meczu:** złota plakietka „punkty ×1,4” (×1,8, ×2,2,
+  ×3) przy meczach pucharowych z większą punktacją, w podpowiedzi „1/8 finału: 7 · 4 · 3 pkt
+  zamiast 5 · 3 · 2”. Punkty z tej samej tabeli co podpowiedź „5 · 3 · 2” (API ich nie wysyła).
 
 ---
 
@@ -180,7 +187,7 @@ i po meczu wyjaśnienie, czemu „+3”. Mecze pucharowe z większą punktacją 
 - Stare endpointy i strony Mundialu (`/matches`, `/ranking`, `/bonus/*`, `leagues`, `scoring_rules`,
   `matches.stage`): zaplanować migrację „contract” i usunąć, gdy front z nich nie korzysta.
 - ✅ ~~3 stare błędy lintu i brak testów frontu~~ (01.11.2026): lint czysty i blokujący w CI,
-  6 testów Playwright z podstawionym API (strona gościa, logowanie, typowanie, liga z kuponem,
+  testy Playwright z podstawionym API (strona gościa, logowanie, typowanie, liga z kuponem,
   link z zaproszeniem przez logowanie, weryfikacja maila), `npm run test:e2e`, odpalane w CI.
 - Brak monitoringu błędów (Sentry ma darmowy plan) i podstawowej analityki (np. Plausible lub
   Umami): dziś nie wiadomo, ile osób wraca w weekend, gdzie odpadają i czy ktoś używa bonusów.
@@ -191,11 +198,12 @@ i po meczu wyjaśnienie, czemu „+3”. Mecze pucharowe z większą punktacją 
 ### Drobne rzeczy z testu
 - Ranking per rozgrywka liczy wszystkich użytkowników aplikacji. Przy grupie znajomych to OK,
   przy większej skali to ranking obcych ludzi: warto rozważyć, czy w ogóle ma być.
-- Strona „Ligi” bez ligi ma podwójne przyciski („Dołącz do ligi / Utwórz ligę” u góry i to samo
-  w pustym stanie).
-- Pusty ranking mówi „Pojawi się, gdy ktoś wytypuje mecze”, ale pojawia się dopiero, gdy mecze się
-  skończą.
-- Na telefonie „Wyloguj” jest stale widoczne w górnym pasku i zabiera miejsce.
+- ✅ *(etap 8, 01.11)* Strona „Ligi” bez ligi ma podwójne przyciski („Dołącz do ligi / Utwórz ligę” u góry i to samo
+  w pustym stanie). Teraz bez ligi widać tylko przyciski z pustego stanu.
+- ✅ *(etap 8, 01.11)* Pusty ranking mówi „Pojawi się, gdy ktoś wytypuje mecze”, ale pojawia się dopiero, gdy mecze się
+  skończą. Teraz: „Pojawi się po pierwszych rozliczonych meczach tego sezonu”.
+- ✅ *(etap 8, 01.11)* Na telefonie „Wyloguj” jest stale widoczne w górnym pasku i zabiera miejsce.
+  Na telefonie wylogowanie jest w Ustawieniach (avatar w górnym pasku), na komputerze zostaje w pasku.
 - „Pula nagród” w lidze: patrz uwaga prawna w `monetyzacja.md`.
 - **Naprawione przy okazji testu:** „#1” przy 0 punktach na Starcie i w karcie „Moje ligi” (każdy
   był pierwszy, zanim cokolwiek się rozliczyło). Teraz miejsce pokazuje się dopiero po pierwszych

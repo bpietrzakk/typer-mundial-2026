@@ -1,12 +1,13 @@
 // small helpers shared by match / prediction / ranking views
 
 // --- hit types (how well a prediction scored) ---
+// label = short name, explain = text next to the points ("+3 · trafiona różnica bramek")
 
 export const HIT_META = {
-  exact:    { label: 'dokładny wynik', short: 'dokładny', text: 'text-emerald-400', badge: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/30', bar: 'bg-emerald-400' },
-  diff:     { label: 'różnica bramek', short: 'różnica',  text: 'text-yellow-400',  badge: 'bg-yellow-400/15 text-yellow-300 border-yellow-400/30',   bar: 'bg-yellow-400' },
-  tendency: { label: 'zwycięzca',      short: 'zwycięzca', text: 'text-orange-400', badge: 'bg-orange-400/15 text-orange-300 border-orange-400/30',   bar: 'bg-orange-400' },
-  miss:     { label: 'pudło',          short: 'pudło',     text: 'text-red-400',    badge: 'bg-red-400/15 text-red-300 border-red-400/30',            bar: 'bg-red-500' },
+  exact:    { label: 'dokładny wynik', explain: 'dokładny wynik', short: 'dokładny', text: 'text-emerald-400', badge: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/30', bar: 'bg-emerald-400' },
+  diff:     { label: 'różnica bramek', explain: 'trafiona różnica bramek', short: 'różnica',  text: 'text-yellow-400',  badge: 'bg-yellow-400/15 text-yellow-300 border-yellow-400/30',   bar: 'bg-yellow-400' },
+  tendency: { label: 'zwycięzca',      explain: 'trafiony zwycięzca', short: 'zwycięzca', text: 'text-orange-400', badge: 'bg-orange-400/15 text-orange-300 border-orange-400/30',   bar: 'bg-orange-400' },
+  miss:     { label: 'pudło',          explain: 'pudło', short: 'pudło',     text: 'text-red-400',    badge: 'bg-red-400/15 text-red-300 border-red-400/30',            bar: 'bg-red-500' },
 };
 
 // --- match statuses ---

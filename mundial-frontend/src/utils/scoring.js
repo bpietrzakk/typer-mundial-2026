@@ -34,3 +34,30 @@ export function distinctPoints(matches) {
   }
   return [...seen.values()].sort((a, b) => a.exact - b.exact);
 }
+
+// how much more a match is worth than the base 5 · 3 · 2 (e.g. 1.4 for 7 · 4 · 3),
+// null for a normal match
+export function stakeMultiplier(pts) {
+  if (!pts || pts.exact <= DEFAULT_POINTS.exact) return null;
+  return Math.round((pts.exact / DEFAULT_POINTS.exact) * 10) / 10;
+}
+
+// hit tier from the typed and the real score — mirrors backend domain/scoring.py
+// classify_hit. a non-exact correct draw is a goal difference hit (0 = 0)
+export function hitFromScores(predHome, predAway, realHome, realAway) {
+  if ([predHome, predAway, realHome, realAway].some((n) => n == null)) return null;
+  if (predHome === realHome && predAway === realAway) return 'exact';
+  const predDiff = predHome - predAway;
+  const realDiff = realHome - realAway;
+  if (predDiff === realDiff) return 'diff';
+  if (Math.sign(predDiff) === Math.sign(realDiff)) return 'tendency';
+  return 'miss';
+}
+
+// hit tier of a settled prediction: from the API, or derived from the scores
+// for old rows without it. null while the prediction is not settled yet
+export function settledHit(pred, realHome, realAway) {
+  if (!pred || pred.points_awarded == null) return null;
+  if (pred.hit_type) return pred.hit_type;
+  return hitFromScores(pred.pred_home, pred.pred_away, realHome, realAway);
+}

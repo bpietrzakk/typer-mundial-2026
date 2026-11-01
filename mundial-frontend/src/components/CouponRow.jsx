@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { addPrediction } from '../api/predictions';
-import HitBadge from './HitBadge';
 import JokerButton from './JokerButton';
 import MatchContextButton from './MatchContextButton';
 import MatchContextPanel from './MatchContextPanel';
+import PointsExplain from './PointsExplain';
 import ProvisionalPoints from './ProvisionalPoints';
 import TeamCrest from './TeamCrest';
 import { STATUS_META, VOID_STATUSES, competitionLabel, errorMessage, formatTime } from '../utils/matchUi';
+import { settledHit } from '../utils/scoring';
 
 const SAVE_DELAY = 600;
 
@@ -143,6 +144,7 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
   const hasScore = match.home_goals != null && match.away_goals != null;
   const isVoid = VOID_STATUSES.includes(match.status);
   const shownPred = saved ?? pred;
+  const shownHit = settledHit(shownPred, match.home_goals, match.away_goals);
   const tbd = match.kickoff_confirmed === false || match.status === 'postponed' || match.status === 'cancelled';
 
   const boxCls = (hint) => `w-8 sm:w-9 h-9 text-center text-base font-bold rounded-lg bg-surface-600/50 border
@@ -269,8 +271,8 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
                   <span className="text-gray-400">typ <span className="score-num font-bold text-gray-200">{shownPred.pred_home}:{shownPred.pred_away}</span></span>
                   {isVoid ? (
                     <span className="text-gray-500">nie liczy się</span>
-                  ) : shownPred.hit_type ? (
-                    <HitBadge hitType={shownPred.hit_type} points={shownPred.points_awarded} className="!text-[10px] !py-0" />
+                  ) : shownHit ? (
+                    <PointsExplain hit={shownHit} points={shownPred.points_awarded} joker={Boolean(joker?.active)} compact />
                   ) : match.status === 'finished' ? (
                     <span className="text-gray-500">czeka na rozliczenie</span>
                   ) : isLive ? (

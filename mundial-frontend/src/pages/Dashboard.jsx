@@ -7,10 +7,10 @@ import { clearCouponJoker, getMyCoupon, setCouponJoker } from '../api/coupon';
 import { getMyPredictions } from '../api/predictions';
 import CompetitionBadge from '../components/CompetitionBadge';
 import ErrorState from '../components/ErrorState';
-import HitBadge from '../components/HitBadge';
 import MatchCard from '../components/MatchCard';
 import MyCouponCard from '../components/MyCouponCard';
 import MyLeaguesCard from '../components/MyLeaguesCard';
+import PointsExplain from '../components/PointsExplain';
 import SectionCard from '../components/SectionCard';
 import useAsync from '../hooks/useAsync';
 import useLivePolling from '../hooks/useLivePolling';
@@ -18,6 +18,7 @@ import useCompetitions from '../hooks/useCompetitions';
 import useMyLeagues from '../hooks/useMyLeagues';
 import useMySeasonStandings from '../hooks/useMySeasonStandings';
 import { isJokerLocked } from '../utils/coupon';
+import { settledHit } from '../utils/scoring';
 import { VOID_STATUSES, errorMessage, formatDayShort, isArchiveCompetition } from '../utils/matchUi';
 
 // live matches only — the coupon replaced the long "upcoming" list
@@ -243,7 +244,7 @@ export default function Dashboard() {
                         <span className="text-gray-400"> · {formatDayShort(p.kickoff_at)}</span>
                       </p>
                     </div>
-                    <HitBadge hitType={p.hit_type ?? (p.points_awarded === 0 ? 'miss' : null)} points={p.points_awarded} />
+                    <PointsExplain hit={settledHit(p, p.home_goals, p.away_goals)} points={p.points_awarded} className="shrink-0" />
                   </div>
                 ))}
               </div>

@@ -21,7 +21,7 @@ export async function mockApi(page, { loggedIn = false, live = false } = {}) {
     ['GET', /^\/seasons\/5\/ranking$/, () => []],
     ['GET', /^\/feed$/, () => []],
     ['GET', /^\/me\/coupon$/, () => fx.MY_COUPON],
-    ['GET', /^\/predictions\/mine$/, () => []],
+    ['GET', /^\/predictions\/mine$/, () => fx.MY_PREDICTIONS],
     ['POST', /^\/predictions$/, (body) => ({
       id: 900, ...body, points_awarded: null, hit_type: null,
     })],

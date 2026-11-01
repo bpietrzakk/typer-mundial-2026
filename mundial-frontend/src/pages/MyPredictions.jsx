@@ -7,6 +7,7 @@ import PredictionSection from '../components/PredictionSection';
 import useAsync from '../hooks/useAsync';
 import useCompetitions from '../hooks/useCompetitions';
 import { countOf } from '../utils/plural';
+import { settledHit } from '../utils/scoring';
 import { HIT_META, VOID_STATUSES, competitionLabel, isArchiveCompetition, sortCompetitions, toId } from '../utils/matchUi';
 
 const fetchAllPredictions = () => getMyPredictions();
@@ -19,11 +20,10 @@ const STATUS_FILTERS = [
   ['scored', 'Rozliczone'],
 ];
 
-// hit type of a prediction: from the API, or a guess for old rows without it
+// hit type of a prediction: from the API, or derived from the scores for old rows
 const hitOf = (p) => {
-  if (HIT_META[p.hit_type]) return p.hit_type;
-  if (p.points_awarded === 0) return 'miss';
-  return null;
+  const hit = settledHit(p, p.home_goals, p.away_goals);
+  return HIT_META[hit] ? hit : null;
 };
 
 const isVoid = (p) => VOID_STATUSES.includes(p.status);

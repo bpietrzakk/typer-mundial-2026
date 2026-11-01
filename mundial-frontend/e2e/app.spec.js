@@ -73,6 +73,19 @@ test('matches list saves a typed score', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Zapisano' })).toBeVisible();
 });
 
+test('settled pick explains its points', async ({ page }) => {
+  await mockApi(page, { loggedIn: true });
+  await page.goto('/predictions');
+
+  const row = page.locator('.glass-card', { hasText: 'Liverpool' });
+  await expect(row.getByText('+3')).toBeVisible();
+  await expect(row.getByText('trafiona różnica bramek')).toBeVisible();
+
+  // the start page lists it with the "+3 · why" pill
+  await page.goto('/');
+  await expect(page.getByText(/^\+3\s*·\s*trafiona różnica bramek$/)).toBeVisible();
+});
+
 test('league page shows the weekly coupon and members', async ({ page }) => {
   await mockApi(page, { loggedIn: true });
   await page.goto('/leagues/1');
