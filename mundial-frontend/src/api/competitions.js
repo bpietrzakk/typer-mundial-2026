@@ -52,3 +52,10 @@ export const getFeed = async (days = 7) => {
   const res = await api.get('/feed', { params: { days } });
   return res.data;
 };
+
+// "Najbliższe": not started matches of the next `days` days from the scope of my
+// leagues (followed competitions when I have no league), nearest first
+export const getMyUpcomingMatches = async (days = 7) => {
+  const res = await api.get('/me/upcoming-matches', { params: { days } });
+  return res.data;
+};

@@ -42,6 +42,18 @@ export function formatTimeLeft(ms) {
   return `${seconds} s`;
 }
 
+// countdown that ticks once a minute: "3 d 4 h", "2 h 14 min", "14 min", "< 1 min"
+export function formatCountdown(ms) {
+  const minutesTotal = Math.max(0, Math.floor(ms / 60_000));
+  const days = Math.floor(minutesTotal / 1440);
+  const hours = Math.floor((minutesTotal % 1440) / 60);
+  const minutes = minutesTotal % 60;
+  if (days > 0) return `${days} d ${hours} h`;
+  if (hours > 0) return `${hours} h ${minutes} min`;
+  if (minutes > 0) return `${minutes} min`;
+  return '< 1 min';
+}
+
 // how long a sync run took, "—" while it is still running
 export function formatRunDuration(startIso, endIso) {
   if (!startIso || !endIso) return '—';

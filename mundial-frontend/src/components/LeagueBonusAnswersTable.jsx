@@ -10,11 +10,11 @@ export default function LeagueBonusAnswersTable({ answers, resolved }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-surface-500/20">
+    <div className="overflow-x-auto rounded-xl border border-surface-500/35">
       <table className="w-full text-sm">
         <caption className="sr-only">Odpowiedzi graczy na pytanie bonusowe</caption>
         <thead>
-          <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-surface-500/20">
+          <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-surface-500/35">
             <th scope="col" className="px-3 py-2">Gracz</th>
             <th scope="col" className="px-3 py-2">Typ</th>
             <th scope="col" className="px-3 py-2 text-right">Punkty</th>
@@ -27,7 +27,7 @@ export default function LeagueBonusAnswersTable({ answers, resolved }) {
             return (
               <tr
                 key={answer.user_id}
-                className={`border-b border-surface-500/10 last:border-0 ${isMe ? 'bg-brand/10' : ''}`}
+                className={`border-b border-surface-500/25 last:border-0 ${isMe ? 'bg-brand/10' : ''}`}
               >
                 <td className={`px-3 py-2 font-medium ${isMe ? 'text-brand' : 'text-gray-200'}`}>
                   {answer.nick}

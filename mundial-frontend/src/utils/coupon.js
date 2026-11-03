@@ -71,6 +71,16 @@ export const hasStarted = (match) => {
   return match.status !== 'postponed' && new Date(match.kickoff_at) <= new Date();
 };
 
+// where a league coupon comes from (created_by from the backend)
+// global = copy of the global coupon, owner = changed by the organizer,
+// auto = the league's own pick (too few hits in the league's competitions)
+export function couponSourceLabel(createdBy) {
+  if (createdBy === 'global') return 'Kupon ogólny — hity tygodnia, te same mecze dla wszystkich';
+  if (createdBy === 'owner') return 'Kupon ligi (zmieniony przez organizatora)';
+  if (createdBy === 'auto') return 'Kupon ligi — hitów z jej rozgrywek było za mało, dobrane najlepsze mecze';
+  return '';
+}
+
 // --- joker (one match per coupon counts double, only in 'coupon' leagues) ---
 
 export const JOKER_RULE = 'Joker: raz w tygodniu podwójne punkty za wybrany mecz';
@@ -80,4 +90,20 @@ export const JOKER_RULE = 'Joker: raz w tygodniu podwójne punkty za wybrany mec
 export function isJokerLocked(jokerMatch) {
   if (!jokerMatch || jokerMatch.status === 'cancelled') return false;
   return hasStarted(jokerMatch);
+}
+
+// --- start screen hero ---
+
+const byKickoff = (a, b) => new Date(a.kickoff_at) - new Date(b.kickoff_at);
+
+// what the top block of the start screen shows:
+// open = nearest match I can still type, live = everything started and one is on,
+// closed = every match started, empty = no coupon matches this week
+export function pickHeroMatch(matches) {
+  if (!matches?.length) return { kind: 'empty', match: null };
+  const open = matches.filter((m) => m.can_predict && m.status === 'scheduled').sort(byKickoff);
+  if (open.length) return { kind: 'open', match: open[0] };
+  const live = matches.filter((m) => m.status === 'live').sort(byKickoff);
+  if (live.length) return { kind: 'live', match: live[0] };
+  return { kind: 'closed', match: null };
 }

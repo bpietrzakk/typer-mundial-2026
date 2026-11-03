@@ -123,7 +123,7 @@ export default function Settings() {
               Wyloguj się
             </button>
           </div>
-          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-surface-500/20 text-sm">
+          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-surface-500/35 text-sm">
             <Link to="/rules" className="px-3 py-1.5 rounded-lg bg-surface-700/50 text-brand hover:bg-surface-700 transition-colors">
               Zasady punktacji
             </Link>

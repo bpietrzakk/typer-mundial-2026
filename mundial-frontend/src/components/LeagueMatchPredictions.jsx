@@ -43,9 +43,9 @@ export default function LeagueMatchPredictions({ match, onReact }) {
       </button>
 
       {open && (
-        <div id={panelId} className="mt-2 mb-1 rounded-xl bg-surface-700/40 border border-surface-500/20 p-3 animate-fade-in">
+        <div id={panelId} className="mt-2 mb-1 rounded-xl bg-surface-700/40 border border-surface-500/35 p-3 animate-fade-in">
           {summary && <LeaguePickSummary summary={summary} />}
-          <ul className="divide-y divide-surface-500/10">
+          <ul className="divide-y divide-surface-500/25">
             {sorted.map((p) => {
               const isMe = p.user_id === user?.id;
               return (

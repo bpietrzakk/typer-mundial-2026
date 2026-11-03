@@ -39,6 +39,20 @@ test('login form logs in and opens the app', async ({ page }) => {
   expect(login.body).toEqual({ email: 'bartek@example.com', password: 'tajne-haslo' });
 });
 
+test('tab from the password and space logs in', async ({ page }) => {
+  const api = await mockApi(page);
+  await page.goto('/login');
+
+  await page.getByLabel('Email').fill('bartek@example.com');
+  await page.getByLabel('Hasło', { exact: true }).fill('tajne-haslo');
+  // next stop after the password is the submit button, not the show-password eye
+  await page.getByLabel('Hasło', { exact: true }).press('Tab');
+  await page.keyboard.press('Space');
+
+  await expect(page).toHaveURL(/\/$/);
+  expect(api.requests.some((r) => r.method === 'POST' && r.path === '/auth/login')).toBe(true);
+});
+
 test('email verification link confirms the account', async ({ page }) => {
   await mockApi(page);
 
@@ -73,6 +87,67 @@ test('matches list saves a typed score', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Zapisano' })).toBeVisible();
 });
 
+test('"Najbliższe" lists the coupon first, then the league matches', async ({ page }) => {
+  await mockApi(page, { loggedIn: true, nearest: true });
+  await page.goto('/matches');
+
+  // default view, picked in the left list
+  const nav = page.getByRole('navigation', { name: 'Rozgrywki' });
+  await expect(nav.getByRole('button', { name: 'Najbliższe' })).toHaveAttribute('aria-pressed', 'true');
+
+  const coupon = page.getByRole('region', { name: /^Kupon tygodnia/ });
+  const leagues = page.getByRole('region', { name: 'Z twoich lig' });
+  await expect(coupon.getByText('Arsenal')).toBeVisible();
+  await expect(leagues.getByText('Gospodarz 1', { exact: true })).toBeVisible();
+
+  // coupon above the league matches, nearest coupon match on top
+  const couponBox = await coupon.boundingBox();
+  const leaguesBox = await leagues.boundingBox();
+  expect(couponBox.y).toBeLessThan(leaguesBox.y);
+  const couponText = await coupon.innerText();
+  expect(couponText.indexOf('Arsenal')).toBeLessThan(couponText.indexOf('Liverpool'));
+
+  // the played coupon match waits folded, with its result
+  await expect(coupon.getByText('Tottenham')).toBeHidden();
+  await coupon.getByRole('button', { name: /Rozegrane w tym tygodniu/ }).click();
+  await expect(coupon.getByText('Tottenham')).toBeVisible();
+
+  // the coupon match is not repeated, 10 league matches first, then "Pokaż więcej"
+  await expect(leagues.getByText('Arsenal')).toHaveCount(0);
+  await expect(leagues.getByText('Gospodarz 10', { exact: true })).toBeVisible();
+  await expect(leagues.getByText('Gospodarz 11', { exact: true })).toHaveCount(0);
+  await leagues.getByRole('button', { name: /Pokaż więcej/ }).click();
+  await expect(leagues.getByText('Gospodarz 12', { exact: true })).toBeVisible();
+
+  // a competition from the list opens its schedule and lands in the url
+  await nav.getByRole('button', { name: /Premier League/ }).click();
+  await expect(page).toHaveURL(/\/matches\?competition=2$/);
+  await expect(page.getByLabel('Sezon')).toBeVisible();
+  await expect(page.getByText('Kolejka 9: rozegrano 0/1')).toBeVisible();
+  await nav.getByRole('button', { name: 'Najbliższe' }).click();
+  await expect(page).toHaveURL(/\/matches$/);
+});
+
+test('"Statystyki" opens the match stats panel', async ({ page }) => {
+  await mockApi(page, { loggedIn: true });
+  await page.goto('/matches');
+
+  const toggle = page.getByRole('button', { name: 'Statystyki' }).first();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+  const panel = page.getByRole('region', { name: 'Statystyki meczu' });
+  await expect(panel.getByText('Gospodarze wygrali 4 z 5 ostatnich meczów u siebie')).toBeVisible();
+  await expect(panel.getByRole('group', { name: /gole strzelone \/ mecz: gospodarze 1,9, goście 1,6/ })).toBeVisible();
+  await expect(panel.getByRole('cell', { name: 'Aston Villa' })).toBeVisible();
+
+  // keyboard: enter closes it again
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(panel).toBeHidden();
+});
+
 test('settled pick explains its points', async ({ page }) => {
   await mockApi(page, { loggedIn: true });
   await page.goto('/predictions');
@@ -95,6 +170,8 @@ test('league page shows the weekly coupon and members', async ({ page }) => {
   const coupon = page.getByRole('region', { name: 'Kupon tygodnia' });
   await expect(coupon.getByText('Arsenal').first()).toBeVisible();
   await expect(coupon.getByText('Chelsea').first()).toBeVisible();
+  // the league plays the global coupon
+  await expect(coupon.getByText(/^Kupon ogólny — hity tygodnia/)).toBeVisible();
   // both members in the league ranking
   const ranking = page.getByRole('region', { name: 'Ranking ligi' });
   await expect(ranking.getByText('ola', { exact: true }).first()).toBeVisible();
@@ -185,41 +262,6 @@ test('archived Mundial ranking switches between with and without bonuses', async
   await expect(section.getByText('120 + 32')).toHaveCount(0);
 });
 
-test('"Statystyki" opens the match stats panel', async ({ page }) => {
-  await mockApi(page, { loggedIn: true });
-  await page.goto('/matches');
-
-  const toggle = page.getByRole('button', { name: 'Statystyki' }).first();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-
-  const panel = page.getByRole('region', { name: 'Statystyki meczu' });
-  await expect(panel.getByText('Gospodarze wygrali 4 z 5 ostatnich meczów u siebie')).toBeVisible();
-  await expect(panel.getByRole('group', { name: /gole strzelone \/ mecz: gospodarze 1,9, goście 1,6/ })).toBeVisible();
-  await expect(panel.getByRole('cell', { name: 'Aston Villa' })).toBeVisible();
-
-  // keyboard: enter closes it again
-  await toggle.focus();
-  await page.keyboard.press('Enter');
-  await expect(panel).toBeHidden();
-});
-
-test('tab from the password and space logs in', async ({ page }) => {
-  const api = await mockApi(page);
-  await page.goto('/login');
-
-  await page.getByLabel('Email').fill('bartek@example.com');
-  await page.getByLabel('Hasło', { exact: true }).fill('tajne-haslo');
-  // next stop after the password is the submit button, not the show-password eye
-  await page.getByLabel('Hasło', { exact: true }).press('Tab');
-  await page.keyboard.press('Space');
-
-  await expect(page).toHaveURL(/\/$/);
-  expect(api.requests.some((r) => r.method === 'POST' && r.path === '/auth/login')).toBe(true);
-});
-
-
 test('clicking a player in the league ranking shows their picks', async ({ page }) => {
   await mockApi(page, { loggedIn: true });
   await page.goto('/leagues/1');
@@ -250,4 +292,63 @@ test('clicking a player in the league ranking shows their picks', async ({ page 
 
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
+});
+
+test('start page without a league shows the global coupon', async ({ page }) => {
+  await mockApi(page, { loggedIn: true });
+  await page.goto('/');
+
+  // the only coupon match sits in the hero, the coupon card still counts it
+  const hero = page.getByRole('region', { name: 'Najbliższy mecz' });
+  await expect(hero.getByText('Arsenal')).toBeVisible();
+  const card = page.getByRole('region', { name: /Hity tygodnia/ });
+  await expect(card.getByText('0 z 1')).toBeVisible();
+  await expect(card.getByText(/^Kupon ogólny: najciekawsze mecze tygodnia/)).toBeVisible();
+  await expect(page.getByText('Załóż ligę i zaproś znajomych')).toBeVisible();
+});
+
+test('organizer brings the league back to the global coupon', async ({ page }) => {
+  const api = await mockApi(page, { loggedIn: true, organizer: true });
+  await page.goto('/leagues/1');
+
+  const coupon = page.getByRole('region', { name: 'Kupon tygodnia' });
+  await expect(coupon.getByText('Kupon ligi (zmieniony przez organizatora)')).toBeVisible();
+  await coupon.getByRole('button', { name: 'Edytuj kupon' }).click();
+  await expect(coupon.getByRole('heading', { name: 'Dodaj mecz' })).toBeVisible();
+  await coupon.getByRole('button', { name: 'Przywróć kupon ogólny' }).click();
+
+  await expect(coupon.getByText(/^Kupon ogólny — hity tygodnia/)).toBeVisible();
+  expect(api.requests.some((r) => r.method === 'POST' && r.path === '/leagues/1/coupon/reset')).toBe(true);
+});
+
+test('start page puts the nearest coupon match on top and saves a pick from there', async ({ page }) => {
+  await mockApi(page, { loggedIn: true, nearest: true });
+  await page.goto('/');
+
+  // tomorrow's Arsenal match is the hero, with a countdown to the kickoff
+  const hero = page.getByRole('region', { name: 'Najbliższy mecz' });
+  await expect(hero.getByText('Arsenal')).toBeVisible();
+  await expect(hero.getByText(/^za \d+ (d|h|min)/)).toBeVisible();
+
+  // hero above the coupon, and the coupon does not repeat the hero match
+  const coupon = page.getByRole('region', { name: /Twój kupon/ });
+  await expect(coupon.getByText('Liverpool')).toBeVisible();
+  await expect(coupon.getByText('Arsenal')).toHaveCount(0);
+  expect((await hero.boundingBox()).y).toBeLessThan((await coupon.boundingBox()).y);
+
+  const isSave = (r) => r.method() === 'POST' && new URL(r.url()).pathname === '/api/predictions';
+
+  // typing in the hero autosaves like a coupon row
+  const heroSave = page.waitForRequest(isSave);
+  await hero.getByLabel('Gole: Arsenal').fill('2');
+  await hero.getByLabel('Gole: Chelsea').fill('1');
+  expect((await heroSave).postDataJSON()).toEqual({ match_id: 1201, pred_home: 2, pred_away: 1 });
+  await expect(hero.getByText('Typ zapisany')).toBeVisible();
+  await expect(coupon.getByText('2 z 3')).toBeVisible();
+
+  // a coupon row sends the very same request
+  const rowSave = page.waitForRequest(isSave);
+  await coupon.getByLabel('Gole: Liverpool').fill('1');
+  await coupon.getByLabel('Gole: Everton').fill('1');
+  expect((await rowSave).postDataJSON()).toEqual({ match_id: 1202, pred_home: 1, pred_away: 1 });
 });

@@ -46,7 +46,7 @@ export default function JoinByLink() {
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">
-      <div className="glass-card p-10 text-center max-w-sm w-full animate-fade-in">
+      <div className="panel p-8 sm:p-10 text-center max-w-sm w-full animate-fade-in">
         {status === 'joining' && (
           <>
             <div className="w-12 h-12 border-2 border-brand/30 border-t-brand rounded-full animate-spin mx-auto mb-4" />

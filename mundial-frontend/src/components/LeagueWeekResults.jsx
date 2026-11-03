@@ -52,7 +52,7 @@ export default function LeagueWeekResults({ coupon, leagueName }) {
   };
 
   return (
-    <div className="border-t border-surface-500/20">
+    <div className="border-t border-surface-500/35">
       <div className="px-4 sm:px-5 pt-4 pb-3 flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-gray-200">Wyniki tygodnia</h3>

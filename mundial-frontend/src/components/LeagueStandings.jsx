@@ -133,16 +133,16 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
   return (
     <>
       <section className="glass-card overflow-hidden mb-2" aria-labelledby="league-ranking-title">
-        <div className="px-5 py-4 border-b border-surface-500/20 flex items-center justify-between gap-3 flex-wrap">
+        <div className="px-5 py-4 border-b border-surface-500/35 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 id="league-ranking-title" className="text-lg font-semibold text-gray-200">Ranking ligi</h2>
             {isLive && (
-              <div className="flex items-center rounded-full border border-surface-500/30 p-0.5 text-xs font-semibold" role="group" aria-label="Widok rankingu">
+              <div className="flex items-center rounded-md border border-surface-500/50 p-0.5 text-xs font-semibold" role="group" aria-label="Widok rankingu">
                 <button
                   type="button"
                   onClick={() => setShowLive(true)}
                   aria-pressed={liveView}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-colors ${liveView ? 'bg-live/15 text-live' : 'text-gray-400 hover:text-gray-200'}`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${liveView ? 'bg-live/15 text-live' : 'text-gray-400 hover:text-gray-200'}`}
                 >
                   <span className="w-1.5 h-1.5 bg-live rounded-full animate-pulse" aria-hidden="true" />
                   Na żywo
@@ -151,7 +151,7 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
                   type="button"
                   onClick={() => setShowLive(false)}
                   aria-pressed={!liveView}
-                  className={`px-2.5 py-1 rounded-full transition-colors ${!liveView ? 'bg-surface-600/60 text-gray-100' : 'text-gray-400 hover:text-gray-200'}`}
+                  className={`px-2.5 py-1 rounded transition-colors ${!liveView ? 'bg-surface-600/60 text-gray-100' : 'text-gray-400 hover:text-gray-200'}`}
                 >
                   Oficjalny
                 </button>
@@ -175,7 +175,7 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
         </div>
 
         {archivePick && activeSeasonId === archivePick.id && (
-          <div className="px-5 py-3 border-b border-surface-500/20 bg-surface-700/40 flex items-center justify-between gap-3 flex-wrap">
+          <div className="px-5 py-3 border-b border-surface-500/35 bg-surface-700/40 flex items-center justify-between gap-3 flex-wrap">
             <p className="text-sm text-gray-200">
               <span aria-hidden="true">🏆 </span>
               {archivePick.label} – końcowa tabela.
@@ -191,12 +191,12 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
           <BonusesToggle
             withBonuses={withBonuses}
             onChange={(on) => setNoBonusSeasonId(on ? null : activeSeasonId)}
-            className="px-5 py-3 border-b border-surface-500/20"
+            className="px-5 py-3 border-b border-surface-500/35"
           />
         )}
 
         {!hasData && (
-          <div className="divide-y divide-surface-500/10" role="status" aria-busy="true" aria-label="Ładuję ranking">
+          <div className="divide-y divide-surface-500/25" role="status" aria-busy="true" aria-label="Ładuję ranking">
             {[...Array(4)].map((_, i) => <SkeletonRow key={i} variant="rank" />)}
           </div>
         )}
@@ -211,7 +211,7 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
         )}
 
         {liveView && hasData && (
-          <p className="px-5 py-2.5 border-b border-surface-500/20 bg-live/5 text-xs text-gray-300">
+          <p className="px-5 py-2.5 border-b border-surface-500/35 bg-live/5 text-xs text-gray-300">
             <span className="font-semibold text-live">Tabela na żywo</span> — oficjalne punkty plus punkty z trwających
             meczów, gdyby skończyły się teraz. To jeszcze nie jest wynik końcowy; strzałki pokazują zmianę względem
             oficjalnej tabeli.
@@ -234,7 +234,7 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
           </div>
         )}
 
-        <div className="px-5 py-3 border-t border-surface-500/20 text-xs text-gray-400 space-y-1">
+        <div className="px-5 py-3 border-t border-surface-500/35 text-xs text-gray-400 space-y-1">
           {selected ? (
             <p>
               Ranking sezonu <span className="text-gray-400">{selected.label}</span>: punkty z meczów tego sezonu

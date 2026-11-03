@@ -12,13 +12,15 @@ export default function LeagueTeamLabel({ team, className = '' }) {
   return (
     <span className={`inline-flex items-center gap-2 min-w-0 ${className}`}>
       {showCrest ? (
-        <img
-          src={proxiedImageUrl(team.crest_url)}
-          alt=""
-          loading="lazy"
-          onError={() => setCrestFailed(true)}
-          className="w-5 h-5 object-contain shrink-0"
-        />
+        <span className="w-5 h-5 logo-disc">
+          <img
+            src={proxiedImageUrl(team.crest_url)}
+            alt=""
+            loading="lazy"
+            onError={() => setCrestFailed(true)}
+            className="w-[76%] h-[76%] object-contain"
+          />
+        </span>
       ) : (
         <span className="w-5 h-5 shrink-0 rounded-full bg-surface-600 text-[8px] font-bold text-gray-400 flex items-center justify-center">
           {initials}

@@ -34,7 +34,7 @@ export default function Landing() {
       <header className="max-w-6xl w-full mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <img src="/favicon.svg" alt="" className="w-8 h-8 rounded-lg" />
-          <span className="font-extrabold text-xl tracking-tight gradient-text">czutka</span>
+          <span className="wordmark text-xl">czutka</span>
         </Link>
         <Link to="/login" className="text-sm font-medium text-gray-300 hover:text-white px-3 py-2 rounded-lg hover:bg-surface-700/40 transition-colors">
           Zaloguj

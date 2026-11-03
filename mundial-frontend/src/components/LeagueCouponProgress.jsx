@@ -24,7 +24,7 @@ export default function LeagueCouponProgress({ coupon, league, canRemind }) {
   };
 
   return (
-    <div className="px-4 sm:px-5 py-3 border-b border-surface-500/20">
+    <div className="px-4 sm:px-5 py-3 border-b border-surface-500/35">
       <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
           Kto już wytypował <span className="text-gray-200 tabular-nums normal-case">· {complete}/{members.length} komplet</span>

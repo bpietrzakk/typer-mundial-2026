@@ -46,7 +46,7 @@ export default function LeagueRankingTable({ entries, onSelectUser, live = false
       <table className="w-full">
         <caption className="sr-only">{live ? 'Ranking ligi na żywo (nieostateczny)' : 'Ranking ligi'}</caption>
         <thead>
-          <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-surface-500/20">
+          <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-surface-500/35">
             <th scope="col" className="pl-4 pr-1 sm:px-5 py-3 w-10 sm:w-16">#</th>
             <th scope="col" className="px-2 sm:px-5 py-3">Gracz</th>
             <th scope="col" className="px-2 sm:px-5 py-3 text-right">Punkty</th>
@@ -68,7 +68,7 @@ export default function LeagueRankingTable({ entries, onSelectUser, live = false
                 onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectUser(entry); } } : undefined}
                 tabIndex={clickable ? 0 : undefined}
                 title={clickable ? `Zobacz typy: ${entry.nick}` : undefined}
-                className={`group border-b border-surface-500/10 last:border-0 transition-colors
+                className={`group border-b border-surface-500/25 last:border-0 transition-colors
                   ${clickable ? 'cursor-pointer' : ''}
                   ${isMe ? 'bg-brand/10 hover:bg-brand/15' : 'hover:bg-surface-700/30'}`}
               >

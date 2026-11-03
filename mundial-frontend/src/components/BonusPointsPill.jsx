@@ -4,7 +4,7 @@ export default function BonusPointsPill({ points }) {
     return <span className="text-xs text-gray-400">czeka na rozstrzygnięcie</span>;
   }
   return (
-    <span className={`inline-flex px-2.5 py-0.5 rounded-full border text-xs font-bold tabular-nums
+    <span className={`inline-flex px-2.5 py-0.5 rounded border text-xs font-bold tabular-nums
       ${points > 0
         ? 'bg-emerald-400/15 text-emerald-300 border-emerald-400/30'
         : 'bg-red-400/15 text-red-300 border-red-400/30'}`}>

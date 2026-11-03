@@ -18,13 +18,21 @@ export const updateLeagueCoupon = async (leagueId, matchIds) => {
   return res.data;
 };
 
-// organizer only, the auto picker builds the current week again
-export const regenerateLeagueCoupon = async (leagueId) => {
-  const res = await api.post(`/leagues/${leagueId}/coupon/regenerate`);
+// organizer only, "przywróć kupon ogólny": the league plays the global coupon again
+// (started matches stay). returns the whole league coupon
+export const resetLeagueCoupon = async (leagueId) => {
+  const res = await api.post(`/leagues/${leagueId}/coupon/reset`);
   return res.data;
 };
 
-// all my league coupons of this week merged, or "hits of the week" without a league
+// the one general coupon of the week ("hity tygodnia"), same for everybody
+export const getGlobalCoupon = async (week) => {
+  const params = week ? { week } : {};
+  const res = await api.get('/coupon/global', { params });
+  return res.data;
+};
+
+// all my league coupons of this week merged, or the global coupon without a league
 export const getMyCoupon = async () => {
   const res = await api.get('/me/coupon');
   return res.data;

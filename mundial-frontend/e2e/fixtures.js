@@ -78,13 +78,62 @@ export const MATCH = {
 };
 
 export const MY_COUPON = {
-  source: 'hits',
+  source: 'global',
   ...WEEK,
   typed: 0,
   total: 1,
   next_deadline: KICKOFF,
   matches: [{ ...MATCH, leagues: [] }],
 };
+
+// "Najbliższe" on /matches: a fuller week — my league coupon has the match
+// of tomorrow, a later one and one already played; the leagues have 12 more
+const HOUR_MS = 60 * 60 * 1000;
+const at = (ms) => new Date(Date.parse(KICKOFF) + ms).toISOString();
+const team = (id, name, short) => ({ id, name, short_name: short, crest_url: null });
+const LEAGUE_REF = { id: 1, name: 'Biuro', ranking_mode: 'coupon', is_my_joker: false };
+
+const COUPON_LATER = {
+  ...MATCH,
+  id: 1202,
+  kickoff_at: at(DAY_MS),
+  home_team: team(13, 'Liverpool', 'LIV'),
+  away_team: team(14, 'Everton', 'EVE'),
+};
+const COUPON_PLAYED = {
+  ...MATCH,
+  id: 1190,
+  kickoff_at: at(-2 * DAY_MS),
+  status: 'finished',
+  can_predict: false,
+  home_team: team(15, 'Tottenham', 'TOT'),
+  away_team: team(16, 'Fulham', 'FUL'),
+  home_goals: 2,
+  away_goals: 0,
+  my_prediction: { pred_home: 2, pred_away: 0, points_awarded: 5, hit_type: 'exact' },
+};
+
+export const MY_COUPON_FULL = {
+  source: 'leagues',
+  ...WEEK,
+  typed: 1,
+  total: 3,
+  next_deadline: KICKOFF,
+  // backend order is not kickoff order — the page sorts
+  matches: [COUPON_LATER, COUPON_PLAYED, MATCH].map((m) => ({ ...m, leagues: [LEAGUE_REF] })),
+};
+
+// league matches after the coupon ones (+ the coupon match again: the page skips it)
+export const UPCOMING_MATCHES = [
+  MATCH,
+  ...Array.from({ length: 12 }, (_, i) => ({
+    ...MATCH,
+    id: 1300 + i,
+    kickoff_at: at(2 * DAY_MS + i * HOUR_MS),
+    home_team: team(100 + i, `Gospodarz ${i + 1}`, `G${i + 1}`),
+    away_team: team(200 + i, `Gość ${i + 1}`, `O${i + 1}`),
+  })),
+];
 
 export const INVITE_CODE = 'BFKE832S';
 
@@ -155,7 +204,7 @@ export const LEAGUE_COUPON = {
   ...WEEK,
   is_current_week: true,
   coupon_id: 7,
-  created_by: 'auto',
+  created_by: 'global',
   ranking_mode: 'coupon',
   coupon_size: 10,
   coupon_auto: true,
@@ -238,6 +287,7 @@ const wcRow = (rank, userId, nick, match, bonus, exact) => ({
 export const WC_RANKING = [wcRow(1, 3, 'ola', 120, 32, 9), wcRow(2, 1, 'bartek', 135, 0, 12)];
 export const WC_RANKING_NO_BONUSES = [wcRow(1, 1, 'bartek', 135, 0, 12), wcRow(2, 3, 'ola', 120, 0, 9)];
 
+// GET /matches/1201/context — stats panel of Arsenal vs Chelsea
 export const MATCH_CONTEXT = {
   match_id: 1201,
   home: { team_id: 11, rank: 2, points: 19, played: 9, form: ['W', 'W', 'R', 'W', 'P'] },

@@ -39,7 +39,7 @@ export default function LeagueDangerZone({ league, isOwner, embedded = false }) 
     : `Opuścić ligę "${league.name}"?`;
 
   return (
-    <div className={embedded ? 'pt-3' : 'mt-8 pt-6 border-t border-surface-500/20'}>
+    <div className={embedded ? 'pt-3' : 'mt-8 pt-6 border-t border-surface-500/35'}>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <p className={`text-sm font-semibold ${isOwner ? 'text-red-400' : 'text-gray-400'}`}>{title}</p>

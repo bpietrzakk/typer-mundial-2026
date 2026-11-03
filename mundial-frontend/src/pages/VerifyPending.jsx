@@ -26,7 +26,7 @@ export default function VerifyPending() {
   return (
     <div className="auth-bg min-h-screen flex items-center justify-center px-4">
       <div className="relative w-full max-w-md animate-fade-in text-center">
-        <div className="glass-card p-10 space-y-4">
+        <div className="panel p-8 sm:p-10 space-y-4">
           <h1 className="text-2xl font-extrabold tracking-tight text-white">Potwierdź swój email</h1>
           <p className="text-gray-400">
             Wysłaliśmy link aktywacyjny{email ? <> na <span className="text-gray-200">{email}</span></> : ''}.

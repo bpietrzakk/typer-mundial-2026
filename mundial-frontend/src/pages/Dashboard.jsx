@@ -10,6 +10,7 @@ import ErrorState from '../components/ErrorState';
 import MatchCard from '../components/MatchCard';
 import MyCouponCard from '../components/MyCouponCard';
 import MyLeaguesCard from '../components/MyLeaguesCard';
+import NextMatchHero from '../components/NextMatchHero';
 import PointsExplain from '../components/PointsExplain';
 import SectionCard from '../components/SectionCard';
 import SkeletonCard from '../components/SkeletonCard';
@@ -20,7 +21,7 @@ import useLivePolling from '../hooks/useLivePolling';
 import useCompetitions from '../hooks/useCompetitions';
 import useMyLeagues from '../hooks/useMyLeagues';
 import useMySeasonStandings from '../hooks/useMySeasonStandings';
-import { isJokerLocked } from '../utils/coupon';
+import { isJokerLocked, pickHeroMatch } from '../utils/coupon';
 import { settledHit } from '../utils/scoring';
 import { VOID_STATUSES, errorMessage, formatDayShort, isArchiveCompetition } from '../utils/matchUi';
 
@@ -102,6 +103,13 @@ export default function Dashboard() {
   const refreshLive = useCallback(() => { refreshCoupon(); refreshFeed(); }, [refreshCoupon, refreshFeed]);
   useLivePolling(anyLive, refreshLive);
 
+  // the hero match kicked off while the page was open: close it here at once,
+  // then ask the backend (the hero moves on to the next open match)
+  const handleKickoff = useCallback((matchId) => {
+    handleLocked(matchId);
+    refreshCoupon();
+  }, [handleLocked, refreshCoupon]);
+
   // league tags only make sense with more than one league
   const leagueNames = new Set((coupon?.matches ?? []).flatMap((m) => m.leagues.map((l) => l.id)));
   const showLeagues = (leaguesQ.data?.total ?? leagueNames.size) > 1;
@@ -121,6 +129,10 @@ export default function Dashboard() {
     };
   };
   const anyJoker = couponMatches.some((m) => m.leagues.some((l) => l.ranking_mode === 'coupon'));
+  const leaguesOf = showLeagues ? (m) => m.leagues : undefined;
+
+  // nearest open match on top, the list below skips it
+  const hero = pickHeroMatch(couponMatches);
 
   const standings = standingsQ.data ?? [];
   const codeBySeason = Object.fromEntries(
@@ -140,15 +152,26 @@ export default function Dashboard() {
       <div className="page-container lg:max-w-6xl">
         <SkeletonLine width="w-32" height="h-3.5" className="mb-4" />
         <div className={gridCls}>
-          <SkeletonCard label="Ładuję kupon">
-            <div className="px-4 sm:px-5 py-3 border-b border-surface-500/20 space-y-2" aria-hidden="true">
-              <SkeletonLine height="h-2" className="!rounded-full" />
-              <SkeletonLine width="w-40" height="h-2.5" />
+          <div className="space-y-5 min-w-0">
+            <div className="panel p-5 space-y-4" role="status" aria-busy="true" aria-label="Ładuję najbliższy mecz">
+              <SkeletonLine width="w-28" height="h-2.5" />
+              <div className="flex items-center justify-between gap-4" aria-hidden="true">
+                <div className="skeleton w-12 h-12 !rounded-full" />
+                <div className="skeleton w-36 h-14" />
+                <div className="skeleton w-12 h-12 !rounded-full" />
+              </div>
+              <SkeletonLine width="w-48" height="h-3" />
             </div>
-            <div className="divide-y divide-surface-500/10">
-              {[...Array(5)].map((_, i) => <SkeletonRow key={i} variant="match" />)}
-            </div>
-          </SkeletonCard>
+            <SkeletonCard label="Ładuję kupon">
+              <div className="px-4 sm:px-5 py-3 border-b border-surface-500/35 space-y-2" aria-hidden="true">
+                <SkeletonLine height="h-2" className="!rounded-full" />
+                <SkeletonLine width="w-40" height="h-2.5" />
+              </div>
+              <div className="divide-y divide-surface-500/25">
+                {[...Array(4)].map((_, i) => <SkeletonRow key={i} variant="match" />)}
+              </div>
+            </SkeletonCard>
+          </div>
           <div className="space-y-5">
             <SkeletonCard rows={2} label="Ładuję ligi" />
             <SkeletonCard rows={3} label="Ładuję wyniki" />
@@ -166,22 +189,37 @@ export default function Dashboard() {
 
       <div className={gridCls}>
 
-        {/* coupon + live */}
+        {/* nearest match + the rest of the coupon + live */}
         <div className="min-w-0 space-y-5">
           {couponQ.error || !coupon ? (
             <ErrorState text="Nie udało się załadować kuponu" onRetry={couponQ.reload} />
           ) : (
-            <MyCouponCard
-              coupon={coupon}
-              showLeagues={showLeagues}
-              onSaved={handleSaved}
-              onLocked={handleLocked}
-              jokerOf={jokerOf}
-              showJokerRule={anyJoker}
-            />
+            <>
+              <NextMatchHero
+                hero={hero}
+                matches={couponMatches}
+                onSaved={handleSaved}
+                onLocked={handleLocked}
+                onKickoff={handleKickoff}
+                jokerOf={jokerOf}
+                leaguesOf={leaguesOf}
+              />
+              {/* an empty week already says so in the hero */}
+              {hero.kind !== 'empty' && (
+                <MyCouponCard
+                  coupon={coupon}
+                  showLeagues={showLeagues}
+                  onSaved={handleSaved}
+                  onLocked={handleLocked}
+                  jokerOf={jokerOf}
+                  showJokerRule={anyJoker}
+                  hideMatchId={hero.match?.id ?? null}
+                />
+              )}
+            </>
           )}
 
-          {(coupon?.source === 'hits' || coupon?.source === 'global') && (
+          {coupon?.source === 'global' && (
             <div className="glass-card p-5 border-brand/30 flex items-center justify-between gap-4 flex-wrap">
               <div className="min-w-0">
                 <p className="font-semibold text-gray-100">Załóż ligę i zaproś znajomych</p>
@@ -245,13 +283,13 @@ export default function Dashboard() {
           {/* recent results */}
           <SectionCard title="Ostatnie wyniki" link="/predictions" linkLabel="Wszystkie →">
             {predsQ.loading ? (
-              <div className="divide-y divide-surface-500/10" role="status" aria-busy="true" aria-label="Ładuję wyniki">
+              <div className="divide-y divide-surface-500/25" role="status" aria-busy="true" aria-label="Ładuję wyniki">
                 {[...Array(3)].map((_, i) => <SkeletonRow key={i} />)}
               </div>
             ) : recent.length === 0 ? (
               <div className="p-8 text-center text-gray-500 text-sm">Brak rozliczonych typów</div>
             ) : (
-              <div className="divide-y divide-surface-500/10">
+              <div className="divide-y divide-surface-500/25">
                 {recent.map((p, i) => (
                   <div key={p.id} className={`px-5 py-2.5 items-center justify-between gap-3 ${i >= 4 ? 'hidden lg:flex' : 'flex'}`}>
                     <div className="min-w-0">

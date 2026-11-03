@@ -7,7 +7,7 @@ import AdminRunStatus from './AdminRunStatus';
 export default function AdminRunTableRows({ run, expanded, onToggle }) {
   return (
     <>
-      <tr className="border-b border-surface-500/10">
+      <tr className="border-b border-surface-500/25">
         <td className="pl-4 pr-2 py-2.5 font-mono text-xs text-gray-400">{run.id}</td>
         <td className="px-2.5 py-2.5 whitespace-nowrap">
           <span className="text-gray-200 font-medium"><AdminRunKind kind={run.kind} /></span>
@@ -22,7 +22,7 @@ export default function AdminRunTableRows({ run, expanded, onToggle }) {
         <td className="pl-2.5 pr-4 py-2.5"><AdminRunError error={run.error} expanded={expanded} onToggle={onToggle} /></td>
       </tr>
       {expanded && run.error && (
-        <tr className="border-b border-surface-500/10 bg-red-500/5">
+        <tr className="border-b border-surface-500/25 bg-red-500/5">
           <td colSpan={9} className="px-4 py-3 text-xs text-red-300 whitespace-pre-wrap break-words">{run.error}</td>
         </tr>
       )}

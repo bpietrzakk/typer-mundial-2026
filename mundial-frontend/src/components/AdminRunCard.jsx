@@ -5,7 +5,7 @@ import AdminRunStatus from './AdminRunStatus';
 // one sync run as a compact card (narrow screens)
 export default function AdminRunCard({ run, expanded, onToggle }) {
   return (
-    <li className="px-4 py-3 border-b border-surface-500/10 last:border-0">
+    <li className="px-4 py-3 border-b border-surface-500/25 last:border-0">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className="flex items-center gap-2 text-sm">
           <span className="font-mono text-xs text-gray-400">#{run.id}</span>

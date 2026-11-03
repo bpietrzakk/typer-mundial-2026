@@ -2,6 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
+/* --- theme variables (rgb channels, used by tailwind.config.js) ---
+   turquoise / navy colours, small radii, sections separated by lines
+   instead of boxes (a tile shows up only on hover) */
+:root {
+  --c-brand: 0 180 216;
+  --c-brand-light: 72 202 228;
+  --c-brand-ink: 11 14 20;
+  --c-accent: 212 175 55;
+  --c-hit-exact: 52 211 153;
+  --c-hit-diff: 111 191 151;
+  --c-hit-winner: 148 173 159;
+  --c-miss: 248 113 113;
+  --c-live: 239 68 68;
+  --c-warn: 251 191 36;
+  --c-surface-900: 11 14 20;
+  --c-surface-800: 17 24 39;
+  --c-surface-700: 30 37 54;
+  --c-surface-600: 42 51 71;
+  --c-surface-500: 59 71 99;
+  /* white label behind competition logos, so dark logos stay visible */
+  --c-label: 242 244 247;
+  --c-label-ink: 11 14 20;
+  --c-gray-50: 249 250 251;
+  --c-gray-100: 243 244 246;
+  --c-gray-200: 229 231 235;
+  --c-gray-300: 209 213 219;
+  --c-gray-400: 156 163 175;
+  --c-gray-500: 107 114 128;
+  --c-gray-600: 75 85 99;
+  --c-gray-700: 55 65 81;
+  --c-gray-800: 31 41 55;
+  --c-gray-900: 17 24 39;
+  --r-sm: 2px;
+  --r: 3px;
+  --r-md: 4px;
+  --r-lg: 4px;
+  --r-xl: 4px;
+  --r-2xl: 6px;
+  --r-3xl: 8px;
+  --shadow-card: 0 12px 32px rgb(0 0 0 / 0.35);
+  --shadow-card-hover: 0 16px 40px rgb(0 0 0 / 0.45);
+  --glow-strength: 0.07;
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -30,8 +74,8 @@
     pointer-events: none;
     z-index: 0;
     background:
-      radial-gradient(ellipse at 5% 15%,  rgba(0, 180, 216, 0.07) 0%, transparent 45%),
-      radial-gradient(ellipse at 95% 85%, rgba(0, 180, 216, 0.03) 0%, transparent 45%);
+      radial-gradient(ellipse at 5% 15%,  rgb(var(--c-brand) / var(--glow-strength)) 0%, transparent 45%),
+      radial-gradient(ellipse at 95% 85%, rgb(var(--c-brand) / 0.03) 0%, transparent 45%);
   }
 
   #root {
@@ -49,51 +93,74 @@
 }
 
 @layer components {
+  /* content block: no filled box, just a hairline on top (rows and sections
+     separated by lines). clickable ones get a tile on hover */
   .glass-card {
-    @apply bg-surface-800/80 backdrop-blur-md border border-surface-500/30
-           rounded-2xl shadow-card transition-all duration-300;
+    @apply bg-transparent border-0 border-t border-surface-500/50 rounded-none shadow-none
+           transition-colors duration-200;
   }
   a.glass-card, button.glass-card {
-    @apply active:scale-[0.98];
+    @apply hover:bg-surface-800/40;
   }
 
-  /* logo wordmark only — teal → red, as in the logo */
-  .gradient-text {
-    @apply bg-clip-text text-transparent bg-gradient-logo;
+  /* things that float or stand alone (modals, popovers, auth forms):
+     a subtle raised surface with a small radius */
+  .panel {
+    @apply bg-surface-800 border border-surface-500/40 rounded-2xl shadow-card;
+  }
+
+  /* section header with a hairline under it */
+  .section-head {
+    @apply flex items-center justify-between gap-3 pb-2 mb-3 border-b border-surface-500/50;
+  }
+
+  /* logo wordmark — heavy geometric lowercase, teal → red as in the logo */
+  .wordmark {
+    @apply font-display font-extrabold lowercase bg-clip-text text-transparent bg-gradient-logo;
+    letter-spacing: -0.035em;
+  }
+
+  /* light label behind competition logos (dark logos stay visible) */
+  .logo-label {
+    @apply inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm bg-label text-label-ink
+           text-[11px] font-bold leading-4 whitespace-nowrap shrink-0;
+  }
+  /* small light disc behind a team crest / competition logo */
+  .logo-disc {
+    @apply inline-flex items-center justify-center rounded-full bg-label shrink-0 overflow-hidden;
   }
 
   /* primary button */
   .btn-primary {
-    @apply relative px-6 py-3 rounded-xl font-semibold text-surface-900
+    @apply relative px-6 py-3 rounded-lg font-semibold text-brand-ink
            bg-brand hover:bg-brand-light
-           transition-all duration-300 ease-out
-           shadow-lg hover:shadow-glow-brand
+           transition-colors duration-200 ease-out
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-900
-           active:scale-[0.97] cursor-pointer
-           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none;
+           active:scale-[0.98] cursor-pointer
+           disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   /* secondary / outline button */
   .btn-secondary {
-    @apply px-6 py-3 rounded-xl font-semibold
-           border border-surface-500/50 text-gray-300
-           hover:border-brand/50 hover:text-brand
-           bg-surface-800/50 backdrop-blur-sm
-           transition-all duration-300
-           active:scale-[0.97] cursor-pointer;
+    @apply px-6 py-3 rounded-lg font-semibold
+           border border-surface-500/70 text-gray-200
+           hover:border-brand/60 hover:text-brand
+           bg-transparent
+           transition-colors duration-200
+           active:scale-[0.98] cursor-pointer;
   }
 
   /* form input */
   .input-field {
-    @apply w-full px-4 py-3 rounded-xl
-           bg-surface-600/50 border border-surface-500/30
+    @apply w-full px-4 py-3 rounded-lg
+           bg-surface-800 border border-surface-500/60
            text-gray-100 placeholder-gray-500
-           focus:outline-none focus:border-brand/50 focus:ring-2 focus:ring-brand/20
-           transition-all duration-300;
+           focus:outline-none focus:border-brand/70 focus:ring-2 focus:ring-brand/20
+           transition-colors duration-200;
   }
 
   /* small pill */
-  .badge { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider; }
+  .badge { @apply inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold uppercase tracking-wider; }
 
   /* status dot */
   .status-dot { @apply inline-block w-2 h-2 rounded-full mr-2; }
@@ -109,7 +176,7 @@
     @apply text-3xl sm:text-4xl font-bold tracking-tight text-white mb-8;
   }
   .score-num { @apply tabular-nums tracking-tight; }
-  .skeleton  { @apply bg-surface-700 rounded-lg animate-pulse motion-reduce:animate-none; }
+  .skeleton  { @apply bg-surface-700 rounded animate-pulse motion-reduce:animate-none; }
 
   .scrollbar-hide {
     scrollbar-width: none;
@@ -120,7 +187,7 @@
 
 /* auth page background */
 .auth-bg {
-  background: linear-gradient(135deg, #0B0E14 0%, #111827 40%, #0A1128 100%);
+  background: linear-gradient(135deg, rgb(var(--c-surface-900)) 0%, rgb(var(--c-surface-800)) 45%, rgb(var(--c-surface-900)) 100%);
   position: relative;
   overflow: hidden;
 }
@@ -130,8 +197,8 @@
   top: -50%; left: -50%;
   width: 200%; height: 200%;
   background:
-    radial-gradient(circle at 25% 50%, rgba(0, 180, 216, 0.07) 0%, transparent 45%),
-    radial-gradient(circle at 75% 50%, rgba(0, 180, 216, 0.03) 0%, transparent 45%);
+    radial-gradient(circle at 25% 50%, rgb(var(--c-brand) / 0.07) 0%, transparent 45%),
+    radial-gradient(circle at 75% 50%, rgb(var(--c-brand) / 0.03) 0%, transparent 45%);
   animation: auth-glow 8s ease-in-out infinite alternate;
 }
 @keyframes auth-glow {
@@ -145,6 +212,11 @@
   .animate-slide-up,
   .animate-pulse-slow,
   .animate-pulse { animation: none; }
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 /* select styled like .input-field (league scope, admin sync) */
@@ -158,6 +230,6 @@
   background-size: 1rem;
 }
 .input-select option {
-  background-color: #111827;
-  color: #f3f4f6;
+  background-color: rgb(var(--c-surface-800));
+  color: rgb(var(--c-gray-100));
 }

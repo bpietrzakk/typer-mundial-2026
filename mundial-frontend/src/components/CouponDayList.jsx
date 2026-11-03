@@ -17,7 +17,7 @@ export default function CouponDayList({ matches, onSaved, onLocked, showCompetit
               {relative && <span className="text-brand">{relative}</span>}
               <span className="text-gray-500">{formatDayLong(group.iso)}</span>
             </h3>
-            <div className="divide-y divide-surface-500/10">
+            <div className="divide-y divide-surface-500/25">
               {group.matches.map((m) => (
                 <CouponRow
                   key={m.id}

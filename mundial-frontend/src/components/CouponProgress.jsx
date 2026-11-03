@@ -20,7 +20,7 @@ export default function CouponProgress({ typed, total, nextDeadline }) {
     <div>
       <div className="flex items-center gap-3">
         <div
-          className="flex-1 h-2.5 rounded-full bg-surface-600/60 overflow-hidden"
+          className="flex-1 h-2 rounded-sm bg-surface-600/70 overflow-hidden"
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={total}
@@ -28,11 +28,11 @@ export default function CouponProgress({ typed, total, nextDeadline }) {
           aria-label="Wytypowane mecze kuponu"
         >
           <div
-            className={`h-full rounded-full transition-all duration-500 ${done ? 'bg-emerald-400' : 'bg-gradient-to-r from-brand to-brand/70'}`}
+            className={`h-full rounded-sm transition-all duration-500 ${done ? 'bg-brand' : 'bg-brand/80'}`}
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className={`text-sm font-bold tabular-nums whitespace-nowrap ${done ? 'text-emerald-300' : 'text-gray-200'}`}>
+        <span className={`text-sm font-bold tabular-nums whitespace-nowrap ${done ? 'text-brand' : 'text-gray-200'}`}>
           {typed} z {total}
         </span>
       </div>

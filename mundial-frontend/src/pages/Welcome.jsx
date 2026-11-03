@@ -14,8 +14,7 @@ export default function Welcome() {
       <div className="relative w-full max-w-lg animate-fade-in">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
-            <img src="/favicon.svg" alt="" className="w-8 h-8 rounded-lg" />
-            <span className="font-extrabold text-xl tracking-tight gradient-text">czutka</span>
+            <span className="wordmark text-2xl leading-none">czutka</span>
           </div>
           <span className="text-xs text-gray-500 tabular-nums">Krok {step} z {STEPS}</span>
         </div>
