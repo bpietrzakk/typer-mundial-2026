@@ -13,7 +13,7 @@ const MODES = [
     value: 'coupon',
     title: 'Kupon tygodnia z hitów',
     badge: 'polecane',
-    text: 'Co tydzień ok. 10 najciekawszych meczów, te same dla wszystkich. Do rankingu liczą się tylko one — 3 minuty typowania na tydzień.',
+    text: 'Co tydzień kupon ogólny z hitów tygodnia (6–15 meczów), te same dla wszystkich. Organizator może dodać własne mecze. Do rankingu liczą się tylko one — kilka minut typowania na tydzień.',
   },
   {
     value: 'scope',
@@ -119,16 +119,6 @@ export default function LeagueCreateForm({ onCancel }) {
 
         {mode === 'coupon' && (
           <div className="flex items-center gap-4 flex-wrap mb-3">
-            <label className="flex items-center gap-2 text-sm text-gray-300">
-              Meczów w kuponie
-              <select
-                value={size}
-                onChange={(e) => setSize(Number(e.target.value))}
-                className="input-field input-select !w-20 !py-1.5 !px-3 text-sm"
-              >
-                {SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </label>
             <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
               <input
                 type="checkbox"
@@ -138,13 +128,26 @@ export default function LeagueCreateForm({ onCancel }) {
               />
               Tylko wybrane rozgrywki
             </label>
+            {/* only a narrow league may need its own pick next to the hits */}
+            {narrow && (
+              <label className="flex items-center gap-2 text-sm text-gray-300">
+                Meczów, gdy hitów jest za mało
+                <select
+                  value={size}
+                  onChange={(e) => setSize(Number(e.target.value))}
+                  className="input-field input-select !w-20 !py-1.5 !px-3 text-sm"
+                >
+                  {SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </label>
+            )}
           </div>
         )}
 
         {pickCompetitions && (
           <div className="mb-3">
             <p className="text-xs text-gray-400 mb-2">
-              {mode === 'coupon' ? 'Kupon będzie układany tylko z tych rozgrywek:' : 'Liczą się mecze tych rozgrywek:'}
+              {mode === 'coupon' ? 'Z kuponu ogólnego zostaną mecze tylko tych rozgrywek:' : 'Liczą się mecze tych rozgrywek:'}
             </p>
             {compsQ.loading ? (
               <div className="skeleton h-20 rounded-xl" />

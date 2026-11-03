@@ -5,21 +5,25 @@ import ScoringHint from './ScoringHint';
 import { JOKER_RULE, formatWeekRange, nextOpenDeadline } from '../utils/coupon';
 import { distinctPoints } from '../utils/scoring';
 
-// start screen coupon: merged coupons of my leagues, or "hits of the week".
+// start screen coupon: merged coupons of my leagues, or the global coupon
+// "hity tygodnia" for a player without a league.
 // counters are counted from the list, so they move right after an autosave
 // jokerOf(match) -> joker props (only matches of exactly one 'coupon' league)
-export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked, jokerOf, showJokerRule = false }) {
+// hideMatchId = the match already shown in the start hero, left out of the list
+// (still counted in "7 z 10")
+export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked, jokerOf, showJokerRule = false, hideMatchId = null }) {
   const { matches, source } = coupon;
-  const isHits = source === 'hits';
+  const isGlobal = source === 'global';
   const typed = matches.filter((m) => m.my_prediction).length;
+  const listed = matches.filter((m) => m.id !== hideMatchId);
   const range = formatWeekRange(coupon.week_start, coupon.week_end);
 
   return (
     <section className="glass-card overflow-hidden animate-fade-in" aria-labelledby="my-coupon-title">
-      <div className="px-4 sm:px-5 py-3.5 border-b border-surface-500/20 bg-gradient-to-br from-brand/10 via-transparent to-transparent">
+      <div className="px-4 sm:px-5 py-3.5 border-b border-surface-500/35">
         <div className="flex items-baseline justify-between gap-3 mb-3">
           <h2 id="my-coupon-title" className="text-lg font-bold text-white">
-            {isHits ? 'Hity tygodnia' : 'Twój kupon'}
+            {isGlobal ? 'Hity tygodnia' : 'Twój kupon'}
             <span className="text-gray-400 font-medium"> · {range}</span>
           </h2>
           {matches.length > 0 && <ScoringHint points={distinctPoints(matches)} className="shrink-0" />}
@@ -30,8 +34,8 @@ export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked, j
         {showJokerRule && matches.length > 0 && (
           <p className="text-xs text-gray-500 mt-2"><span aria-hidden="true">🃏 </span>{JOKER_RULE}.</p>
         )}
-        {isHits && matches.length > 0 && (
-          <p className="text-xs text-gray-500 mt-2">Najciekawsze mecze tygodnia z obserwowanych rozgrywek.</p>
+        {isGlobal && matches.length > 0 && (
+          <p className="text-xs text-gray-500 mt-2">Kupon ogólny: najciekawsze mecze tygodnia ze wszystkich rozgrywek, ten sam dla każdego.</p>
         )}
       </div>
 
@@ -43,9 +47,11 @@ export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked, j
             Pewnie przerwa na mecze reprezentacji. Kupon wróci, gdy znowu ruszą ligi.
           </p>
         </div>
+      ) : listed.length === 0 ? (
+        <p className="px-4 sm:px-5 py-4 text-sm text-gray-400">Innych meczów na tym kuponie nie ma.</p>
       ) : (
         <CouponDayList
-          matches={matches}
+          matches={listed}
           onSaved={onSaved}
           onLocked={onLocked}
           leaguesOf={showLeagues ? (m) => m.leagues : undefined}
@@ -53,7 +59,7 @@ export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked, j
         />
       )}
 
-      <div className="px-4 sm:px-5 py-3 border-t border-surface-500/20">
+      <div className="px-4 sm:px-5 py-3 border-t border-surface-500/35">
         <Link to="/matches" className="text-sm font-semibold text-brand hover:text-brand/80 transition-colors">
           Typuj więcej meczów →
         </Link>

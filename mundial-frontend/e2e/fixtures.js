@@ -78,13 +78,62 @@ export const MATCH = {
 };
 
 export const MY_COUPON = {
-  source: 'hits',
+  source: 'global',
   ...WEEK,
   typed: 0,
   total: 1,
   next_deadline: KICKOFF,
   matches: [{ ...MATCH, leagues: [] }],
 };
+
+// "Najbliższe" on /matches: a fuller week — my league coupon has the match
+// of tomorrow, a later one and one already played; the leagues have 12 more
+const HOUR_MS = 60 * 60 * 1000;
+const at = (ms) => new Date(Date.parse(KICKOFF) + ms).toISOString();
+const team = (id, name, short) => ({ id, name, short_name: short, crest_url: null });
+const LEAGUE_REF = { id: 1, name: 'Biuro', ranking_mode: 'coupon', is_my_joker: false };
+
+const COUPON_LATER = {
+  ...MATCH,
+  id: 1202,
+  kickoff_at: at(DAY_MS),
+  home_team: team(13, 'Liverpool', 'LIV'),
+  away_team: team(14, 'Everton', 'EVE'),
+};
+const COUPON_PLAYED = {
+  ...MATCH,
+  id: 1190,
+  kickoff_at: at(-2 * DAY_MS),
+  status: 'finished',
+  can_predict: false,
+  home_team: team(15, 'Tottenham', 'TOT'),
+  away_team: team(16, 'Fulham', 'FUL'),
+  home_goals: 2,
+  away_goals: 0,
+  my_prediction: { pred_home: 2, pred_away: 0, points_awarded: 5, hit_type: 'exact' },
+};
+
+export const MY_COUPON_FULL = {
+  source: 'leagues',
+  ...WEEK,
+  typed: 1,
+  total: 3,
+  next_deadline: KICKOFF,
+  // backend order is not kickoff order — the page sorts
+  matches: [COUPON_LATER, COUPON_PLAYED, MATCH].map((m) => ({ ...m, leagues: [LEAGUE_REF] })),
+};
+
+// league matches after the coupon ones (+ the coupon match again: the page skips it)
+export const UPCOMING_MATCHES = [
+  MATCH,
+  ...Array.from({ length: 12 }, (_, i) => ({
+    ...MATCH,
+    id: 1300 + i,
+    kickoff_at: at(2 * DAY_MS + i * HOUR_MS),
+    home_team: team(100 + i, `Gospodarz ${i + 1}`, `G${i + 1}`),
+    away_team: team(200 + i, `Gość ${i + 1}`, `O${i + 1}`),
+  })),
+];
 
 export const INVITE_CODE = 'BFKE832S';
 
@@ -155,7 +204,7 @@ export const LEAGUE_COUPON = {
   ...WEEK,
   is_current_week: true,
   coupon_id: 7,
-  created_by: 'auto',
+  created_by: 'global',
   ranking_mode: 'coupon',
   coupon_size: 10,
   coupon_auto: true,
@@ -237,3 +286,37 @@ const wcRow = (rank, userId, nick, match, bonus, exact) => ({
 // with bonuses ola wins on her champion pick, without them bartek does
 export const WC_RANKING = [wcRow(1, 3, 'ola', 120, 32, 9), wcRow(2, 1, 'bartek', 135, 0, 12)];
 export const WC_RANKING_NO_BONUSES = [wcRow(1, 1, 'bartek', 135, 0, 12), wcRow(2, 3, 'ola', 120, 0, 9)];
+
+// GET /matches/1201/context — stats panel of Arsenal vs Chelsea
+export const MATCH_CONTEXT = {
+  match_id: 1201,
+  home: { team_id: 11, rank: 2, points: 19, played: 9, form: ['W', 'W', 'R', 'W', 'P'] },
+  away: { team_id: 12, rank: 5, points: 15, played: 9, form: ['P', 'W', 'R', 'R', 'W'] },
+  head_to_head: [
+    { match_id: 990, kickoff_at: '2026-03-14T17:30:00Z', home_team_id: 12, away_team_id: 11, home_goals: 1, away_goals: 2 },
+    { match_id: 991, kickoff_at: '2025-11-02T16:30:00Z', home_team_id: 11, away_team_id: 12, home_goals: 1, away_goals: 1 },
+    { match_id: 992, kickoff_at: '2025-04-20T15:00:00Z', home_team_id: 11, away_team_id: 12, home_goals: 3, away_goals: 0 },
+  ],
+  head_to_head_summary: { played: 5, home_wins: 3, draws: 1, away_wins: 1 },
+  table: [
+    { rank: 1, team_id: 30, name: 'Liverpool', short_name: 'LIV', crest_url: null, played: 9, points: 21, goal_diff: 12 },
+    { rank: 2, team_id: 11, name: 'Arsenal', short_name: 'ARS', crest_url: null, played: 9, points: 19, goal_diff: 10 },
+    { rank: 3, team_id: 31, name: 'Man City', short_name: 'MCI', crest_url: null, played: 9, points: 18, goal_diff: 8 },
+    { rank: 4, team_id: 32, name: 'Aston Villa', short_name: 'AVL', crest_url: null, played: 9, points: 16, goal_diff: 3 },
+    { rank: 5, team_id: 12, name: 'Chelsea', short_name: 'CHE', crest_url: null, played: 9, points: 15, goal_diff: 4 },
+    { rank: 6, team_id: 33, name: 'Newcastle', short_name: 'NEW', crest_url: null, played: 9, points: 14, goal_diff: 2 },
+  ],
+  stats: {
+    home: {
+      team_id: 11, played: 9, wins: 6, draws: 1, losses: 2, goals_for: 17, goals_against: 7,
+      goals_for_avg: 1.9, goals_against_avg: 0.8, btts_pct: 44, over25_pct: 56, clean_sheets: 4,
+      venue: 'home', venue_form: ['W', 'W', 'P', 'W', 'W'],
+    },
+    away: {
+      team_id: 12, played: 9, wins: 4, draws: 3, losses: 2, goals_for: 14, goals_against: 10,
+      goals_for_avg: 1.6, goals_against_avg: 1.1, btts_pct: 67, over25_pct: 44, clean_sheets: 2,
+      venue: 'away', venue_form: ['P', 'R', 'W', 'R'],
+    },
+  },
+  hint: 'Gospodarze wygrali 4 z 5 ostatnich meczów u siebie',
+};

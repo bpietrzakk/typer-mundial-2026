@@ -20,7 +20,7 @@ export default function PredictionRow({ prediction: p, hit }) {
               <span>{formatDayShort(p.kickoff_at)}, {formatTime(p.kickoff_at)}</span>
             )}
             {statusMeta && (
-              <span className={`px-1.5 py-px rounded-full border text-[10px] font-bold uppercase tracking-wider ${statusMeta.cls}`}>
+              <span className={`px-1.5 py-px rounded border text-[10px] font-bold uppercase tracking-wider ${statusMeta.cls}`}>
                 {statusMeta.label}
               </span>
             )}

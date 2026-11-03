@@ -56,3 +56,10 @@ def feed_window(now: datetime, days: int) -> tuple[datetime, datetime]:
     # kickoff window of the feed: from a few hours ago to `days` days ahead
     now = as_utc(now)
     return now - FEED_LOOKBACK, now + timedelta(days=days)
+
+
+def upcoming_window(now: datetime, days: int) -> tuple[datetime, datetime]:
+    # kickoff window of "upcoming matches": from now to `days` days ahead
+    # (no look back, started matches are not upcoming any more)
+    now = as_utc(now)
+    return now, now + timedelta(days=days)

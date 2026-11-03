@@ -9,7 +9,7 @@ export default function AdminSyncRuns({ runs, error, refreshing, onRefresh }) {
 
   return (
     <div className="glass-card overflow-hidden">
-      <div className="px-5 py-4 border-b border-surface-500/20 flex items-center justify-between gap-3">
+      <div className="px-5 py-4 border-b border-surface-500/35 flex items-center justify-between gap-3">
         <div>
           <h3 className="font-semibold text-gray-200">Ostatnie przebiegi</h3>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -47,7 +47,7 @@ export default function AdminSyncRuns({ runs, error, refreshing, onRefresh }) {
             <table className="w-full text-sm">
               <caption className="sr-only">Ostatnie przebiegi synchronizacji</caption>
               <thead>
-                <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-surface-500/20">
+                <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-surface-500/35">
                   <th scope="col" className="pl-4 pr-2 py-3">#</th>
                   <th scope="col" className="px-2.5 py-3">Rodzaj</th>
                   <th scope="col" className="px-2.5 py-3">Status</th>

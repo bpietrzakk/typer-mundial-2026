@@ -1,6 +1,12 @@
 from datetime import date, datetime, timedelta, timezone
 
-from domain.competitions import PENDING_STATUSES, feed_window, mark_current_round, pick_current_season
+from domain.competitions import (
+    PENDING_STATUSES,
+    feed_window,
+    mark_current_round,
+    pick_current_season,
+    upcoming_window,
+)
 
 
 ALL_STATUSES = ["scheduled", "live", "finished", "postponed", "suspended", "cancelled", "awarded"]
@@ -159,3 +165,19 @@ def test_feed_window_treats_naive_now_as_utc():
     start, end = feed_window(datetime(2026, 10, 27, 18, 0), 2)
     assert start.tzinfo is not None and end.tzinfo is not None
     assert start == datetime(2026, 10, 27, 15, 0, tzinfo=timezone.utc)
+
+
+# --- upcoming_window ---
+
+def test_upcoming_window_starts_now_and_ends_days_ahead():
+    now = datetime(2026, 11, 3, 18, 0, tzinfo=timezone.utc)
+    start, end = upcoming_window(now, 7)
+    # no look back: only matches that have not kicked off yet
+    assert start == now
+    assert end == now + timedelta(days=7)
+
+
+def test_upcoming_window_treats_naive_now_as_utc():
+    start, end = upcoming_window(datetime(2026, 11, 3, 18, 0), 1)
+    assert start == datetime(2026, 11, 3, 18, 0, tzinfo=timezone.utc)
+    assert end == datetime(2026, 11, 4, 18, 0, tzinfo=timezone.utc)

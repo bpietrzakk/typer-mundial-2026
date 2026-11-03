@@ -5,7 +5,7 @@ export default function FilterChip({ active, onClick, children }) {
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0 border cursor-pointer
+      className={`px-3 py-1.5 rounded text-xs font-semibold whitespace-nowrap transition-all shrink-0 border cursor-pointer
         ${active
           ? 'bg-brand/20 border-brand/50 text-brand'
           : 'bg-surface-800/60 border-surface-500/30 text-gray-400 hover:text-gray-200'}`}

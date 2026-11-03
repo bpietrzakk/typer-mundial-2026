@@ -2,6 +2,22 @@
 <html lang="pl">
   <head>
     <meta charset="UTF-8" />
+
+    <!-- look switch for the trial: ?theme=classic brings back the previous
+         turquoise look, ?theme=pitch the new one. remembered in localStorage -->
+    <script>
+      (function () {
+        try {
+          var q = new URLSearchParams(location.search).get('theme');
+          if (q === 'classic' || q === 'pitch') localStorage.setItem('czutka-theme', q);
+          if (localStorage.getItem('czutka-theme') === 'classic') {
+            document.documentElement.setAttribute('data-theme', 'classic');
+          }
+        } catch (e) {
+          // storage blocked — default look
+        }
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- SEO -->
@@ -25,7 +41,7 @@
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#0B0E14" />
+    <meta name="theme-color" content="#10241A" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -33,10 +49,10 @@
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    <!-- Google Fonts — Inter for clean modern UI -->
+    <!-- Google Fonts — Inter for the UI, Outfit only for the czutka wordmark -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@800&display=swap" rel="stylesheet" />
   </head>
   <body>
     <div id="root"></div>

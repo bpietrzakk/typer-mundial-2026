@@ -90,3 +90,40 @@ def test_feed_shows_live_provisional_points(world, as_user, conn):
     feed = as_user("ala").get("/feed?days=1").json()
     t4 = next(x for x in feed if x["id"] == m["t4"])
     assert (t4["provisional_points"], t4["provisional_hit_type"]) == (5, "exact")
+
+
+def test_context_stats_table_and_hint_from_the_db(world, as_user):
+    t = world["teams"]
+    body = as_user("ala").get(f"/matches/{world['m']['t4']}/context").json()
+    # LIV 4th, ARS 1st -> places 1-5, with names from the teams table
+    assert [(r["rank"], r["name"], r["points"]) for r in body["table"]] == [
+        (1, "Arsenal", 12), (2, "Chelsea", 8), (3, "Man City", 7), (4, "Liverpool", 1), (5, "Man United", 1),
+    ]
+    assert body["table"][0]["goal_diff"] == 7
+    home, away = body["stats"]["home"], body["stats"]["away"]
+    assert (home["team_id"], home["venue"], home["venue_form"]) == (t["LIV"], "home", [])
+    assert (home["played"], home["goals_for"], home["goals_against"]) == (4, 2, 5)
+    assert (home["goals_for_avg"], home["goals_against_avg"], home["btts_pct"], home["over25_pct"]) == (0.5, 1.3, 50, 25)
+    assert (away["team_id"], away["venue"], away["clean_sheets"], away["btts_pct"]) == (t["ARS"], "away", 4, 0)
+    assert body["head_to_head_summary"] == {"played": 1, "home_wins": 0, "draws": 0, "away_wins": 1}
+    assert body["hint"] == "Goście wygrali 4 ostatnie mecze"
+
+
+def test_teams_by_ids_query(world):
+    from db.queries import match_context as ctx_q
+
+    t = world["teams"]
+    teams = ctx_q.list_teams_by_ids([t["ARS"], t["LIV"], 999999])
+    assert set(teams) == {t["ARS"], t["LIV"]}
+    assert (teams[t["ARS"]]["name"], teams[t["ARS"]]["short_name"]) == ("Arsenal", "ARS")
+    assert ctx_q.list_teams_by_ids([]) == {}
+
+
+def test_context_of_a_cup_match_without_results(world, as_user):
+    # UCL league phase without any finished game: no table, no numbers, no hint
+    body = as_user("ala").get(f"/matches/{world['m']['u1']}/context").json()
+    assert body["table"] == []
+    assert body["stats"]["home"]["played"] == 0
+    assert body["stats"]["home"]["goals_for_avg"] is None
+    assert body["head_to_head_summary"]["played"] == 0
+    assert body["hint"] is None

@@ -55,13 +55,12 @@ export default function Navbar() {
   return (
     <>
       {/* top bar */}
-      <nav className="sticky top-0 z-50 bg-surface-900/80 backdrop-blur-xl border-b border-surface-500/20">
+      <nav className="sticky top-0 z-50 bg-surface-900/90 backdrop-blur-xl border-b border-surface-500/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
 
             <Link to="/" className="flex items-center gap-2 group">
-              <img src="/favicon.svg" alt="" className="w-8 h-8 rounded-lg shrink-0" />
-              <span className="font-extrabold text-xl tracking-tight gradient-text group-hover:opacity-80 transition-opacity">
+              <span className="wordmark text-2xl leading-none group-hover:opacity-80 transition-opacity">
                 czutka
               </span>
             </Link>
@@ -75,10 +74,10 @@ export default function Navbar() {
                     <Link
                       key={to}
                       to={to}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200
+                      className={`relative px-3 py-2 text-sm font-medium transition-colors duration-200
                         ${active
-                          ? 'bg-surface-700/60 text-white'
-                          : 'text-gray-400 hover:text-gray-200 hover:bg-surface-700/30'
+                          ? 'text-brand after:absolute after:left-3 after:right-3 after:-bottom-[13px] after:h-0.5 after:bg-brand'
+                          : 'text-gray-400 hover:text-gray-100'
                         }`}
                     >
                       {label}
@@ -141,7 +140,7 @@ export default function Navbar() {
       {/* mobile bottom nav */}
       {isLoggedIn && (
         <nav
-          className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface-900/95 backdrop-blur-xl border-t border-surface-500/20"
+          className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface-900/95 backdrop-blur-xl border-t border-surface-500/50"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
           <div className="flex items-stretch">
@@ -155,7 +154,7 @@ export default function Navbar() {
                     ${active ? 'text-brand' : 'text-gray-500 active:text-gray-300'}`}
                 >
                   {active && (
-                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand rounded-full" />
+                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand" />
                   )}
                   <NavIcon d={d} />
                   <span className="text-[10px] font-medium leading-none">{label}</span>

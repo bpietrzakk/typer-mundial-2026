@@ -2,7 +2,14 @@
 
 Szkic do dyskusji (bartek + Daniel), 30.10.2026. Wynika z trzeciej rundy testów w
 [`pomysly.md`](pomysly.md#trzecia-runda-zwykły-gość-który-niczego-nie-zna-2810-wieczór) i z
-[`analiza-biznesowa.md`](analiza-biznesowa.md). Nic z tego nie jest jeszcze zaimplementowane.
+[`analiza-biznesowa.md`](analiza-biznesowa.md). Wdrożone (migracje 008, 010, 011).
+
+**Zmiana 03.11.2026 (feedback właściciela, migracja 013):** „Na jakiej podstawie kupon jest
+dobierany? Powinny być wszystkie hity. Ma być JEDEN ogólny kupon tygodnia, a ligi mogą go
+używać albo edytować, np. dodać swoje mecze.” Od teraz jest **jeden kupon ogólny** („hity
+tygodnia”) dla wszystkich, a kupon ligi to jego kopia. Zasady niżej w sekcji
+[Kupon ogólny i co to jest hit](#kupon-ogólny-i-co-to-jest-hit); starsze sekcje opisują
+mechanizm ligowy, który nadal działa pod spodem (ranking, joker, reakcje).
 
 ---
 
@@ -17,8 +24,10 @@ budujemy fundament pod B2B.
 
 ## Zasady dla gracza (wersja do wyświetlenia w aplikacji)
 
-- Co tydzień liga ma kupon: ok. 10 meczów od poniedziałku do niedzieli.
-- Kupon układa się sam z najciekawszych meczów rozgrywek ligi albo układa go organizator.
+- Co tydzień jest jeden kupon ogólny: wszystkie hity tygodnia (od 6 do 15 meczów) od
+  poniedziałku do niedzieli, ten sam dla każdego gracza.
+- Liga gra na kuponie ogólnym (tylko mecze ze swoich rozgrywek). Organizator może dodać
+  własne mecze, usunąć niechciane albo jednym przyciskiem przywrócić kupon ogólny.
 - Każdy mecz zamyka się o swojej godzinie rozpoczęcia, tak jak dziś.
 - W lidze z trybem „tylko kupon” do rankingu liczą się wyłącznie mecze z kuponu. Wszyscy grają
   na tych samych meczach, więc jest uczciwie.
@@ -33,7 +42,7 @@ budujemy fundament pod B2B.
 |---|---|---|
 | Czy kupon zmienia ranking ligi? | Tak, nowe ustawienie ligi `ranking_mode`: `scope` (jak dziś) albo `coupon`. **Nowe ligi domyślnie `coupon`, istniejące zostają `scope`.** | Nie zmieniamy zasad lidze w trakcie sezonu |
 | Tydzień od kiedy do kiedy? | Poniedziałek 00:00 – niedziela 23:59 czasu polskiego | Kolejki lig grają pt–pn, ale poniedziałkowy mecz zamyka poprzedni kupon. To akceptowalne, a prostsze niż „kolejka” wspólna dla kilku lig |
-| Ile meczów? | Domyślnie 10, organizator ustawia 5–15 | 10 to ok. 3 minuty typowania |
+| Ile meczów? | ~~Domyślnie 10, organizator ustawia 5–15~~ Od 013: wszystkie hity tygodnia, 6–15 (`coupon_size` zostaje tylko jako rozmiar zapasu ligi z wąskim zakresem) | Właściciel: „powinny być wszystkie hity” |
 | Kiedy kupon powstaje? | Automatycznie w poniedziałek o 06:00 (scheduler synchronizacji) | Gracze widzą go od rana |
 | Co może organizator? | Dodać lub usunąć mecz, dopóki ten mecz się nie zaczął. Meczu, który już się zaczął, nie da się ani dodać, ani usunąć | Nie da się zmienić kuponu „pod wynik” |
 | Co z tygodniem bez meczów (przerwa reprezentacyjna)? | Kupon pusty, a na ekranie komunikat „przerwa na reprezentacje, wracamy w sobotę 14.11” | Lepsze niż losowe mecze z dziwnych lig |
@@ -41,7 +50,77 @@ budujemy fundament pod B2B.
 
 ---
 
+## Kupon ogólny i co to jest hit
+
+Czyste funkcje w `domain/coupon_hits.py`, testy w `tests/test_coupon_hits.py`. Kupon ogólny
+powstaje z **wszystkich aktywnych rozgrywek**, z meczów tygodnia, które jeszcze się nie
+zaczęły.
+
+**Hit** to mecz, który spełnia choć jeden warunek:
+
+| Warunek | Kod |
+|---|---|
+| Derby ze stałej listy w kodzie (`domain/coupon.py`, np. Arsenal–Tottenham, Real–Atlético, Milan–Inter) | `derby` |
+| Liga Mistrzów od 1/8 finału — każdy mecz | `ucl_knockout` |
+| Liga Mistrzów (faza ligowa, baraże): obie drużyny „mocne” = z górnej połowy tabeli swojej ligi krajowej **albo** z listy wielkich klubów | `ucl` |
+| Mecz ligowy: obie drużyny w top 6 tabeli (liczonej z naszych wyników) | `top6` |
+| Mecz ligowy na początku sezonu (tabeli jeszcze nie ma, < 3 kolejki): obie drużyny z listy wielkich klubów | `big_clubs` |
+
+Gdy tabela już jest, decyduje tabela: Chelsea na 14. miejscu przeciw liderowi to nie hit
+(chyba że to derby). Inne puchary (np. krajowe) są hitem tylko jako derby.
+
+**Wielkie kluby** (`BIG_CLUBS`, stała w kodzie): Arsenal, Chelsea, Liverpool, Man City,
+Man United, Tottenham, Real Madryt, Barcelona, Atlético, Bayern, Dortmund, Leverkusen, Juventus,
+Inter, Milan, Napoli, PSG, Benfica, Porto.
+
+**Kolejność hitów** (`hit_score`, im więcej, tym wyżej): siła obu drużyn + Liga Mistrzów + derby.
+
+| Składnik | Punkty |
+|---|---|
+| Siła drużyny: miejsce 1–2 / 3–4 / 5–6 / górna połowa tabeli | 4 / 3 / 2 / 1 |
+| Siła drużyny: wielki klub | +2 |
+| Liga Mistrzów: faza pucharowa / faza ligowa | +5 / +3 |
+| Derby | +3 |
+
+Przy remisie wcześniejszy mecz, potem niższe id.
+
+**Ile meczów:** wszystkie hity, najwyżej **15**. Gdy hitów jest mniej niż **6**, kupon dopełniają
+najlepsze pozostałe mecze tygodnia według starej punktacji `pick_coupon` (sekcja niżej). Takie
+mecze mają `is_hit = false`. Tydzień bez meczów (przerwa reprezentacyjna) = brak kuponu.
+
+**Kiedy powstaje:** przy pierwszym otwarciu w danym tygodniu (`GET /coupon/global`, kupon ligi,
+Start) albo w schedulerze w poniedziałek od 06:00. `UNIQUE (week_start)`, więc zawsze jeden.
+Raz zrobiony się nie zmienia — mecze, które się zaczęły, zostają.
+
+### Kupon ligi = kopia kuponu ogólnego
+
+- Liga z `coupon_auto = true` dostaje na tydzień kopię kuponu ogólnego, tylko z meczami ze
+  swojego zakresu (`created_by = 'global'`). Liga bez zakresu (= wszystkie aktywne rozgrywki)
+  ma dokładnie kupon ogólny.
+- Gdy z zakresu zostaje mniej niż 5 meczów (np. liga tylko z LaLigą), kupon ligi dopełniają
+  najlepsze mecze jej rozgrywek (`pick_coupon`, do `coupon_size`), `created_by = 'auto'`.
+  Gdy w zakresie nie ma żadnego hitu, to po prostu stary automat ligi.
+- Organizator zmienia kupon tak jak wcześniej (`PUT`, 5–15 meczów, bez ruszania rozpoczętych):
+  dodaje własne mecze z zakresu ligi, usuwa niechciane → `created_by = 'owner'`. Kupon ogólny
+  się od tego nie zmienia.
+- „Przywróć kupon ogólny” (`POST /leagues/{id}/coupon/reset`): rozpoczęte mecze zostają, otwarte
+  wracają do kopii kuponu ogólnego. Rozpoczętego meczu, którego liga nie miała, nie da się już
+  dodać (nie można zmieniać kuponu „pod wynik”).
+- Lista meczów ligi nadal leży w `league_coupons` / `league_coupon_matches`, więc ranking w
+  trybie `coupon`, joker i reakcje działają bez zmian.
+- Gracz bez ligi widzi na Starcie kupon ogólny (`GET /me/coupon` → `source: "global"`).
+
+**Dlaczego osobne tabele** (`weekly_coupons`, `weekly_coupon_matches`), a nie `league_coupons` z
+pustym `private_league_id`: unikalność tygodnia dla kuponu ogólnego byłaby wtedy częściowym
+indeksem, a każde zapytanie ligowe (ranking, jokery, reakcje) musiałoby uważać na wiersz bez
+ligi. Jokery i reakcje na kuponie ogólnym nie mają sensu — należą do ligi.
+
+---
+
 ## Automatyczny dobór meczów (czysta funkcja)
+
+Od migracji 013 to już nie jest główny dobór kuponu. `pick_coupon` dopełnia kupon ogólny w
+tygodniu z małą liczbą hitów i kupon ligi z wąskim zakresem.
 
 `domain/coupon.py`, zero I/O, zgodnie z zasadą nr 1 z CLAUDE.md. Testy w
 `tests/test_coupon.py` **przed** implementacją.
@@ -157,10 +236,13 @@ przebiegi nie zrobią dwóch kuponów.
 ```
 - Jeden wiersz na mecz, autozapis po wpisaniu obu liczb (z drobnym „✓”). Podpowiedź „0” w
   drugim polu jest szara, dopóki gracz jej nie potwierdzi (patrz trzecia runda).
-- Gracz bez ligi: zamiast kuponu ligi kupon „Hity tygodnia” z tego samego algorytmu na
-  obserwowanych rozgrywkach, plus zachęta „Załóż ligę i zaproś znajomych”.
+- Gracz bez ligi: kupon ogólny „Hity tygodnia” (ten sam dla wszystkich), plus zachęta
+  „Załóż ligę i zaproś znajomych”.
 
-**Liga:** na górze kupon tygodnia z paskiem „kto już wytypował (5/8)”. Dla właściciela
+**Liga:** na górze kupon tygodnia z paskiem „kto już wytypował (5/8)” i opisem źródła:
+„Kupon ogólny — hity tygodnia” albo „Kupon ligi (zmieniony przez organizatora)”. W edytorze
+organizatora: usuń (✕), „Dodaj mecz” (otwarte mecze tygodnia z rozgrywek ligi) i
+„Przywróć kupon ogólny”. Dla właściciela
 przyciski „Edytuj kupon” i „Przypomnij resztę”. Ten drugi to na start po prostu link do skopiowania na
 grupę: „Zostały 3 godziny, wytypuj: czutka.app/l/BFKE832S”.
 

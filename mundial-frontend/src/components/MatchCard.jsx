@@ -27,7 +27,7 @@ export default function MatchCard({ match, readOnly = false, showCompetition = f
     : '';
 
   return (
-    <div className={`glass-card p-4 sm:p-5 animate-fade-in ${isLive ? 'border-live/70 shadow-glow-live' : hitBorder}`}>
+    <div className={`glass-card p-4 sm:p-5 animate-fade-in ${isLive ? 'border-live/70' : hitBorder}`}>
       <div className="flex items-center justify-between gap-2 mb-3 min-h-[22px]">
         <div className="flex items-center gap-2 min-w-0">
           {showCompetition && match.competition && (
@@ -46,7 +46,7 @@ export default function MatchCard({ match, readOnly = false, showCompetition = f
             <span className="text-[11px] text-amber-300/90">godzina do potwierdzenia</span>
           )}
           {statusMeta && (
-            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ${statusMeta.cls}`}>
+            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wider ${statusMeta.cls}`}>
               {statusMeta.pulse && <span className="w-1.5 h-1.5 rounded-full bg-live animate-pulse" />}
               {statusMeta.label}
             </span>

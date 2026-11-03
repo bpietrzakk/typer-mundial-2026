@@ -26,7 +26,7 @@ export default function AdminCollapsible({ title, description, children }) {
         </svg>
       </button>
       {open && (
-        <div id={panelId} className="px-5 pb-5 pt-1 border-t border-surface-500/20 animate-fade-in">
+        <div id={panelId} className="px-5 pb-5 pt-1 border-t border-surface-500/35 animate-fade-in">
           {children}
         </div>
       )}

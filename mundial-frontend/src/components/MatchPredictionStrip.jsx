@@ -62,5 +62,5 @@ export default function MatchPredictionStrip({ match, readOnly, onSaved, onLocke
   }
 
   if (!content) return null;
-  return <div className="mt-4 pt-3 border-t border-surface-500/20">{content}</div>;
+  return <div className="mt-4 pt-3 border-t border-surface-500/35">{content}</div>;
 }

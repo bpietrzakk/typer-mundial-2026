@@ -22,7 +22,7 @@ export default function AdminCompetitionsList({
           // grid on md+: name | last sync | actions, so every row lines up
           <li
             key={c.id}
-            className="grid gap-x-5 gap-y-3 px-4 sm:px-5 py-3.5 border-b border-surface-500/10 last:border-0 md:grid-cols-[minmax(0,1fr)_11rem_15rem] md:items-center"
+            className="grid gap-x-5 gap-y-3 px-4 sm:px-5 py-3.5 border-b border-surface-500/25 last:border-0 md:grid-cols-[minmax(0,1fr)_11rem_15rem] md:items-center"
           >
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">

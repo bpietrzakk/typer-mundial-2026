@@ -66,7 +66,7 @@ export default function WelcomeCompetitionsStep({ onNext }) {
                     ? 'border-brand/60 bg-brand/10'
                     : 'border-surface-500/30 bg-surface-800/40 hover:border-surface-500/60'}`}
               >
-                <CompetitionBadge code={c.code} name={c.name} logoUrl={c.logo_url} size="lg" className="!w-11 !h-11 !rounded-xl" />
+                <CompetitionBadge code={c.code} name={c.name} logoUrl={c.logo_url} size="lg" className="!w-11 !h-11" />
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold text-gray-100 leading-tight">{competitionLabel(c.code, c.name)}</span>
                   {c.country && <span className="block text-[11px] text-gray-500 mt-0.5">{c.country}</span>}

@@ -11,7 +11,7 @@ export default function PointsExplain({ hit, points, joker = false, compact = fa
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border font-semibold ${meta.badge}
+      className={`inline-flex items-center gap-1 rounded border font-semibold ${meta.badge}
         ${compact ? 'px-1.5 text-[10px]' : 'px-2 py-0.5 text-[11px]'} ${className}`}
     >
       <span className="font-black tabular-nums">{pointsLabel}</span>

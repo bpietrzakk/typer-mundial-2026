@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import useAsync from '../hooks/useAsync';
 import useLivePolling from '../hooks/useLivePolling';
-import { JOKER_RULE, formatWeekRange, isJokerLocked, nextOpenDeadline, shiftDay } from '../utils/coupon';
+import { JOKER_RULE, couponSourceLabel, formatWeekRange, isJokerLocked, nextOpenDeadline, shiftDay } from '../utils/coupon';
 import { errorMessage } from '../utils/matchUi';
 import { distinctPoints } from '../utils/scoring';
 import CouponDayList from './CouponDayList';
@@ -150,7 +150,7 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
         aria-labelledby="league-coupon-title"
       >
         {/* header + week switcher */}
-        <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-surface-500/20 bg-gradient-to-br from-brand/10 via-transparent to-transparent">
+        <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-surface-500/35">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <h2 id="league-coupon-title" className="text-lg font-bold text-white">
               Kupon tygodnia
@@ -190,6 +190,10 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
             )}
           </div>
 
+          {coupon?.created_by && matches.length > 0 && (
+            <p className="text-xs text-gray-400 mt-1">{couponSourceLabel(coupon.created_by)}</p>
+          )}
+
           {coupon?.is_current_week && matches.length > 0 && (
             <div className="mt-3">
               <CouponProgress typed={typed} total={matches.length} nextDeadline={nextOpenDeadline(matches)} />
@@ -200,13 +204,12 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
               {coupon.ranking_mode === 'coupon'
                 ? `Do rankingu ligi liczą się tylko mecze kuponu. 🃏 ${JOKER_RULE}.`
                 : 'Kupon to wspólna porcja meczów — ranking ligi liczy wszystkie mecze z jej rozgrywek.'}
-              {coupon.created_by === 'owner' ? ' Kupon ułożył organizator.' : coupon.created_by === 'auto' ? ' Kupon ułożył się sam z hitów tygodnia.' : ''}
             </p>
           )}
         </div>
 
         {couponQ.loading && (
-          <div className="divide-y divide-surface-500/10" role="status" aria-busy="true" aria-label="Ładuję kupon">
+          <div className="divide-y divide-surface-500/25" role="status" aria-busy="true" aria-label="Ładuję kupon">
             {[...Array(4)].map((_, i) => <SkeletonRow key={i} variant="match" />)}
           </div>
         )}
@@ -261,8 +264,8 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
             )}
 
             {coupon.can_edit && !editing && matches.length > 0 && (
-              <div className="px-4 sm:px-5 py-3 border-t border-surface-500/20 flex items-center justify-between gap-3 flex-wrap">
-                <p className="text-xs text-gray-500">Jesteś organizatorem — możesz zmienić mecze kuponu.</p>
+              <div className="px-4 sm:px-5 py-3 border-t border-surface-500/35 flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-xs text-gray-500">Jesteś organizatorem — możesz dodać własne mecze albo usunąć niektóre.</p>
                 <button
                   type="button"
                   onClick={() => setEditing(true)}

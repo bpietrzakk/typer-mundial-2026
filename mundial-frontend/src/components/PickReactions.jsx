@@ -26,7 +26,7 @@ export default function PickReactions({ pick, isMe, onReact }) {
     }
   };
 
-  const chip = 'inline-flex items-center gap-0.5 h-5 px-1.5 rounded-full text-[11px] leading-none border transition-colors';
+  const chip = 'inline-flex items-center gap-0.5 h-5 px-1.5 rounded text-[11px] leading-none border transition-colors';
 
   return (
     <div className="mt-1 flex flex-wrap items-center gap-1">
@@ -40,13 +40,13 @@ export default function PickReactions({ pick, isMe, onReact }) {
           aria-label={`${e} ${counts[e]}${mine === e ? ', Twoja reakcja — kliknij, żeby cofnąć' : ''}`}
           className={`${chip} ${mine === e
             ? 'bg-brand/20 border-brand/50 text-white'
-            : 'bg-surface-600/40 border-surface-500/20 text-gray-300 hover:border-brand/40'}`}
+            : 'bg-surface-600/40 border-surface-500/35 text-gray-300 hover:border-brand/40'}`}
         >
           <span aria-hidden="true">{e}</span>
           <span className="font-semibold" aria-hidden="true">{counts[e]}</span>
         </button>
       ) : (
-        <span key={e} className={`${chip} bg-surface-600/40 border-surface-500/20 text-gray-300`}>
+        <span key={e} className={`${chip} bg-surface-600/40 border-surface-500/35 text-gray-300`}>
           <span aria-hidden="true">{e}</span>
           <span className="font-semibold">{counts[e]}</span>
         </span>
@@ -65,7 +65,7 @@ export default function PickReactions({ pick, isMe, onReact }) {
       )}
 
       {open && (
-        <span className="inline-flex items-center gap-0.5 rounded-full bg-surface-700/80 border border-surface-500/30 px-1 animate-fade-in" role="group" aria-label="Wybierz reakcję">
+        <span className="inline-flex items-center gap-0.5 rounded bg-surface-700/80 border border-surface-500/30 px-1 animate-fade-in" role="group" aria-label="Wybierz reakcję">
           {EMOJI.map((e) => (
             <button
               key={e}

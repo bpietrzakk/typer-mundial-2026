@@ -18,7 +18,8 @@ const MODES = [
   },
 ];
 
-// how the league counts points + coupon size / auto; owner edits, others read
+// how the league counts points + coupon auto (copy of the global coupon) and
+// the fallback size; owner edits, others read
 export default function LeagueCouponSettings({ league, isOwner, onChanged }) {
   const { addToast } = useToast();
   const [editing, setEditing] = useState(false);
@@ -57,9 +58,9 @@ export default function LeagueCouponSettings({ league, isOwner, onChanged }) {
           <h2 className="text-sm font-semibold text-gray-200 mb-1">Co się liczy w rankingu</h2>
           <p className="text-sm text-gray-300">{current.label}</p>
           <p className="text-xs text-gray-400 mt-1">
-            Kupon: {league.coupon_size} meczów
-            {' · '}
-            {league.coupon_auto ? 'układa się sam w poniedziałek rano' : 'układa organizator'}
+            {league.coupon_auto
+              ? 'Kupon: co tydzień kupon ogólny z hitów tygodnia, organizator może go zmienić'
+              : 'Kupon: układa organizator'}
           </p>
         </div>
         {isOwner && !editing && (
@@ -70,7 +71,7 @@ export default function LeagueCouponSettings({ league, isOwner, onChanged }) {
       </div>
 
       {isOwner && editing && (
-        <fieldset disabled={saving} className="mt-4 pt-4 border-t border-surface-500/20 animate-fade-in">
+        <fieldset disabled={saving} className="mt-4 pt-4 border-t border-surface-500/35 animate-fade-in">
           <legend className="sr-only">Tryb rankingu</legend>
           <div className="grid gap-2 mb-4">
             {MODES.map((m) => (
@@ -99,7 +100,7 @@ export default function LeagueCouponSettings({ league, isOwner, onChanged }) {
 
           <div className="flex items-center gap-4 flex-wrap mb-3">
             <label className="flex items-center gap-2 text-sm text-gray-300">
-              Meczów w kuponie
+              Meczów, gdy hitów jest za mało
               <select
                 value={size}
                 onChange={(e) => setSize(Number(e.target.value))}
@@ -115,7 +116,7 @@ export default function LeagueCouponSettings({ league, isOwner, onChanged }) {
                 onChange={(e) => setAuto(e.target.checked)}
                 className="accent-brand w-4 h-4"
               />
-              Układaj kupon automatycznie
+              Co tydzień bierz kupon ogólny
             </label>
           </div>
           {mode !== league.ranking_mode && (

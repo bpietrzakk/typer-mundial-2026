@@ -131,7 +131,7 @@ def test_backfill_012_follows_existing_scopes(conn, app_pool):
     execute(conn, SQL_INSERT_LEAGUE_COMPETITIONS, (biuro["id"], [c["EPL"], c["WC"]]))
     assert wszystko and _followed(conn, u["bartek"]) == set()
 
-    assert migrate_to(conn) == ["012_follow_league_scope.sql"]
+    assert migrate_to(conn, until="012") == ["012_follow_league_scope.sql"]
     assert _followed(conn, u["ala"]) == {"EPL"}
     assert _followed(conn, u["bartek"]) == {"EPL"}
     assert _followed(conn, u["celina"]) == set()

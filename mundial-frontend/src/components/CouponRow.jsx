@@ -1,142 +1,30 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { addPrediction } from '../api/predictions';
+import { useId, useState } from 'react';
 import JokerButton from './JokerButton';
 import MatchContextButton from './MatchContextButton';
 import MatchContextPanel from './MatchContextPanel';
 import PointsExplain from './PointsExplain';
 import ProvisionalPoints from './ProvisionalPoints';
 import TeamCrest from './TeamCrest';
-import { STATUS_META, VOID_STATUSES, competitionLabel, errorMessage, formatTime } from '../utils/matchUi';
+import usePredictionAutosave from '../hooks/usePredictionAutosave';
+import { STATUS_META, VOID_STATUSES, competitionLabel, formatTime } from '../utils/matchUi';
 import { settledHit } from '../utils/scoring';
-
-const SAVE_DELAY = 600;
 
 // rare statuses in the narrow time column (full name in the tooltip)
 const SHORT_STATUS = { postponed: 'przeł.', suspended: 'przerw.', cancelled: 'odw.', awarded: 'wo.' };
 
-const toText = (n) => (n == null ? '' : String(n));
-const sameAsSaved = (saved, home, away) =>
-  saved != null && String(saved.pred_home) === home && String(saved.pred_away) === away;
-
 // one coupon match in one line: time, home, [h]:[a], away, save state.
-// autosave: both boxes filled -> save after a short pause.
-// only one side typed -> the other shows a grey "0" hint and the save
-// happens when the player leaves the row (then the 0 is taken for real).
+// typing and autosave live in usePredictionAutosave (shared with the start hero).
 // onSaved(matchId, myPrediction), onLocked(matchId) after a 409.
 // leagues = small league tags, children = extra content under the row.
 // joker = { active, locked, onSet, onClear } in a 'coupon' league, undefined = no joker here
 export default function CouponRow({ match, onSaved, onLocked, leagues, joker, showCompetition = false, children }) {
   const pred = match.my_prediction;
-  const editable = Boolean(match.can_predict);
-
-  const [home, setHome] = useState(toText(pred?.pred_home));
-  const [away, setAway] = useState(toText(pred?.pred_away));
-  const [saved, setSaved] = useState(pred ?? null);
-  const [state, setState] = useState('idle'); // idle | saving | error
-  const [error, setError] = useState('');
-  const [failedKey, setFailedKey] = useState(null); // values that failed, no auto retry for them
-  const [zeroNote, setZeroNote] = useState(''); // "zapisano 2:0" after the 0 hint was taken
+  const {
+    editable, home, away, saved, state, error, zeroNote, awayRef,
+    changeHome, changeAway, handleBlur, retry, isDirty, hintHome, hintAway,
+  } = usePredictionAutosave(match, { onSaved, onLocked });
   const [contextOpen, setContextOpen] = useState(false);
   const contextId = useId();
-
-  const awayRef = useRef(null);
-  const noteTimer = useRef(null);
-  const latest = useRef({ home, away, saved, editable });
-  useEffect(() => {
-    latest.current = { home, away, saved, editable };
-  });
-
-  const save = useCallback(async (h, a, { zeroFilled = false } = {}) => {
-    setState('saving');
-    setError('');
-    try {
-      const res = await addPrediction(match.id, Number(h), Number(a));
-      const next = {
-        pred_home: res.pred_home,
-        pred_away: res.pred_away,
-        points_awarded: res.points_awarded ?? null,
-        hit_type: res.hit_type ?? null,
-      };
-      setSaved(next);
-      setFailedKey(null);
-      setState('idle');
-      if (zeroFilled) {
-        setZeroNote(`zapisano ${next.pred_home}:${next.pred_away}`);
-        clearTimeout(noteTimer.current);
-        noteTimer.current = setTimeout(() => setZeroNote(''), 3000);
-      }
-      onSaved?.(match.id, next);
-    } catch (err) {
-      setState('error');
-      setFailedKey(`${h}:${a}`);
-      setError(errorMessage(err, 'Nie zapisano'));
-      // 409 = the match is closed now, the row turns read only
-      if (err.response?.status === 409) onLocked?.(match.id);
-    }
-  }, [match.id, onSaved, onLocked]);
-
-  // autosave a short moment after both boxes are filled
-  useEffect(() => {
-    if (!editable || state === 'saving') return undefined;
-    if (home === '' || away === '') return undefined;
-    if (sameAsSaved(saved, home, away)) return undefined;
-    if (failedKey === `${home}:${away}`) return undefined;
-    const timer = setTimeout(() => save(home, away), SAVE_DELAY);
-    return () => clearTimeout(timer);
-  }, [editable, home, away, saved, state, failedKey, save]);
-
-  // leaving the page before the pause ends still saves the prediction
-  useEffect(() => () => {
-    clearTimeout(noteTimer.current);
-    const { home: h, away: a, saved: s, editable: e } = latest.current;
-    if (e && h !== '' && a !== '' && !sameAsSaved(s, h, a)) {
-      addPrediction(match.id, Number(h), Number(a)).catch(() => {});
-    }
-  }, [match.id]);
-
-  const changeHome = (value) => {
-    setHome(value);
-    setZeroNote('');
-    // a typed digit moves on to the away box
-    if (value !== '' && value !== home) awayRef.current?.focus();
-  };
-
-  const changeAway = (value) => {
-    setAway(value);
-    setZeroNote('');
-  };
-
-  // focus left both boxes -> take the grey 0 hint, or restore a cleared prediction
-  const handleBlur = (e) => {
-    if (e.currentTarget.contains(e.relatedTarget)) return;
-    if (state === 'saving') return;
-    const onlyHome = home !== '' && away === '';
-    const onlyAway = home === '' && away !== '';
-    if (onlyHome || onlyAway) {
-      const h = onlyHome ? home : '0';
-      const a = onlyAway ? away : '0';
-      setHome(h);
-      setAway(a);
-      save(h, a, { zeroFilled: true });
-    } else if (home === '' && away === '' && saved) {
-      setHome(toText(saved.pred_home));
-      setAway(toText(saved.pred_away));
-    } else if (home !== '' && away !== '' && !sameAsSaved(saved, home, away) && failedKey !== `${home}:${away}`) {
-      save(home, away);
-    }
-  };
-
-  const retry = () => {
-    const h = home === '' ? '0' : home;
-    const a = away === '' ? '0' : away;
-    setHome(h);
-    setAway(a);
-    save(h, a);
-  };
-
-  const isDirty = home !== '' && away !== '' && !sameAsSaved(saved, home, away);
-  const hintHome = home === '' && away !== '';
-  const hintAway = away === '' && home !== '';
 
   // --- read only parts ---
   const statusMeta = STATUS_META[match.status];
@@ -210,13 +98,12 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
   // joker chip: my joker here, or a free joker and an open match
   const showJoker = Boolean(joker) && (joker.active || (editable && !joker.locked));
   const jokerHere = Boolean(joker?.active);
-  const showMeta = showCompetition || (leagues && leagues.length > 0) || showJoker;
 
   return (
     <div className={`px-3 sm:px-4 py-2.5 ${jokerHere ? 'bg-accent/10 ring-1 ring-inset ring-accent/40' : isLive ? 'bg-live/5' : ''}`}>
       <div className="max-w-2xl mx-auto">
         <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto_minmax(0,1fr)_0.875rem] sm:grid-cols-[3rem_minmax(0,1fr)_auto_minmax(0,1fr)_1.25rem] items-center gap-1 sm:gap-3">
-          {/* time / status + form toggle */}
+          {/* time / status */}
           <div className="flex flex-col items-start gap-0.5 text-[11px] leading-tight tabular-nums">
             {isLive ? (
               <span className="inline-flex items-center gap-1 font-bold text-live">
@@ -229,12 +116,6 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
               {tbd ? '—' : formatTime(match.kickoff_at)}
             </span>
             )}
-            <MatchContextButton
-              open={contextOpen}
-              onToggle={() => setContextOpen((o) => !o)}
-              controls={contextId}
-              className="!w-4 !h-4 !text-[10px]"
-            />
           </div>
 
           {/* home */}
@@ -254,9 +135,8 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
           <div className="flex items-center justify-center" aria-live="polite">{stateIcon}</div>
         </div>
 
-        {/* second line: what happened with the prediction + tags */}
-        {(showMeta || !editable || state === 'error' || zeroNote) && (
-          <div className="mt-1 pl-[2.5rem] sm:pl-[3.75rem] flex items-center gap-x-2 gap-y-1 flex-wrap text-[11px] leading-4">
+        {/* second line: what happened with the prediction + tags + stats toggle */}
+        <div className="mt-1 pl-[2.5rem] sm:pl-[3.75rem] flex items-center gap-x-2 gap-y-1 flex-wrap text-[11px] leading-4">
             {state === 'error' && (
               <span className="text-red-400" role="alert">
                 {error} ·{' '}
@@ -298,8 +178,14 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
                 {l.name}
               </span>
             ))}
-          </div>
-        )}
+
+            <MatchContextButton
+              open={contextOpen}
+              onToggle={() => setContextOpen((o) => !o)}
+              controls={contextId}
+              className="ml-auto"
+            />
+        </div>
 
         {contextOpen && <MatchContextPanel match={match} id={contextId} className="mt-2" />}
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getCouponCandidates, regenerateLeagueCoupon, updateLeagueCoupon } from '../api/coupon';
+import { getCouponCandidates, resetLeagueCoupon, updateLeagueCoupon } from '../api/coupon';
 import { useToast } from '../hooks/useToast';
 import { apiErrorMessage } from '../utils/apiError';
 import { hasStarted } from '../utils/coupon';
@@ -10,14 +10,15 @@ import FilterChip from './FilterChip';
 const MIN_SIZE = 5;
 const MAX_SIZE = 15;
 
-// organizer's coupon editor: remove (✕) / add matches of the week, auto pick, save
+// organizer's coupon editor: remove (✕) / add matches of the week, save,
+// or go back to the global coupon ("przywróć kupon ogólny")
 export default function LeagueCouponEditor({ coupon, scope, competitions, onSaved, onCancel }) {
   const { addToast } = useToast();
   const [ids, setIds] = useState(() => coupon.matches.map((m) => m.id));
   const [candidates, setCandidates] = useState(null); // null = loading
   const [loadError, setLoadError] = useState('');
   const [filter, setFilter] = useState(null); // competition id
-  const [busy, setBusy] = useState(''); // '' | 'save' | 'auto'
+  const [busy, setBusy] = useState(''); // '' | 'save' | 'reset'
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -72,15 +73,15 @@ export default function LeagueCouponEditor({ coupon, scope, competitions, onSave
     }
   };
 
-  const autoPick = async () => {
-    setBusy('auto');
+  const resetToGlobal = async () => {
+    setBusy('reset');
     setError('');
     try {
-      const next = await regenerateLeagueCoupon(coupon.league_id);
-      addToast('Kupon ułożony automatycznie');
+      const next = await resetLeagueCoupon(coupon.league_id);
+      addToast('Przywrócono kupon ogólny');
       onSaved(next);
     } catch (err) {
-      const message = apiErrorMessage(err, 'Nie udało się ułożyć kuponu');
+      const message = apiErrorMessage(err, 'Nie udało się przywrócić kuponu ogólnego');
       setError(message);
       addToast(message, 'error');
       setBusy('');
@@ -95,9 +96,12 @@ export default function LeagueCouponEditor({ coupon, scope, competitions, onSave
           {ids.length} z {MIN_SIZE}–{MAX_SIZE} meczów
         </span>
       </div>
-      <p className="text-xs text-gray-500 mb-2">Rozpoczętych meczów nie da się usunąć ani dodać.</p>
+      <p className="text-xs text-gray-500 mb-2">
+        Kupon ligi to kupon ogólny z hitów tygodnia. Dodaj własne mecze albo usuń te, które Was nie interesują.
+        Rozpoczętych meczów nie da się usunąć ani dodać.
+      </p>
 
-      <ul className="divide-y divide-surface-500/10 mb-4" aria-label="Mecze kuponu">
+      <ul className="divide-y divide-surface-500/25 mb-4" aria-label="Mecze kuponu">
         {selected.map((m) => {
           const locked = hasStarted(m);
           return (
@@ -122,7 +126,7 @@ export default function LeagueCouponEditor({ coupon, scope, competitions, onSave
         {selected.length === 0 && <li className="py-3 text-sm text-gray-500">Kupon jest pusty — dodaj mecze z listy niżej.</li>}
       </ul>
 
-      <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Dodaj mecze tygodnia</h4>
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Dodaj mecz</h4>
       {candidates === null ? (
         <div className="grid gap-2 mb-4">{[...Array(3)].map((_, i) => <div key={i} className="skeleton h-10 rounded-lg" />)}</div>
       ) : (
@@ -138,7 +142,7 @@ export default function LeagueCouponEditor({ coupon, scope, competitions, onSave
               ))}
             </div>
           )}
-          <ul className="divide-y divide-surface-500/10 mb-4 max-h-80 overflow-y-auto pr-1" aria-label="Mecze do dodania">
+          <ul className="divide-y divide-surface-500/25 mb-4 max-h-80 overflow-y-auto pr-1" aria-label="Mecze do dodania">
             {shown.map((m) => (
               <CouponEditorLine
                 key={m.id}
@@ -170,9 +174,11 @@ export default function LeagueCouponEditor({ coupon, scope, competitions, onSave
         <button type="button" onClick={save} disabled={Boolean(busy)} className="btn-primary text-sm !py-2 !px-4">
           {busy === 'save' ? 'Zapisuję…' : 'Zapisz kupon'}
         </button>
-        <button type="button" onClick={autoPick} disabled={Boolean(busy)} className="btn-secondary text-sm !py-2 !px-4">
-          {busy === 'auto' ? 'Układam…' : 'Ułóż automatycznie'}
-        </button>
+        {coupon.created_by !== 'global' && (
+          <button type="button" onClick={resetToGlobal} disabled={Boolean(busy)} className="btn-secondary text-sm !py-2 !px-4">
+            {busy === 'reset' ? 'Przywracam…' : 'Przywróć kupon ogólny'}
+          </button>
+        )}
         <button type="button" onClick={onCancel} disabled={Boolean(busy)} className="text-sm text-gray-400 hover:text-gray-300 px-2">
           Anuluj
         </button>

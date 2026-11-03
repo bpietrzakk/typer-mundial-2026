@@ -11,7 +11,7 @@ export default function LeagueBadges({ data, error }) {
 
   return (
     <section className="glass-card overflow-hidden mt-4 mb-2" aria-labelledby="league-badges-title">
-      <div className="px-5 py-4 border-b border-surface-500/20">
+      <div className="px-5 py-4 border-b border-surface-500/35">
         <h2 id="league-badges-title" className="text-lg font-semibold text-gray-200">Odznaki sezonu</h2>
       </div>
 

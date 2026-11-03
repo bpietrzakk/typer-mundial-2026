@@ -334,6 +334,50 @@ def test_feed_user_sees_only_own_predictions(world, api):
     assert by_id[world["matches"]["e7"]]["my_prediction"]["pred_home"] == 1
 
 
+# --- my upcoming matches ---
+
+def _set_scope(conn, league_id: int, competition_ids: list[int]) -> None:
+    with conn:
+        with conn.cursor() as cur:
+            for cid in competition_ids:
+                cur.execute(
+                    "INSERT INTO private_league_competitions (private_league_id, competition_id) VALUES (%s, %s)",
+                    (league_id, cid),
+                )
+
+
+def test_upcoming_matches_in_leagues_without_scope(world, api):
+    m = world["matches"]
+    # ala: Biuro + Rodzina, both count every active competition.
+    # only scheduled matches that did not start: live e5/u4 and postponed e7 are out,
+    # k1 (inactive EKS) too, e8 is 40 days away
+    assert _ids(api("ala").get("/me/upcoming-matches").json()) == [m["e6"]]
+    assert _ids(api("ala").get("/me/upcoming-matches?days=30").json()) == [m["e6"], m["u3"]]
+    body = api("ala").get("/me/upcoming-matches").json()
+    assert body[0]["can_predict"] is True
+    assert body[0]["my_prediction"]["pred_home"] == 2
+    assert body[0]["competition"]["code"] == "EPL"
+
+
+def test_upcoming_matches_follow_league_scope(conn, world, api):
+    m = world["matches"]
+    # Rodzina plays only UCL now: daniel (Rodzina only) loses the EPL match
+    _set_scope(conn, world["other_league"], [world["UCL"]])
+    assert _ids(api("daniel").get("/me/upcoming-matches?days=30").json()) == [m["u3"]]
+    # ala: Biuro (all) + Rodzina (UCL) -> the union
+    assert _ids(api("ala").get("/me/upcoming-matches?days=30").json()) == [m["e6"], m["u3"]]
+    # Biuro limited to the inactive EKS: an explicit scope counts even when inactive
+    _set_scope(conn, world["league"], [world["EKS"]])
+    assert _ids(api("bartek").get("/me/upcoming-matches").json()) == [m["k1"]]
+
+
+def test_upcoming_matches_without_league_use_followed(world, api):
+    m = world["matches"]
+    # ewa has no league and follows EKS only
+    assert _ids(api("ewa").get("/me/upcoming-matches").json()) == [m["k1"]]
+    assert api("ewa").get("/me/upcoming-matches?days=0").status_code == 422
+
+
 # --- predictions ---
 
 def test_post_prediction_respects_match_status(world, api):

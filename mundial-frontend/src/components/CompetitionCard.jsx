@@ -33,7 +33,7 @@ export default function CompetitionCard({ competition, busy, onToggleFollow }) {
           {season && (
             <p className="flex items-center gap-2 mt-2 text-sm text-gray-400">
               Sezon {season.label}
-              <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ${STATUS_CLS[season.status] || STATUS_CLS.archived}`}>
+              <span className={`px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wider ${STATUS_CLS[season.status] || STATUS_CLS.archived}`}>
                 {SEASON_STATUS_LABELS[season.status] || season.status}
               </span>
             </p>
@@ -41,7 +41,7 @@ export default function CompetitionCard({ competition, busy, onToggleFollow }) {
         </div>
       </div>
 
-      <div className="flex items-center flex-wrap gap-x-4 gap-y-2 pt-3 border-t border-surface-500/20 text-sm">
+      <div className="flex items-center flex-wrap gap-x-4 gap-y-2 pt-3 border-t border-surface-500/35 text-sm">
         <Link
           to={`/matches?competition=${id}${seasonQuery}`}
           className="font-semibold text-brand hover:text-brand/80 transition-colors whitespace-nowrap"

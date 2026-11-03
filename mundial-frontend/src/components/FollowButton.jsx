@@ -7,7 +7,7 @@ export default function FollowButton({ followed, busy, onClick, name }) {
       disabled={busy}
       aria-pressed={followed}
       aria-label={followed ? `Przestań obserwować ${name}` : `Obserwuj ${name}`}
-      className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 cursor-pointer disabled:opacity-60
+      className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold border transition-all duration-200 cursor-pointer disabled:opacity-60
         ${followed
           ? 'bg-brand/15 border-brand/50 text-brand hover:bg-brand/25'
           : 'bg-surface-700/40 border-surface-500/40 text-gray-300 hover:border-brand/50 hover:text-brand'}`}

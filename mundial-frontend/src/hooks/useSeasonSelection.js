@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getCompetitionSeasons, getFeed, getSeason } from '../api/competitions';
-import { nextMatchCompetitionId, pickDefaultCompetition, toId } from '../utils/matchUi';
+import { getCompetitionSeasons, getSeason } from '../api/competitions';
+import { pickDefaultCompetition, toId } from '../utils/matchUi';
 import useAsync from './useAsync';
 import useCompetitions from './useCompetitions';
 
@@ -10,12 +10,9 @@ import useCompetitions from './useCompetitions';
 // links that point nowhere (unknown competition, season of another
 // competition, unknown season) fall back to that default selection.
 // extra params (e.g. ?round=) are left to the page via params / setParams.
-// preferNextMatch: without params pick the competition with the soonest match
-// to predict (feed = followed competitions, or all active when none followed)
-const FEED_DAYS = 14;
-const fetchFeed = () => getFeed(FEED_DAYS);
-
-export default function useSeasonSelection({ preferNextMatch = false } = {}) {
+// autoPick=false: without params nothing is picked (competition null, no requests),
+// the matches page shows its "Najbliższe" view then
+export default function useSeasonSelection({ autoPick = true } = {}) {
   const [params, setParams] = useSearchParams();
   const competitionsQ = useCompetitions();
   const competitions = competitionsQ.data;
@@ -38,15 +35,13 @@ export default function useSeasonSelection({ preferNextMatch = false } = {}) {
   const resolving = resolvedQ.loading;
   const resolvedSeason = resolvedQ.data;
 
-  // bare /matches → ask the feed which competition plays next
-  const wantsNextMatch = preferNextMatch && !competitionParam && !seasonParam;
-  const feedQ = useAsync(wantsNextMatch ? fetchFeed : null);
-  const nextId = nextMatchCompetitionId(feedQ.data, competitions);
-
-  const candidateId = knownCompetitionId ?? resolvedSeason?.competition?.id ?? nextId ?? null;
+  const candidateId = knownCompetitionId ?? resolvedSeason?.competition?.id ?? null;
   let competition = competitions?.find((c) => c.id === candidateId) ?? null;
-  // feed failed or has nothing open → old default (first followed)
-  if (!competition && competitions && !resolving && !feedQ.loading) competition = pickDefaultCompetition(competitions);
+  // nothing (valid) in the link → first followed, unless the page picks nothing
+  const hasParams = Boolean(competitionParam || seasonParam);
+  if (!competition && competitions && !resolving && (autoPick || hasParams)) {
+    competition = pickDefaultCompetition(competitions);
+  }
   const competitionId = competition?.id ?? null;
 
   const seasonsFetcher = useMemo(
@@ -90,7 +85,7 @@ export default function useSeasonSelection({ preferNextMatch = false } = {}) {
     seasonId,
     selectCompetition,
     selectSeason,
-    loading: competitionsQ.loading || resolving || feedQ.loading || waitingForSeason,
+    loading: competitionsQ.loading || resolving || waitingForSeason,
     error: competitionsQ.error,
     reload: competitionsQ.reload,
   };

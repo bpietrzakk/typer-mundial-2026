@@ -4,7 +4,11 @@ import * as fx from './fixtures.js';
 // returns { requests } so a test can check what the app sent
 // live = a coupon match is on: live coupon + live league table
 // mundial = the archived Mundial 2026 is in the competition list (ranking with bonuses)
-export async function mockApi(page, { loggedIn = false, live = false, mundial = false } = {}) {
+// organizer = I run league 1 and changed its coupon (editor + "przywróć kupon ogólny")
+// nearest = a full week for "Najbliższe" on /matches (league coupon + 12 league matches)
+export async function mockApi(page, {
+  loggedIn = false, live = false, mundial = false, organizer = false, nearest = false,
+} = {}) {
   const state = { loggedIn, joined: loggedIn, requests: [] };
 
   const routes = [
@@ -23,9 +27,12 @@ export async function mockApi(page, { loggedIn = false, live = false, mundial = 
     ['GET', /^\/seasons\/5$/, () => fx.SEASON],
     ['GET', /^\/seasons\/5\/rounds$/, () => fx.ROUNDS],
     ['GET', /^\/seasons\/5\/matches$/, () => [fx.MATCH]],
+    ['GET', /^\/matches\/1201\/context$/, () => fx.MATCH_CONTEXT],
     ['GET', /^\/seasons\/5\/ranking$/, () => []],
     ['GET', /^\/feed$/, () => []],
-    ['GET', /^\/me\/coupon$/, () => fx.MY_COUPON],
+    ['GET', /^\/me\/coupon$/, () => (nearest ? fx.MY_COUPON_FULL : fx.MY_COUPON)],
+    // default: only the coupon match again, so /matches keeps one prediction form
+    ['GET', /^\/me\/upcoming-matches$/, () => (nearest ? fx.UPCOMING_MATCHES : [fx.MATCH])],
     ['GET', /^\/predictions\/mine$/, () => fx.MY_PREDICTIONS],
     ['POST', /^\/predictions$/, (body) => ({
       id: 900, ...body, points_awarded: null, hit_type: null,
@@ -37,7 +44,11 @@ export async function mockApi(page, { loggedIn = false, live = false, mundial = 
     ['GET', /^\/leagues\/1\/competitions$/, () => ({ all: true, competitions: [] })],
     ['GET', /^\/leagues\/1\/ranking$/, () => (live ? fx.LEAGUE_RANKING_LIVE : fx.LEAGUE_RANKING)],
     ['GET', /^\/leagues\/1\/badges$/, () => fx.LEAGUE_BADGES],
-    ['GET', /^\/leagues\/1\/coupon$/, () => (live ? fx.LEAGUE_COUPON_LIVE : fx.LEAGUE_COUPON)],
+    ['GET', /^\/leagues\/1\/coupon$/, () => {
+      if (organizer) return { ...fx.LEAGUE_COUPON, can_edit: true, created_by: 'owner' };
+      return live ? fx.LEAGUE_COUPON_LIVE : fx.LEAGUE_COUPON;
+    }],
+    ['POST', /^\/leagues\/1\/coupon\/reset$/, () => ({ ...fx.LEAGUE_COUPON, can_edit: true, created_by: 'global' })],
     ['GET', /^\/leagues\/1\/bonus-questions$/, () => []],
     // emoji under ola's pick (the live coupon match): 🤡 from somebody else + mine
     ['PUT', /^\/leagues\/1\/matches\/\d+\/reactions$/, (body) => ({

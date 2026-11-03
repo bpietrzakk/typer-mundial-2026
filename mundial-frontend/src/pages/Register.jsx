@@ -75,7 +75,7 @@ export default function Register() {
       <div className="relative w-full max-w-md animate-fade-in">
         {/* header */}
         <div className="text-center mb-8">
-          <img src="/favicon.svg" alt="czutka" className="w-16 h-16 mx-auto mb-4 rounded-xl" />
+          <p className="wordmark text-4xl mb-4" aria-hidden="true">czutka</p>
           <h1 className="text-3xl font-extrabold tracking-tight text-white mb-2">
             Dołącz do gry!
           </h1>
@@ -97,7 +97,7 @@ export default function Register() {
         )}
 
         {/* register form */}
-        <form onSubmit={handleSubmit} className="glass-card p-8 space-y-5">
+        <form onSubmit={handleSubmit} className="panel p-6 sm:p-8 space-y-5">
           <div>
             <label htmlFor="reg-nick" className="block text-sm font-medium text-gray-400 mb-1.5">
               Nick

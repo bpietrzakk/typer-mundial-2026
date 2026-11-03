@@ -262,7 +262,7 @@ function UsersTab({ addToast, currentUserId }) {
               </div>
 
               {expanded === u.id && (
-                <div className="border-t border-surface-500/20 p-4 bg-surface-900/40 space-y-4">
+                <div className="border-t border-surface-500/35 p-4 bg-surface-900/40 space-y-4">
                   {expandLoading && !data ? (
                     <p className="text-sm text-gray-500">Ładuję…</p>
                   ) : (
@@ -272,7 +272,7 @@ function UsersTab({ addToast, currentUserId }) {
                         <div className="flex items-center gap-2 text-sm">
                           <span className="text-gray-500">Mistrz:</span>
                           {data.bonuses.crest_url && (
-                            <img src={proxiedImageUrl(data.bonuses.crest_url)} alt="" loading="lazy" className="w-4 h-4 object-contain" />
+                            <span className="w-4 h-4 logo-disc"><img src={proxiedImageUrl(data.bonuses.crest_url)} alt="" loading="lazy" className="w-[76%] h-[76%] object-contain" /></span>
                           )}
                           <span className="text-accent font-semibold">{data.bonuses.champion_name}</span>
                           {data.bonuses.champion_points != null && (
@@ -439,7 +439,7 @@ function LeaguesTab({ addToast }) {
             </div>
 
             {expanded === l.id && (
-              <div className="border-t border-surface-500/20 p-4 bg-surface-900/40">
+              <div className="border-t border-surface-500/35 p-4 bg-surface-900/40">
                 {membersLoading && !members[l.id] ? (
                   <p className="text-sm text-gray-500">Ładuję…</p>
                 ) : members[l.id]?.length === 0 ? (

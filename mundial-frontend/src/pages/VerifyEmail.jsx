@@ -24,14 +24,14 @@ export default function VerifyEmail() {
     <div className="auth-bg min-h-screen flex items-center justify-center px-4">
       <div className="relative w-full max-w-md animate-fade-in text-center">
         {status === 'loading' && (
-          <div className="glass-card p-10">
+          <div className="panel p-8 sm:p-10">
             <div className="w-12 h-12 mx-auto border-4 border-brand/30 border-t-brand rounded-full animate-spin" />
             <p className="text-gray-400 mt-4">Weryfikuję konto…</p>
           </div>
         )}
 
         {status === 'ok' && (
-          <div className="glass-card p-10 space-y-4">
+          <div className="panel p-8 sm:p-10 space-y-4">
             <h1 className="text-2xl font-extrabold tracking-tight text-white">Konto potwierdzone!</h1>
             <p className="text-gray-400">Możesz się teraz zalogować.</p>
             <Link to="/login" className="btn-primary inline-block">Zaloguj się</Link>
@@ -39,7 +39,7 @@ export default function VerifyEmail() {
         )}
 
         {status === 'error' && (
-          <div className="glass-card p-10 space-y-4">
+          <div className="panel p-8 sm:p-10 space-y-4">
             <h1 className="text-2xl font-extrabold text-red-400">Link nieprawidłowy</h1>
             <p className="text-gray-400">
               Link weryfikacyjny jest nieprawidłowy lub wygasł.

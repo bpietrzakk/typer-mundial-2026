@@ -64,7 +64,7 @@ export default function UserPredictionsModal({ userId, nick, onClose, seasonId }
         role="dialog"
         aria-modal="true"
         aria-labelledby="user-predictions-title"
-        className="glass-card w-full max-w-lg max-h-[80vh] overflow-y-auto p-5 animate-fade-in"
+        className="panel w-full max-w-lg max-h-[80vh] overflow-y-auto p-5 animate-fade-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">

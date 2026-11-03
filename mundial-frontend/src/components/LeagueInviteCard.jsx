@@ -91,7 +91,7 @@ export default function LeagueInviteCard({ league, memberCount, isOwner, onCodeR
       </div>
 
       {isOwner && confirmingReset && (
-        <div className="mt-4 pt-4 border-t border-surface-500/20 flex items-center gap-3 flex-wrap" role="alert">
+        <div className="mt-4 pt-4 border-t border-surface-500/35 flex items-center gap-3 flex-wrap" role="alert">
           <p className="text-sm text-red-300 flex-1 min-w-[12rem]">Zresetować kod? Stary kod przestanie działać.</p>
           <button
             type="button"

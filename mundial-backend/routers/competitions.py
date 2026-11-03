@@ -1,5 +1,5 @@
-# competitions, seasons, rounds, season matches/teams/ranking and the feed
-# no router prefix: paths start with /competitions, /seasons and /feed
+# competitions, seasons, rounds, season matches/teams/ranking, the feed and my upcoming matches
+# no router prefix: paths start with /competitions, /seasons, /feed and /me
 
 from datetime import datetime, timezone
 
@@ -16,10 +16,11 @@ from db.queries.competitions import (
     list_season_matches,
     list_season_rounds,
     list_season_teams,
+    list_upcoming_league_matches,
     unfollow_competition,
 )
 from db.queries.ranking import get_season_ranking
-from domain.competitions import feed_window, mark_current_round, pick_current_season
+from domain.competitions import feed_window, mark_current_round, pick_current_season, upcoming_window
 from domain.match_status import is_open_for_predictions
 from domain.ranking import sort_ranking
 from routers.deps import get_current_user
@@ -160,3 +161,16 @@ def get_feed(
     window_start, window_end = feed_window(now, days)
     matches = list_feed_matches(current_user["id"], window_start, window_end)
     return add_provisional_points(_with_can_predict(matches, now))
+
+
+@router.get("/me/upcoming-matches", response_model=list[CompetitionMatch])
+def get_my_upcoming_matches(
+    days: int = Query(default=7, ge=1, le=30),
+    current_user: dict = Depends(get_current_user),
+) -> list[dict]:
+    # "Najbliższe" on the matches page: not started matches of the next days in
+    # the scope of my leagues (followed competitions without a league)
+    now = datetime.now(timezone.utc)
+    window_start, window_end = upcoming_window(now, days)
+    matches = list_upcoming_league_matches(current_user["id"], window_start, window_end)
+    return _with_can_predict(matches, now)

@@ -693,7 +693,9 @@ class LeagueCouponResponse(BaseModel):
     week_end: date     # sunday
     is_current_week: bool
     coupon_id: int | None = None      # null = no coupon this week (yet)
-    created_by: str | None = None     # auto | owner
+    # global = copy of the global coupon "hity tygodnia", owner = changed by
+    # the organizer, auto = the league's own pick (too few hits in its scope)
+    created_by: str | None = None
     ranking_mode: str
     coupon_size: int
     coupon_auto: bool
@@ -724,18 +726,36 @@ class CouponLeagueRef(BaseModel):
 
 
 class MyCouponMatch(CompetitionMatch):
-    # leagues whose coupon has this match, empty for "hits of the week"
+    # leagues whose coupon has this match, empty for the global coupon
     leagues: list[CouponLeagueRef]
 
 
 class MyCouponResponse(BaseModel):
-    source: Literal["leagues", "hits"]
+    # leagues = my league coupons merged, global = no league, the global coupon
+    source: Literal["leagues", "global"]
     week_start: date
     week_end: date
     typed: int
     total: int
     next_deadline: datetime | None = None   # earliest kickoff of an open match I did not type
     matches: list[MyCouponMatch]
+
+
+class GlobalCouponMatch(CompetitionMatch):
+    # false = not a hit, only there to fill a quiet week up to 6 matches
+    is_hit: bool = True
+
+
+class GlobalCouponResponse(BaseModel):
+    # GET /coupon/global — the one general coupon of the week
+    week_start: date
+    week_end: date
+    is_current_week: bool
+    coupon_id: int | None = None      # null = no coupon that week (no open matches)
+    typed: int
+    total: int
+    next_deadline: datetime | None = None
+    matches: list[GlobalCouponMatch]
 
 
 # --- match context (GET /matches/{id}/context) ---
@@ -757,8 +777,54 @@ class HeadToHeadMatch(BaseModel):
     away_goals: int
 
 
+class MatchContextTableRow(BaseModel):
+    rank: int
+    team_id: int
+    name: str
+    short_name: str | None = None
+    crest_url: str | None = None
+    played: int
+    points: int
+    goal_diff: int
+
+
+class MatchContextStats(BaseModel):
+    # season numbers of one team, all finished games of this season
+    team_id: int
+    played: int
+    wins: int
+    draws: int
+    losses: int
+    goals_for: int
+    goals_against: int
+    goals_for_avg: float | None = None      # null without games
+    goals_against_avg: float | None = None
+    btts_pct: int | None = None             # both teams scored, % of games
+    over25_pct: int | None = None           # 3+ goals, % of games
+    clean_sheets: int
+    venue: Literal["home", "away"]          # home team -> home games, away team -> away games
+    venue_form: list[str]                   # W / R / P at that venue, newest first, max 5
+
+
+class MatchContextStatsPair(BaseModel):
+    home: MatchContextStats
+    away: MatchContextStats
+
+
+class HeadToHeadSummary(BaseModel):
+    # counted from this match's home team point of view
+    played: int
+    home_wins: int
+    draws: int
+    away_wins: int
+
+
 class MatchContextResponse(BaseModel):
     match_id: int
     home: MatchContextTeam
     away: MatchContextTeam
     head_to_head: list[HeadToHeadMatch]   # newest first, max 3
+    head_to_head_summary: HeadToHeadSummary
+    table: list[MatchContextTableRow] = []   # both teams +-1 place, empty for cups / early season
+    stats: MatchContextStatsPair
+    hint: str | None = None                  # one notable fact, polish

@@ -95,7 +95,7 @@ export default function LeagueScopeEditor({ leagueId, isOwner, scope, competitio
       </div>
 
       {isOwner && editing && (
-        <div className="mt-4 pt-4 border-t border-surface-500/20 animate-fade-in">
+        <div className="mt-4 pt-4 border-t border-surface-500/35 animate-fade-in">
           <fieldset disabled={saving}>
             <legend className="sr-only">Zakres ligi</legend>
             <div className="grid gap-2 mb-3 sm:grid-cols-2">
@@ -130,7 +130,7 @@ export default function LeagueScopeEditor({ leagueId, isOwner, scope, competitio
                       className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border cursor-pointer transition-colors text-sm
                         ${checked
                           ? 'border-brand/40 bg-brand/5 text-gray-100'
-                          : 'border-surface-500/20 bg-surface-700/20 text-gray-400 hover:border-surface-500/50'}`}
+                          : 'border-surface-500/35 bg-surface-700/20 text-gray-400 hover:border-surface-500/50'}`}
                     >
                       <input
                         type="checkbox"

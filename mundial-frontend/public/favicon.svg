@@ -1,20 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
   <title>czutka</title>
-  <defs>
-    <linearGradient id="czutka-ring" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%"   stop-color="#00B4D8"/>
-      <stop offset="100%" stop-color="#E61D25"/>
-    </linearGradient>
-    <linearGradient id="czutka-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%"   stop-color="#0D1520"/>
-      <stop offset="100%" stop-color="#0A1128"/>
-    </linearGradient>
-  </defs>
+  <!-- pitch green tile, small radius -->
+  <rect width="48" height="48" rx="7" fill="#10241A"/>
 
-  <rect width="48" height="48" rx="10" fill="url(#czutka-bg)"/>
-
-  <!-- the letter "c" drawn as an open ring -->
-  <path d="M33.6 15.4 A12.75 12.75 0 1 0 33.6 32.6" fill="none" stroke="url(#czutka-ring)" stroke-width="5.5" stroke-linecap="round"/>
+  <!-- the letter "c" drawn as an open ring, solid brand green -->
+  <path d="M33.6 15.4 A12.75 12.75 0 1 0 33.6 32.6" fill="none" stroke="#3ECF6E" stroke-width="6" stroke-linecap="round"/>
 
   <!-- the ball sitting in the opening of the "c" -->
   <circle cx="35.2" cy="24" r="3.3" fill="#FFFFFF"/>

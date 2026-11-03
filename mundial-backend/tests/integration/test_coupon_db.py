@@ -270,13 +270,15 @@ def test_get_generates_the_auto_coupon_once(world, api, conn):
     assert first.status_code == 200
     body = first.json()
     assert body["week_start"] == "2026-11-02" and body["week_end"] == "2026-11-08"
-    assert body["is_current_week"] is True and body["created_by"] == "auto"
+    # a league without a scope plays the global coupon (5 hits, see the header)
+    assert body["is_current_week"] is True and body["created_by"] == "global"
     # by kickoff on screen
     assert _match_ids(body) == [m["t4"], m["u1"], m["t7"], m["l1"], m["t8"]]
     assert body["total"] == 5
     again = api("bartek").get(f"/leagues/{world['biuro']}/coupon").json()
     assert again["coupon_id"] == body["coupon_id"]
     assert scalar(conn, "SELECT COUNT(*) FROM league_coupons") == 1
+    assert scalar(conn, "SELECT COUNT(*) FROM weekly_coupons") == 1
 
 
 def test_get_without_auto_has_no_coupon(world, api, conn):
@@ -445,21 +447,15 @@ def test_my_coupon_generates_missing_auto_coupons(world, api, conn):
     assert world["m"]["l1"] in _match_ids(body)
 
 
-def test_my_coupon_without_leagues_shows_hits(world, api):
-    body = api("ewa").get("/me/coupon").json()
-    # ewa follows the champions league only
-    assert body["source"] == "hits"
-    assert _match_ids(body) == [world["m"]["u1"]]
-    assert body["matches"][0]["leagues"] == []
-    assert (body["typed"], body["total"]) == (0, 1)
-
-
-def test_hits_fall_back_to_all_active_competitions(world, api, conn):
-    execute(conn, "DELETE FROM user_competitions")
-    body = api("ewa").get("/me/coupon").json()
+def test_my_coupon_without_leagues_shows_the_global_coupon(world, api, conn):
     m = world["m"]
-    # started t2 stays in the hits, the list does not shrink during the week
-    assert set(_match_ids(body)) == {m["t2"], m["t4"], m["t7"], m["t8"], m["u1"], m["l1"]}
+    body = api("ewa").get("/me/coupon").json()
+    # ewa follows only the champions league, but the global coupon is one for everybody
+    assert body["source"] == "global"
+    assert _match_ids(body) == [m["t4"], m["u1"], m["t7"], m["l1"], m["t8"]]
+    assert all(x["leagues"] == [] for x in body["matches"])
+    assert (body["typed"], body["total"]) == (0, 5)
+    assert scalar(conn, "SELECT COUNT(*) FROM league_coupons") == 0
 
 
 # --- league ranking in coupon mode ---
@@ -546,9 +542,11 @@ def test_scheduler_generates_missing_auto_coupons_once(world, conn):
     execute(conn, "UPDATE private_leagues SET coupon_auto = FALSE WHERE id = %s", (world["rodzina"],))
     assert generate_missing_coupons(NOW) == 2   # Biuro + Liga
     assert generate_missing_coupons(NOW) == 0
+    # Liga (LIGA only) gets the one global match in its scope, nothing else to add
     assert rows(conn, "SELECT private_league_id, week_start, created_by FROM league_coupons ORDER BY id") == [
-        (world["biuro"], WEEK, "auto"), (world["liga_league"], WEEK, "auto"),
+        (world["biuro"], WEEK, "global"), (world["liga_league"], WEEK, "global"),
     ]
+    assert rows(conn, "SELECT week_start FROM weekly_coupons") == [(WEEK,)]
 
 
 def test_scheduler_skips_a_week_without_matches(world, conn):
@@ -557,6 +555,7 @@ def test_scheduler_skips_a_week_without_matches(world, conn):
     # december: nothing scheduled -> no empty coupon rows
     assert generate_missing_coupons(datetime(2026, 12, 9, 12, 0, tzinfo=UTC)) == 0
     assert scalar(conn, "SELECT COUNT(*) FROM league_coupons") == 0
+    assert scalar(conn, "SELECT COUNT(*) FROM weekly_coupons") == 0
 
 
 # --- joker (010, domain/joker.py) ---
@@ -798,3 +797,154 @@ def test_reactions_go_when_a_member_leaves(world, api, conn):
     execute(conn, "DELETE FROM private_league_members WHERE private_league_id = %s AND user_id = %s",
             (lid, u["celina"]))
     assert rows(conn, "SELECT emoji FROM league_pick_reactions") == [("😱",)]
+
+
+# --- global coupon "hity tygodnia" (013, domain/coupon_hits.py) ---
+#
+# the epl table has only 6 teams, so every epl match of the week is a top 6
+# hit: t4 (top6), t7 + t8 (derbies), u1 (real + bayern = big clubs), l1 (derby).
+# 5 hits < 6 -> one more match tops it up when there is one
+
+@pytest.fixture
+def quiet_liga(world, conn):
+    # two plain laliga matches (no table yet, no big clubs, no derby): not hits
+    t, m = world["teams"], world["m"]
+    with conn:
+        with conn.cursor() as cur:
+            for short, name, ext in [("GET", "Getafe", "l3"), ("ALA", "Alavés", "l4"),
+                                     ("CEL", "Celta", "l5"), ("OSA", "Osasuna", "l6")]:
+                _add_team(cur, world["liga"], name, short, ext, t)
+            cur.execute("SELECT round_id FROM matches WHERE id = %s", (m["l1"],))
+            rl = cur.fetchone()[0]
+            m["g1"] = _add_match(cur, world["liga"], rl, t["GET"], t["ALA"],
+                                 datetime(2026, 11, 7, 13, 0, tzinfo=UTC), "g1")
+            m["g2"] = _add_match(cur, world["liga"], rl, t["CEL"], t["OSA"],
+                                 datetime(2026, 11, 8, 13, 0, tzinfo=UTC), "g2")
+    return m
+
+
+def test_global_coupon_is_made_once_with_hits_first(world, api, conn, quiet_liga):
+    m = quiet_liga
+    resp = api("ewa").get("/coupon/global")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["week_start"] == "2026-11-02" and body["is_current_week"] is True
+    # by kickoff on screen. g1 tops it up to 6 (earlier of the two quiet ones)
+    assert _match_ids(body) == [m["t4"], m["u1"], m["g1"], m["t7"], m["l1"], m["t8"]]
+    assert {x["id"]: x["is_hit"] for x in body["matches"]}[m["g1"]] is False
+    assert sum(x["is_hit"] for x in body["matches"]) == 5
+    assert (body["typed"], body["total"]) == (0, 6)
+    # same coupon for everybody, made only once
+    again = api("ala").get("/coupon/global").json()
+    assert again["coupon_id"] == body["coupon_id"]
+    assert scalar(conn, "SELECT COUNT(*) FROM weekly_coupons") == 1
+    assert scalar(conn, "SELECT COUNT(*) FROM weekly_coupon_matches") == 6
+
+
+def test_global_coupon_other_week_is_only_read(world, api, conn):
+    body = api("ewa").get("/coupon/global?week=2026-11-12").json()
+    assert body["week_start"] == "2026-11-09" and body["is_current_week"] is False
+    assert body["coupon_id"] is None and body["matches"] == []
+    assert scalar(conn, "SELECT COUNT(*) FROM weekly_coupons") == 0
+    assert api("ewa").get("/coupon/global?week=nie-data").status_code == 422
+
+
+def test_global_coupon_keeps_started_matches_and_my_picks(world, api, conn, clock):
+    m = world["m"]
+    first = api("ala").get("/coupon/global").json()
+    # thursday: t4 and u1 kicked off, the coupon does not change
+    clock["now"] = datetime(2026, 11, 5, 12, 0, tzinfo=UTC)
+    later = api("ala").get("/coupon/global").json()
+    assert _match_ids(later) == _match_ids(first)
+    by_id = {x["id"]: x for x in later["matches"]}
+    assert by_id[m["t4"]]["can_predict"] is False
+    assert by_id[m["t4"]]["my_prediction"]["pred_away"] == 2   # ala typed 0:2
+    assert later["typed"] == 1
+
+
+def test_league_coupon_is_a_copy_of_the_global_one(world, api, conn, quiet_liga):
+    glob = _match_ids(api("ewa").get("/coupon/global").json())
+    for league in ("biuro", "rodzina"):
+        body = api("ala").get(f"/leagues/{world[league]}/coupon").json()
+        assert body["created_by"] == "global"
+        assert _match_ids(body) == glob
+
+
+def test_scoped_league_without_enough_hits_tops_up_from_its_scope(world, api, conn, quiet_liga):
+    m = quiet_liga
+    body = api("celina").get(f"/leagues/{world['liga_league']}/coupon").json()
+    # LIGA only: l1 + g1 from the global coupon, g2 from the league's own pick
+    assert body["created_by"] == "auto"
+    assert set(_match_ids(body)) == {m["l1"], m["g1"], m["g2"]}
+
+
+def test_owner_changes_the_week_and_resets_to_global(world, api, conn, quiet_liga):
+    m = quiet_liga
+    lid = world["biuro"]
+    glob = _match_ids(api("bartek").get(f"/leagues/{lid}/coupon").json())
+    # the organizer drops t8 and adds g2 (not on the global coupon)
+    custom = [i for i in glob if i != m["t8"]] + [m["g2"]]
+    resp = api("bartek").put(f"/leagues/{lid}/coupon", json={"match_ids": custom})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["created_by"] == "owner"
+    assert set(_match_ids(resp.json())) == set(custom)
+    # the global coupon itself never changes
+    assert _match_ids(api("ewa").get("/coupon/global").json()) == glob
+
+    assert api("ala").post(f"/leagues/{lid}/coupon/reset").status_code == 403
+    resp = api("bartek").post(f"/leagues/{lid}/coupon/reset")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["created_by"] == "global" and _match_ids(body) == glob
+
+
+def test_reset_keeps_started_matches_and_skips_started_global_ones(world, api, conn, clock):
+    m = world["m"]
+    lid = world["biuro"]
+    api("ewa").get("/coupon/global")              # wednesday noon: t4 .. t8
+    # the organizer's own coupon: t2 (finished on tuesday) and no t4
+    _set_coupon(conn, lid, [m["t2"], m["u1"], m["t7"], m["l1"], m["t8"]])
+    # thursday: t4 and u1 kicked off in the meantime
+    clock["now"] = datetime(2026, 11, 5, 12, 0, tzinfo=UTC)
+    body = api("bartek").post(f"/leagues/{lid}/coupon/reset").json()
+    # t2 + u1 stay (started), t4 started off the coupon -> can't come back
+    assert set(_match_ids(body)) == {m["t2"], m["u1"], m["t7"], m["l1"], m["t8"]}
+
+
+def test_joker_and_ranking_work_on_a_copied_coupon(world, api, conn):
+    m = world["m"]
+    lid = world["biuro"]
+    _coupon_mode(conn, lid)
+    body = api("ala").get(f"/leagues/{lid}/coupon").json()
+    assert body["created_by"] == "global"
+    resp = api("ala").put(f"/leagues/{lid}/coupon/joker", json={"match_id": m["t7"]})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["my_joker_match_id"] == m["t7"]
+    # celina typed t7 2:2, it ends 2:2 -> exact 5 points, only coupon matches count
+    from db.queries import finalize_match
+    finalize_match(m["t7"], 2, 2)
+    assert _ranking(api, lid) == {"ala": 0, "bartek": 0, "celina": 5}
+
+
+def test_hit_candidates_carry_the_domestic_table(world, conn):
+    from db.queries.weekly_coupon import list_global_coupon_candidates
+    from domain.coupon import week_bounds
+    from services.coupons import build_hit_candidates
+
+    t, m = world["teams"], world["m"]
+    # arsenal in the champions league gets its premier league place
+    with conn:
+        with conn.cursor() as cur:
+            _add_team(cur, world["ucl"], "Arsenal", "ARS", "-", t)
+            cur.execute("SELECT round_id FROM matches WHERE id = %s", (m["u1"],))
+            m["u2"] = _add_match(cur, world["ucl"], cur.fetchone()[0], t["ARS"], t["BAY"],
+                                 datetime(2026, 11, 5, 20, 0, tzinfo=UTC), "u2")
+    start, end = week_bounds(WEEK)
+    by_id = {c.match_id: c for c in build_hit_candidates(list_global_coupon_candidates(start, end, NOW))}
+    assert (by_id[m["u2"]].home.rank, by_id[m["u2"]].home.table_size) == (1, 6)
+    assert by_id[m["u2"]].away.rank is None and by_id[m["u2"]].is_league is False
+    # league match: places from its own season
+    assert (by_id[m["t4"]].home.rank, by_id[m["t4"]].away.rank) == (4, 1)
+    assert by_id[m["t4"]].is_league is True
+    # laliga has no finished match yet -> no table
+    assert by_id[m["l1"]].home.rank is None

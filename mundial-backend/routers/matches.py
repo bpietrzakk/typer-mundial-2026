@@ -37,7 +37,7 @@ def get_match(match_id: int, _user: dict = Depends(get_current_user)) -> dict:
 
 @router.get("/{match_id}/context", response_model=MatchContextResponse)
 def get_match_context(match_id: int, _user: dict = Depends(get_current_user)) -> dict:
-    # table place, form and head to head from our own results — shown on demand
+    # table, form, season numbers and head to head from our own results — shown on demand
     match = ctx_q.get_match_teams(match_id)
     if match is None:
         raise HTTPException(
@@ -46,4 +46,12 @@ def get_match_context(match_id: int, _user: dict = Depends(get_current_user)) ->
         )
     season_results = ctx_q.list_season_finished_results(match["season_id"])
     h2h = ctx_q.list_head_to_head(match["home_team_id"], match["away_team_id"])
-    return match_context(match, season_results, h2h)
+    context = match_context(match, season_results, h2h)
+    # table neighbours need a name, the page only knows the two teams of the match
+    teams = ctx_q.list_teams_by_ids([r["team_id"] for r in context["table"]])
+    context["table"] = [
+        {**r, "name": teams[r["team_id"]]["name"], "short_name": teams[r["team_id"]]["short_name"],
+         "crest_url": teams[r["team_id"]]["crest_url"]}
+        for r in context["table"] if r["team_id"] in teams
+    ]
+    return context

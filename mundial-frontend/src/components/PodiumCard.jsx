@@ -36,7 +36,7 @@ export default function PodiumCard({ entry, isCurrentUser, onSelect }) {
 
       {/* platform height follows the rank, so tied players stand level */}
       <div
-        className={`w-full rounded-t-xl ${colors.bg} border border-surface-500/20`}
+        className={`w-full rounded-t-xl ${colors.bg} border border-surface-500/35`}
         style={{ height: PLATFORM_HEIGHTS[entry.rank] }}
       />
     </button>

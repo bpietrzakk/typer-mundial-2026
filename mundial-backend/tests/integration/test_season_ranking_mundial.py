@@ -254,3 +254,31 @@ def test_mundial_season_ranking_endpoint_bonuses_flag(wc):
         assert all(r["total_points"] == r["match_points"] for r in league.json())
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+
+
+def test_coupon_mode_league_ranks_the_archived_mundial_by_all_matches(wc, conn):
+    # a coupon-mode league has no coupons in the Mundial, so it would show only
+    # bonuses. archived seasons are ranked by every finished match instead.
+    from db.queries import get_league_ranking
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE private_leagues SET ranking_mode = 'coupon' WHERE id = %s",
+            (wc["private_league"],),
+        )
+    conn.commit()
+
+    client = TestClient(app)
+    user = {"id": wc["users"]["ala"], "nick": "ala", "email": "ala@example.com", "is_admin": False}
+    app.dependency_overrides[get_current_user] = lambda: user
+    try:
+        resp = client.get(f"/leagues/{wc['private_league']}/ranking?season_id={wc['season_id']}")
+        assert resp.status_code == 200
+        old = {r["user_id"]: r["total_points"] for r in get_league_ranking(wc["private_league"])}
+        assert {r["user_id"]: r["total_points"] for r in resp.json()} == old
+        assert any(r["match_points"] > 0 for r in resp.json())
+
+        badges = client.get(f"/leagues/{wc['private_league']}/badges?season_id={wc['season_id']}")
+        assert badges.status_code == 200
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)

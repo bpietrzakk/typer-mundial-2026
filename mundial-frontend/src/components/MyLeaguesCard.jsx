@@ -7,7 +7,7 @@ import { PLAYERS, countOf } from '../utils/plural';
 export default function MyLeaguesCard({ leaguesData, loading, userId, title = 'Moje ligi' }) {
   return (
     <div className="glass-card overflow-hidden">
-      <div className="px-5 py-3 border-b border-surface-500/20 flex items-center justify-between">
+      <div className="px-5 py-3 border-b border-surface-500/35 flex items-center justify-between">
         <h2 className="font-semibold text-gray-200">{title}</h2>
         <Link to="/leagues" className="text-xs text-brand hover:text-brand/80 transition-colors">
           Wszystkie →
@@ -15,7 +15,7 @@ export default function MyLeaguesCard({ leaguesData, loading, userId, title = 'M
       </div>
 
       {loading ? (
-        <div className="divide-y divide-surface-500/10" role="status" aria-busy="true" aria-label="Ładuję ligi">
+        <div className="divide-y divide-surface-500/25" role="status" aria-busy="true" aria-label="Ładuję ligi">
           {[...Array(2)].map((_, i) => <SkeletonRow key={i} />)}
         </div>
       ) : !leaguesData || leaguesData.items.length === 0 ? (
@@ -26,7 +26,7 @@ export default function MyLeaguesCard({ leaguesData, loading, userId, title = 'M
           </Link>
         </div>
       ) : (
-        <div className="divide-y divide-surface-500/10">
+        <div className="divide-y divide-surface-500/25">
           {leaguesData.items.map(({ league, standings }) => {
             const mine = standings?.find((r) => r.user_id === userId);
             const players = standings ? standings.length : league.member_count;

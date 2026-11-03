@@ -19,7 +19,7 @@ export default function RankingTable({ entries, title, onSelectUser, showStats =
   return (
     <div className="glass-card overflow-hidden">
       {title && (
-        <div className="px-5 py-4 border-b border-surface-500/20">
+        <div className="px-5 py-4 border-b border-surface-500/35">
           <h3 className="text-lg font-semibold text-gray-200">{title}</h3>
         </div>
       )}
@@ -27,7 +27,7 @@ export default function RankingTable({ entries, title, onSelectUser, showStats =
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="text-left text-xs uppercase tracking-wider text-gray-500 border-b border-surface-500/20">
+            <tr className="text-left text-xs uppercase tracking-wider text-gray-500 border-b border-surface-500/35">
               <th className="px-4 sm:px-5 py-3 w-14 sm:w-16">#</th>
               <th className="px-3 sm:px-5 py-3">Gracz</th>
               {showStats && (
@@ -48,7 +48,7 @@ export default function RankingTable({ entries, title, onSelectUser, showStats =
                 <tr
                   key={entry.user_id}
                   onClick={() => onSelectUser?.(entry)}
-                  className={`border-b border-surface-500/10 transition-colors
+                  className={`border-b border-surface-500/25 transition-colors
                     ${onSelectUser ? 'cursor-pointer' : ''}
                     ${isCurrentUser
                       ? 'bg-brand/10 hover:bg-brand/15'

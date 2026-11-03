@@ -35,9 +35,9 @@ export default function InstallPrompt() {
 
   return (
     <div className="fixed bottom-20 md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-80 z-40 animate-slide-up">
-      <div className="glass-card p-4 border-brand/30 shadow-glow-brand">
+      <div className="panel p-4 !border-brand/40">
         <div className="flex items-start gap-3">
-          <img src="/favicon.svg" alt="" className="w-10 h-10 rounded-xl shrink-0" />
+          <img src="/favicon.svg" alt="" className="w-10 h-10 rounded-md shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-gray-200 text-sm">Zainstaluj czutkę</p>
             <p className="text-xs text-gray-500 mt-0.5">Dodaj do ekranu głównego i korzystaj jak z aplikacji</p>
