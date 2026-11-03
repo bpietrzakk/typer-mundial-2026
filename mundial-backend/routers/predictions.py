@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from db.queries import (
     get_match_by_id,
-    list_finished_predictions_for_user,
+    list_started_predictions_for_user,
     list_user_predictions,
     upsert_prediction,
 )
@@ -52,7 +52,7 @@ def user_predictions(
     user_id: int,
     current_user: dict = Depends(get_current_user),
 ) -> list[dict]:
-    # another user's predictions, but only for already-played matches —
+    # another user's predictions, but only for matches that already kicked off —
     # powers "click a player in the ranking" to see how they typed.
     # only visible to people who share a private league with that player
     if user_id != current_user["id"] and not users_share_league(current_user["id"], user_id):
@@ -60,7 +60,7 @@ def user_predictions(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Typy tego gracza widzą tylko członkowie wspólnej ligi.",
         )
-    return list_finished_predictions_for_user(user_id)
+    return list_started_predictions_for_user(user_id)
 
 
 @router.post("", response_model=PredictionResult)

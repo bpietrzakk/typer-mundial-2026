@@ -948,3 +948,60 @@ def test_hit_candidates_carry_the_domestic_table(world, conn):
     assert by_id[m["t4"]].is_league is True
     # laliga has no finished match yet -> no table
     assert by_id[m["l1"]].home.rank is None
+
+
+# --- member picks view (GET /leagues/{id}/members/{user_id}/predictions) ---
+
+def _member_picks(api, world, nick, viewer="celina", league=None):
+    league_id = league or world["biuro"]
+    return api(viewer).get(f"/leagues/{league_id}/members/{world['users'][nick]}/predictions")
+
+
+def test_member_picks_add_up_to_the_league_ranking_in_both_modes(world, api, conn):
+    m, u, lid = world["m"], world["users"], world["biuro"]
+    coupon_id = _set_coupon(conn, lid, [m["t2"], m["t4"]])
+    _joker(conn, coupon_id, u["ala"], m["t2"])
+
+    # scope league: every finished match of the seasons, the joker means nothing
+    body = _member_picks(api, world, "ala").json()
+    assert body["total_points"] == _ranking(api, lid)["ala"] == 10
+    assert (body["match_points"], body["bonus_points"]) == (10, 0)
+    picks = body["predictions"]
+    assert picks[0]["match_id"] == m["t2"] and m["prev"] in {p["match_id"] for p in picks}
+    assert all(p["is_joker"] is False for p in picks)
+    assert sum(p["league_points"] or 0 for p in picks) == body["match_points"]
+    # t4 is still open for predictions, so it never shows up
+    assert m["t4"] not in {p["match_id"] for p in picks}
+
+    # coupon league: only coupon matches, the joker counts double
+    _coupon_mode(conn, lid)
+    body = _member_picks(api, world, "ala").json()
+    assert body["total_points"] == _ranking(api, lid)["ala"] == 10
+    assert [(p["match_id"], p["is_joker"], p["points_awarded"], p["league_points"])
+            for p in body["predictions"]] == [(m["t2"], True, 5, 10)]
+
+
+def test_member_picks_show_league_bonus_points(world, api, conn):
+    execute(
+        conn,
+        "INSERT INTO league_bonus_questions (private_league_id, season_id, kind, points, deadline_at) "
+        "VALUES (%s, %s, 'champion', 20, %s)",
+        (world["biuro"], world["epl"], NOW - timedelta(days=30)),
+    )
+    qid = scalar(conn, "SELECT id FROM league_bonus_questions")
+    execute(
+        conn,
+        "INSERT INTO league_bonus_answers (question_id, user_id, team_id, points_awarded) VALUES (%s, %s, %s, 20)",
+        (qid, world["users"]["celina"], world["teams"]["ARS"]),
+    )
+    body = _member_picks(api, world, "celina", viewer="ala").json()
+    assert (body["total_points"], body["match_points"], body["bonus_points"]) == (20, 0, 20)
+    assert body["total_points"] == _ranking(api, world["biuro"])["celina"]
+
+
+def test_member_picks_only_for_members_about_members(world, api):
+    # ewa is in no league, daniel is not in Biuro
+    assert _member_picks(api, world, "ala", viewer="ewa").status_code == 403
+    resp = _member_picks(api, world, "daniel")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Ten gracz nie należy do tej ligi"

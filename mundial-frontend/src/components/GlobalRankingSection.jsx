@@ -235,7 +235,6 @@ export default function GlobalRankingSection() {
           />
           <p className="text-xs text-gray-400 mt-3 px-1">
             Kolejność: punkty, dokładne wyniki, trafione różnice, nick. Równi gracze dzielą miejsce.
-            Kliknij gracza, żeby zobaczyć jego typy na zakończone mecze.
           </p>
         </>
       )}

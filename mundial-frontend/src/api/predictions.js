@@ -18,7 +18,7 @@ export const getMyPredictions = async (seasonId) => {
   return res.data;
 };
 
-// another user's predictions for already-finished matches — ranking drill-down
+// another user's predictions for live and finished matches, newest first — ranking drill-down
 export const getUserPredictions = async (userId) => {
   const res = await api.get(`/predictions/user/${userId}`);
   return res.data;

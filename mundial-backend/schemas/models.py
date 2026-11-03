@@ -540,6 +540,24 @@ class MyPredictionDetail(MyPredictionEntry):
     round_name: str | None = None
 
 
+class LeagueMemberPrediction(MyPredictionDetail):
+    # one pick as the league counts it: league_points = points_awarded,
+    # x2 on the member's joker in a 'coupon' league. None = not scored yet
+    is_joker: bool = False
+    league_points: int | None = None
+
+
+class LeagueMemberPredictionsResponse(BaseModel):
+    # GET /leagues/{id}/members/{user_id}/predictions: the member's row of the
+    # league ranking (same numbers) + the picks behind match_points
+    user_id: int
+    nick: str
+    total_points: int
+    match_points: int
+    bonus_points: int
+    predictions: list[LeagueMemberPrediction]
+
+
 class LeagueScopeResponse(BaseModel):
     # all=true means "no restriction", the list is empty then
     all: bool

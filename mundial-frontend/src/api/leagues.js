@@ -86,6 +86,16 @@ export const getLeagueStandings = async (id, seasonId, { bonuses = true } = {}) 
   return res.data;
 };
 
+// one member's picks as this league counts them + their ranking row
+// (same season / bonuses switch as getLeagueStandings, so the totals match)
+// { user_id, nick, total_points, match_points, bonus_points, predictions: [...] }
+export const getLeagueMemberPredictions = async (id, userId, seasonId, { bonuses = true } = {}) => {
+  const params = seasonId ? { season_id: seasonId } : {};
+  if (!bonuses) params.bonuses = false;
+  const res = await api.get(`/leagues/${id}/members/${userId}/predictions`, { params });
+  return res.data;
+};
+
 // season badges + member streaks, same seasons as the league ranking
 // { unit: 'round' | 'coupon', finished_picks, badges: [...], streaks: [...] }
 export const getLeagueBadges = async (id, seasonId) => {

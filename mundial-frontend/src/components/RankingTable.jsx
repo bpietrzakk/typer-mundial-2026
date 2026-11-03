@@ -1,5 +1,6 @@
 import { useAuth } from '../hooks/useAuth';
 import { TIPS, countOf } from '../utils/plural';
+import SeePicksChevron from './SeePicksChevron';
 
 // showStats (optional) adds exact / diff / scored columns from RankingEntry.
 // showBreakdown (optional) adds "match points + bonus points" under the total
@@ -48,7 +49,10 @@ export default function RankingTable({ entries, title, onSelectUser, showStats =
                 <tr
                   key={entry.user_id}
                   onClick={() => onSelectUser?.(entry)}
-                  className={`border-b border-surface-500/10 transition-colors
+                  onKeyDown={onSelectUser ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectUser(entry); } } : undefined}
+                  tabIndex={onSelectUser ? 0 : undefined}
+                  title={onSelectUser ? `Zobacz typy: ${entry.nick}` : undefined}
+                  className={`group border-b border-surface-500/10 transition-colors
                     ${onSelectUser ? 'cursor-pointer' : ''}
                     ${isCurrentUser
                       ? 'bg-brand/10 hover:bg-brand/15'
@@ -67,7 +71,7 @@ export default function RankingTable({ entries, title, onSelectUser, showStats =
                   </td>
                   <td className="px-3 sm:px-5 py-3.5">
                     <span className={`font-medium ${isCurrentUser ? 'text-brand' : 'text-gray-200'}`}>
-                      {entry.nick}
+                      <span>{entry.nick}</span>{onSelectUser && <SeePicksChevron />}
                     </span>
                     {isCurrentUser && (
                       <span className="ml-2 text-xs text-brand/70">(Ty)</span>
@@ -106,6 +110,11 @@ export default function RankingTable({ entries, title, onSelectUser, showStats =
           </tbody>
         </table>
       </div>
+      {onSelectUser && (
+        <p className="px-4 sm:px-5 py-2 text-[11px] text-gray-500 border-t border-surface-500/10">
+          Kliknij gracza, żeby zobaczyć jego typy.
+        </p>
+      )}
     </div>
   );
 }

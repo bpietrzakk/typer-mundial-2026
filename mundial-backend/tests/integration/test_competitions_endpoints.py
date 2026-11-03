@@ -451,11 +451,17 @@ def test_my_predictions_by_season_with_extra_fields(world, api):
     assert client.get("/predictions/mine?season_id=999999").status_code == 404
 
 
-def test_other_users_predictions_show_finished_matches_only(world, api):
+def test_other_users_predictions_show_started_matches_newest_first(world, api):
     m = world["matches"]
     body = api("bartek").get(f"/predictions/user/{world['users']['ala']}").json()
-    assert {p["match_id"] for p in body} == {m["e1"], m["e2"], m["e3"], m["old1"], m["u1"], m["u2"]}
-    assert all(p["status"] == "finished" and p["hit_type"] is not None for p in body)
+    # finished + live, never scheduled e6 or cancelled e4
+    assert {p["match_id"] for p in body} == {m["e1"], m["e2"], m["e3"], m["e5"], m["old1"], m["u1"], m["u2"]}
+    # the live one kicked off last, so it comes first and has no points yet
+    assert body[0]["match_id"] == m["e5"]
+    assert body[0]["status"] == "live" and body[0]["points_awarded"] is None
+    kickoffs = [p["kickoff_at"] for p in body]
+    assert kickoffs == sorted(kickoffs, reverse=True)
+    assert all(p["hit_type"] is not None for p in body if p["status"] == "finished")
 
 
 # --- league scope ---

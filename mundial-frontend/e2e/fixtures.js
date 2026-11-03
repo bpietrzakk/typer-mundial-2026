@@ -270,3 +270,32 @@ export const MATCH_CONTEXT = {
   },
   hint: 'Gospodarze wygrali 4 z 5 ostatnich meczów u siebie',
 };
+
+// ola's picks seen from the league ranking: a live one (no points yet) on top,
+// then two settled ones, newest first like the backend sends them
+const olaPick = (id, home, away, pred, result, status, points, hit) => ({
+  id, match_id: id, pred_home: pred[0], pred_away: pred[1], points_awarded: points, hit_type: hit,
+  match_stage: null, kickoff_at: '2026-10-25T15:00:00Z', status,
+  home_goals: result[0], away_goals: result[1],
+  home_team_name: home, away_team_name: away, home_team_short: null, away_team_short: null,
+  season_id: 5, competition_code: 'PL', round_name: 'Kolejka 8',
+});
+export const OLA_PREDICTIONS = [
+  olaPick(1301, 'Arsenal', 'Chelsea', [2, 1], [1, 1], 'live', null, null),
+  olaPick(1302, 'Liverpool', 'Everton', [3, 0], [3, 0], 'finished', 5, 'exact'),
+  olaPick(1303, 'Aston Villa', 'Tottenham', [1, 1], [2, 1], 'finished', 0, 'miss'),
+  { ...olaPick(1304, 'Brighton', 'Fulham', [1, 0], [3, 1], 'finished', 2, 'tendency'), is_joker: true },
+  // older ones, hidden behind "Pokaż więcej" (5 shown at first)
+  olaPick(1305, 'Brentford', 'Wolves', [0, 0], [1, 2], 'finished', 0, 'miss'),
+  olaPick(1306, 'Newcastle', 'Leeds', [2, 0], [0, 1], 'finished', 0, 'miss'),
+  olaPick(1307, 'West Ham', 'Burnley', [1, 2], [0, 0], 'finished', 0, 'miss'),
+];
+
+// the same picks seen from the league Biuro: joker x2, totals = ola's row in
+// LEAGUE_RANKING (12 = 9 from matches + 3 from a league bonus question)
+export const OLA_LEAGUE_PREDICTIONS = {
+  user_id: 3, nick: 'ola', total_points: 12, match_points: 9, bonus_points: 3,
+  predictions: OLA_PREDICTIONS.map((p) => ({
+    is_joker: false, ...p, league_points: p.points_awarded == null ? null : p.points_awarded * (p.is_joker ? 2 : 1),
+  })),
+};

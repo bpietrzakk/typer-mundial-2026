@@ -222,7 +222,10 @@ export default function LeagueStandings({ leagueId, scope, competitions, ranking
           <div className={loading ? 'opacity-50 transition-opacity' : 'transition-opacity'} aria-busy={loading}>
             <LeagueRankingTable
               entries={result.entries}
-              onSelectUser={onSelectUser}
+              // the picks view needs the same season + bonuses switch as this table
+              onSelectUser={onSelectUser
+                ? (entry) => onSelectUser({ ...entry, seasonId: activeSeasonId, bonuses: withBonuses })
+                : undefined}
               live={liveView}
               streaks={streaks}
               streakUnit={badgeData?.unit}

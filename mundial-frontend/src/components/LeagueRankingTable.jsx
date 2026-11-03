@@ -1,5 +1,6 @@
 import { useAuth } from '../hooks/useAuth';
 import StreakFlame from './StreakFlame';
+import SeePicksChevron from './SeePicksChevron';
 
 const RANK_COLORS = {
   1: 'text-accent',
@@ -66,7 +67,8 @@ export default function LeagueRankingTable({ entries, onSelectUser, live = false
                 onClick={clickable ? () => onSelectUser(entry) : undefined}
                 onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectUser(entry); } } : undefined}
                 tabIndex={clickable ? 0 : undefined}
-                className={`border-b border-surface-500/10 last:border-0 transition-colors
+                title={clickable ? `Zobacz typy: ${entry.nick}` : undefined}
+                className={`group border-b border-surface-500/10 last:border-0 transition-colors
                   ${clickable ? 'cursor-pointer' : ''}
                   ${isMe ? 'bg-brand/10 hover:bg-brand/15' : 'hover:bg-surface-700/30'}`}
               >
@@ -78,7 +80,7 @@ export default function LeagueRankingTable({ entries, onSelectUser, live = false
                 </td>
                 <td className="px-2 sm:px-5 py-3.5 max-w-[10rem] sm:max-w-none">
                   <span className={`font-medium break-words ${isMe ? 'text-brand' : 'text-gray-200'}`}>
-                    {entry.nick}
+                    <span>{entry.nick}</span>{clickable && <SeePicksChevron />}
                   </span>
                   {streaks && <StreakFlame count={streaks.get(entry.user_id)} unit={streakUnit} />}
                   {isMe && <span className="ml-2 text-xs text-brand/70">(Ty)</span>}
@@ -105,6 +107,11 @@ export default function LeagueRankingTable({ entries, onSelectUser, live = false
           })}
         </tbody>
       </table>
+      {onSelectUser && (
+        <p className="px-4 sm:px-5 py-2 text-[11px] text-gray-500 border-t border-surface-500/10">
+          Kliknij gracza, żeby zobaczyć jego typy.
+        </p>
+      )}
     </div>
   );
 }
