@@ -196,6 +196,7 @@ export default function LeagueDetail({ leagueId }) {
         <UserPredictionsModal
           userId={selectedUser.user_id}
           nick={selectedUser.nick}
+          league={{ id: leagueId, seasonId: selectedUser.seasonId, bonuses: selectedUser.bonuses }}
           onClose={() => setSelectedUser(null)}
         />
       )}

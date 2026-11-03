@@ -26,9 +26,9 @@ export async function mockApi(page, { loggedIn = false, live = false, mundial = 
     ['GET', /^\/seasons\/5\/ranking$/, () => []],
     ['GET', /^\/feed$/, () => []],
     ['GET', /^\/matches\/1201\/context$/, () => fx.MATCH_CONTEXT],
-    ['GET', /^\/matches\/1201\/context$/, () => fx.MATCH_CONTEXT],
     ['GET', /^\/me\/coupon$/, () => fx.MY_COUPON],
     ['GET', /^\/predictions\/mine$/, () => fx.MY_PREDICTIONS],
+    ['GET', /^\/predictions\/user\/3$/, () => fx.OLA_PREDICTIONS],
     ['POST', /^\/predictions$/, (body) => ({
       id: 900, ...body, points_awarded: null, hit_type: null,
     })],
@@ -39,6 +39,7 @@ export async function mockApi(page, { loggedIn = false, live = false, mundial = 
     ['GET', /^\/leagues\/1\/competitions$/, () => ({ all: true, competitions: [] })],
     ['GET', /^\/leagues\/1\/ranking$/, () => (live ? fx.LEAGUE_RANKING_LIVE : fx.LEAGUE_RANKING)],
     ['GET', /^\/leagues\/1\/badges$/, () => fx.LEAGUE_BADGES],
+    ['GET', /^\/leagues\/1\/members\/3\/predictions$/, () => fx.OLA_LEAGUE_PREDICTIONS],
     ['GET', /^\/leagues\/1\/coupon$/, () => (live ? fx.LEAGUE_COUPON_LIVE : fx.LEAGUE_COUPON)],
     ['GET', /^\/leagues\/1\/bonus-questions$/, () => []],
     // emoji under ola's pick (the live coupon match): 🤡 from somebody else + mine

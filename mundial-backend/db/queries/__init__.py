@@ -115,9 +115,11 @@ from db.queries.matches import (
 )
 from db.queries.predictions import (
     SQL_LIST_USER_PREDICTIONS,
-    SQL_LIST_USER_PREDICTIONS_FINISHED,
+    SQL_LIST_LEAGUE_MEMBER_PREDICTIONS,
+    SQL_LIST_USER_PREDICTIONS_STARTED,
     SQL_UPSERT_PREDICTION,
-    list_finished_predictions_for_user,
+    list_league_member_predictions,
+    list_started_predictions_for_user,
     list_user_predictions,
     upsert_prediction,
 )
@@ -219,7 +221,8 @@ __all__ = [
     "SQL_LIST_TEAMS",
     "SQL_LIST_USER_LEAGUES",
     "SQL_LIST_USER_PREDICTIONS",
-    "SQL_LIST_USER_PREDICTIONS_FINISHED",
+    "SQL_LIST_LEAGUE_MEMBER_PREDICTIONS",
+    "SQL_LIST_USER_PREDICTIONS_STARTED",
     "SQL_LOCK_MATCH_FOR_UPDATE",
     "SQL_MARK_MATCH_SCORED",
     "SQL_MARK_EMAIL_VERIFIED",
@@ -295,7 +298,8 @@ __all__ = [
     "leave_league",
     "list_all_leagues_for_admin",
     "list_all_users_for_admin",
-    "list_finished_predictions_for_user",
+    "list_league_member_predictions",
+    "list_started_predictions_for_user",
     "list_group_advances",
     "list_league_members",
     "list_matches",

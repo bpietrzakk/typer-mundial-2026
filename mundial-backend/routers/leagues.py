@@ -26,8 +26,9 @@ from db.queries.leagues import (
     list_league_competitions,
     replace_league_competitions,
 )
+from db.queries.predictions import list_league_member_predictions
 from db.queries.ranking import get_league_season_ranking
-from domain.joker import joker_multiplier
+from domain.joker import joker_multiplier, with_league_points
 from domain.league_badges import member_streaks, season_badges
 from domain.ranking import sort_ranking
 from routers.deps import get_current_user
@@ -36,6 +37,7 @@ from schemas.models import (
     LeagueBadgesResponse,
     JoinLeagueRequest,
     LeagueDetailResponse,
+    LeagueMemberPredictionsResponse,
     LeagueRankingEntry,
     LeaguePreviewResponse,
     LeagueScopeRequest,
@@ -329,15 +331,54 @@ def get_league_scoped_ranking(
     season_ids = _league_season_ids(league_id, season_id)
 
     mode = _ranking_mode(detail, season_id)
-    if mode == "coupon":
-        # each member's joker match counts double (domain/joker.py)
-        ranking = sort_ranking(
-            get_league_coupon_ranking(league_id, season_ids, joker_multiplier("coupon"), bonuses)
-        )
-    else:
-        ranking = sort_ranking(get_league_season_ranking(league_id, season_ids, bonuses))
+    ranking = sort_ranking(_league_ranking_rows(league_id, season_ids, mode, bonuses))
     # official order stays, live matches only add the live_* fields
     return add_live_ranking(ranking, league_id, season_ids, mode)
+
+
+def _league_ranking_rows(league_id: int, season_ids: list[int], mode: str, bonuses: bool) -> list[dict]:
+    # unsorted member rows of the league ranking, shared by the ranking and the
+    # member picks view so their numbers never differ
+    if mode == "coupon":
+        # each member's joker match counts double (domain/joker.py)
+        return get_league_coupon_ranking(league_id, season_ids, joker_multiplier("coupon"), bonuses)
+    return get_league_season_ranking(league_id, season_ids, bonuses)
+
+
+@router.get(
+    "/{league_id}/members/{user_id}/predictions",
+    response_model=LeagueMemberPredictionsResponse,
+)
+def get_league_member_predictions(
+    league_id: int,
+    user_id: int,
+    season_id: int | None = Query(default=None),
+    bonuses: bool = Query(default=True),
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    # "click a player in the league ranking": their ranking row (same seasons,
+    # mode and bonuses as GET /ranking) + the live / finished picks that count
+    # in this league. picks of matches that did not start are never shown
+    detail = _require_member(league_id, current_user["id"])
+    season_ids = _league_season_ids(league_id, season_id)
+    mode = _ranking_mode(detail, season_id)
+
+    row = next(
+        (r for r in _league_ranking_rows(league_id, season_ids, mode, bonuses) if r["user_id"] == user_id),
+        None,
+    )
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ten gracz nie należy do tej ligi")
+
+    picks = list_league_member_predictions(league_id, user_id, season_ids, mode == "coupon")
+    return {
+        "user_id": row["user_id"],
+        "nick": row["nick"],
+        "total_points": row["total_points"],
+        "match_points": row["match_points"],
+        "bonus_points": row["bonus_points"],
+        "predictions": with_league_points(picks, joker_multiplier(mode)),
+    }
 
 
 @router.get("/{league_id}/badges", response_model=LeagueBadgesResponse)

@@ -43,9 +43,9 @@ SQL_LIST_USER_PREDICTIONS = """
 """
 
 # GET /predictions/user/{id} — same shape as SQL_LIST_USER_PREDICTIONS but
-# only finished matches, so the ranking "click a user" view doesn't leak
-# other people's picks for matches that haven't been played yet
-SQL_LIST_USER_PREDICTIONS_FINISHED = """
+# only matches that already kicked off (live or finished), so the player view
+# doesn't leak picks for matches that can still be typed. newest first
+SQL_LIST_USER_PREDICTIONS_STARTED = """
     SELECT
         p.id, p.match_id, p.pred_home, p.pred_away, p.points_awarded, p.hit_type,
         COALESCE(m.stage, r.phase) AS match_stage, m.kickoff_at, m.status,
@@ -60,8 +60,47 @@ SQL_LIST_USER_PREDICTIONS_FINISHED = """
     JOIN competitions c ON c.id = s.competition_id
     JOIN teams h ON h.id = m.home_team_id
     JOIN teams a ON a.id = m.away_team_id
-    WHERE p.user_id = %s AND m.status = 'finished'
-    ORDER BY m.kickoff_at ASC, m.id ASC
+    WHERE p.user_id = %s AND m.status IN ('live', 'finished')
+    ORDER BY m.kickoff_at DESC, m.id DESC
+"""
+
+
+# GET /leagues/{id}/members/{user_id}/predictions — the same started picks, but
+# only the ones that count in this league: the league's seasons and, in a
+# 'coupon' league, only matches from its coupons. is_joker = the member's joker
+# on a coupon of this league. newest first.
+# params: league id, user id, season ids, coupon_only, league id
+SQL_LIST_LEAGUE_MEMBER_PREDICTIONS = """
+    SELECT
+        p.id, p.match_id, p.pred_home, p.pred_away, p.points_awarded, p.hit_type,
+        COALESCE(m.stage, r.phase) AS match_stage, m.kickoff_at, m.status,
+        m.home_goals, m.away_goals,
+        h.name AS home_team_name, h.short_name AS home_team_short,
+        a.name AS away_team_name, a.short_name AS away_team_short,
+        m.season_id, c.code AS competition_code, r.name AS round_name,
+        EXISTS (
+            SELECT 1
+            FROM league_coupon_jokers j
+            JOIN league_coupons jc ON jc.id = j.coupon_id
+            WHERE jc.private_league_id = %s
+              AND j.user_id = p.user_id AND j.match_id = p.match_id
+        ) AS is_joker
+    FROM predictions p
+    JOIN matches m ON m.id = p.match_id
+    JOIN rounds r ON r.id = m.round_id
+    JOIN seasons s ON s.id = m.season_id
+    JOIN competitions c ON c.id = s.competition_id
+    JOIN teams h ON h.id = m.home_team_id
+    JOIN teams a ON a.id = m.away_team_id
+    WHERE p.user_id = %s AND m.status IN ('live', 'finished')
+      AND m.season_id = ANY(%s::bigint[])
+      AND (NOT %s OR EXISTS (
+          SELECT 1
+          FROM league_coupon_matches lcm
+          JOIN league_coupons lc ON lc.id = lcm.coupon_id
+          WHERE lcm.match_id = p.match_id AND lc.private_league_id = %s
+      ))
+    ORDER BY m.kickoff_at DESC, m.id DESC
 """
 
 
@@ -103,14 +142,34 @@ def list_user_predictions(user_id: int, season_id: int | None = None) -> list[di
         release_conn(conn)
 
 
-def list_finished_predictions_for_user(user_id: int) -> list[dict]:
-    # another user's predictions for already-played matches only —
+def list_started_predictions_for_user(user_id: int) -> list[dict]:
+    # another user's predictions for live and finished matches only —
     # drives the "click a user in the ranking" view
     conn = get_conn()
     try:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(SQL_LIST_USER_PREDICTIONS_FINISHED, (user_id,))
+                cur.execute(SQL_LIST_USER_PREDICTIONS_STARTED, (user_id,))
+                return _with_utc_kickoff(cur.fetchall())
+    finally:
+        release_conn(conn)
+
+
+def list_league_member_predictions(
+    league_id: int, user_id: int, season_ids: list[int], coupon_only: bool,
+) -> list[dict]:
+    # a member's live + finished picks that count in this league (see the SQL).
+    # no seasons in scope = nothing to show
+    if not season_ids:
+        return []
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    SQL_LIST_LEAGUE_MEMBER_PREDICTIONS,
+                    (league_id, user_id, season_ids, coupon_only, league_id),
+                )
                 return _with_utc_kickoff(cur.fetchall())
     finally:
         release_conn(conn)

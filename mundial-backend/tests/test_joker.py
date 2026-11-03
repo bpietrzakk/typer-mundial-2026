@@ -10,6 +10,7 @@ from domain.joker import (
     check_joker_set,
     joker_multiplier,
     joker_points,
+    with_league_points,
 )
 
 NOW = datetime(2026, 11, 4, 12, 0, tzinfo=UTC)
@@ -98,3 +99,32 @@ def test_exactly_at_kickoff_is_started():
     at_kickoff = {1: MatchCheck(kickoff_at=NOW, status="scheduled")}
     assert check_joker_set("coupon", at_kickoff, None, 1, NOW) == "started"
     assert check_joker_clear("coupon", at_kickoff, 1, NOW) == "locked"
+
+
+# --- player picks seen in a league ---
+
+def _pick(points, is_joker):
+    return {"match_id": 1, "points_awarded": points, "is_joker": is_joker}
+
+
+def test_league_points_double_the_joker_in_coupon_mode():
+    rows = with_league_points([_pick(3, True), _pick(5, False)], multiplier=2)
+    assert [(r["league_points"], r["is_joker"]) for r in rows] == [(6, True), (5, False)]
+
+
+def test_league_points_ignore_the_joker_outside_coupon_mode():
+    # multiplier 1 = 'scope' league: the joker does not exist there, so no badge either
+    rows = with_league_points([_pick(3, True)], multiplier=1)
+    assert rows[0]["league_points"] == 3
+    assert rows[0]["is_joker"] is False
+
+
+def test_league_points_of_a_live_match_stay_empty():
+    rows = with_league_points([_pick(None, True)], multiplier=2)
+    assert rows[0]["league_points"] is None
+    assert rows[0]["is_joker"] is True
+
+
+def test_league_points_keep_the_other_fields():
+    rows = with_league_points([{**_pick(2, False), "nick": "ala"}], multiplier=2)
+    assert rows[0]["nick"] == "ala" and rows[0]["points_awarded"] == 2

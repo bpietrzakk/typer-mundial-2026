@@ -192,7 +192,7 @@ def test_my_predictions_without_auth_returns_401():
 
 # --- GET /predictions/user/{user_id} ---
 
-def test_user_predictions_returns_finished_only(monkeypatch):
+def test_user_predictions_returns_what_the_query_gives(monkeypatch):
     captured = {}
     def fake_list(uid):
         captured["user_id"] = uid
@@ -206,7 +206,7 @@ def test_user_predictions_returns_finished_only(monkeypatch):
                 "home_team_short": "ARG",
             },
         ]
-    monkeypatch.setattr(predictions_module, "list_finished_predictions_for_user", fake_list)
+    monkeypatch.setattr(predictions_module, "list_started_predictions_for_user", fake_list)
     monkeypatch.setattr(predictions_module, "users_share_league", lambda a, b: True)
 
     resp = client.get("/predictions/user/99", cookies=_auth_cookie())
@@ -218,7 +218,7 @@ def test_user_predictions_returns_finished_only(monkeypatch):
 
 
 def test_user_predictions_empty_when_none(monkeypatch):
-    monkeypatch.setattr(predictions_module, "list_finished_predictions_for_user", lambda uid: [])
+    monkeypatch.setattr(predictions_module, "list_started_predictions_for_user", lambda uid: [])
     monkeypatch.setattr(predictions_module, "users_share_league", lambda a, b: True)
     resp = client.get("/predictions/user/99", cookies=_auth_cookie())
     assert resp.status_code == 200
@@ -238,7 +238,7 @@ def test_user_predictions_403_without_shared_league(monkeypatch):
     def must_not_run(uid):
         raise AssertionError("predictions must not be loaded")
     monkeypatch.setattr(predictions_module, "users_share_league", fake_share)
-    monkeypatch.setattr(predictions_module, "list_finished_predictions_for_user", must_not_run)
+    monkeypatch.setattr(predictions_module, "list_started_predictions_for_user", must_not_run)
 
     resp = client.get("/predictions/user/99", cookies=_auth_cookie())
     assert resp.status_code == 403
@@ -250,7 +250,7 @@ def test_user_predictions_own_skip_league_check(monkeypatch):
     def must_not_run(a, b):
         raise AssertionError("own predictions need no shared league")
     monkeypatch.setattr(predictions_module, "users_share_league", must_not_run)
-    monkeypatch.setattr(predictions_module, "list_finished_predictions_for_user", lambda uid: [])
+    monkeypatch.setattr(predictions_module, "list_started_predictions_for_user", lambda uid: [])
 
     resp = client.get(f"/predictions/user/{FAKE_USER['id']}", cookies=_auth_cookie())
     assert resp.status_code == 200

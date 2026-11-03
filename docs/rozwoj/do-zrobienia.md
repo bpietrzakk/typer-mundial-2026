@@ -32,3 +32,9 @@ Krótka lista otwartych rzeczy. Historia testów i to, co już zrobione, jest w
 4. **Paczka frontu ponad 500 kB:** podział na chunki (lazy routes).
 5. **Opisy trafień w meczu Holandia–Maroko** (Mundial, 1/16): 3 typy mają opis niepasujący do
    punktów, bo wynik zmienił się po rozliczeniu. Punkty zostają, poprawić tylko `hit_type`.
+6. **Mecz nie może wrócić do typowania po tym, jak typy było widać.** Okienko typów gracza
+   (i kupon ligi) pokazuje typy od statusu `live`. Jeśli przerwany mecz dostanie od dostawcy nowy
+   termin pod tym samym id, sync zmienia go z `live` na `scheduled` i typowanie znów się otwiera,
+   a wszyscy widzieli już cudze typy. Poprawka: nowa kolumna `first_live_at` (migracja), ustawiana
+   przez sync, i blokada w `prediction_block_reason`, gdy jest ustawiona. Albo sync nie cofa
+   statusu z `live` na `scheduled`.

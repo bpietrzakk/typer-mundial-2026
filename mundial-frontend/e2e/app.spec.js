@@ -219,3 +219,35 @@ test('tab from the password and space logs in', async ({ page }) => {
   expect(api.requests.some((r) => r.method === 'POST' && r.path === '/auth/login')).toBe(true);
 });
 
+
+test('clicking a player in the league ranking shows their picks', async ({ page }) => {
+  await mockApi(page, { loggedIn: true });
+  await page.goto('/leagues/1');
+
+  const ranking = page.getByRole('region', { name: 'Ranking ligi' });
+  await expect(ranking.getByText('Kliknij gracza, żeby zobaczyć jego typy.')).toBeVisible();
+  await ranking.getByRole('row', { name: /ola/ }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'ola' });
+  // the same total as in the league ranking, split into matches + bonuses
+  await expect(dialog.getByText('12 pkt w lidze = 9 z meczów + 3 z bonusów')).toBeVisible();
+  // hit counts cover every settled match, also the ones not shown yet
+  await expect(dialog.getByText('rozliczone: 6')).toBeVisible();
+  await expect(dialog.getByText('dokładny: 1')).toBeVisible();
+  await expect(dialog.getByText('pudło: 4')).toBeVisible();
+  // the joker pick counts double: 2 -> +4
+  await expect(dialog.getByText('🃏 ×2')).toBeVisible();
+  await expect(dialog.getByText('+4')).toBeVisible();
+  // the live pick is shown without points
+  await expect(dialog.getByText('Na żywo')).toBeVisible();
+  await expect(dialog.getByText('w trakcie')).toBeVisible();
+  await expect(dialog.getByText('Arsenal vs Chelsea')).toBeVisible();
+  // only the 5 newest at first, the oldest two behind the button
+  await expect(dialog.getByText('Newcastle vs Leeds')).toBeHidden();
+  await dialog.getByRole('button', { name: 'Pokaż więcej (2)' }).click();
+  await expect(dialog.getByText('West Ham vs Burnley')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /Pokaż więcej/ })).toHaveCount(0);
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+});
