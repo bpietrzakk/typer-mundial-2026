@@ -10,7 +10,7 @@ import { distinctPoints } from '../utils/scoring';
 // jokerOf(match) -> joker props (only matches of exactly one 'coupon' league)
 export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked, jokerOf, showJokerRule = false }) {
   const { matches, source } = coupon;
-  const isHits = source === 'hits';
+  const isHits = source === 'hits' || source === 'global'; // 'global' = new backend name for the same coupon
   const typed = matches.filter((m) => m.my_prediction).length;
   const range = formatWeekRange(coupon.week_start, coupon.week_end);
 

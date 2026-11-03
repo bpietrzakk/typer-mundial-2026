@@ -160,6 +160,26 @@ def test_rollback_restores_schema_and_data(conn, app_pool):
                 (ids["private_league"], match_id, ids["private_league"]),
             )
             assert cur.rowcount == 1
+    # a global weekly coupon (013) + a league coupon copied from it
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("INSERT INTO weekly_coupons (week_start) VALUES ('2026-11-09') RETURNING id")
+            cur.execute(
+                "INSERT INTO weekly_coupon_matches (coupon_id, match_id, is_hit) VALUES (%s, %s, FALSE)",
+                (cur.fetchone()[0], match_id),
+            )
+            cur.execute(
+                "INSERT INTO league_coupons (private_league_id, week_start, created_by) "
+                "VALUES (%s, '2026-11-09', 'global')",
+                (ids["private_league"],),
+            )
+    assert run_rollback(conn, "013") == "013_global_weekly_coupon.down.sql"
+    assert "013_global_weekly_coupon.sql" not in _ledger(conn)
+    with conn.cursor() as cur:
+        cur.execute("SELECT created_by FROM league_coupons WHERE week_start = '2026-11-09'")
+        assert cur.fetchone()[0] == "auto"
+    conn.rollback()
+
     # 012 is a data backfill, its rollback only drops the ledger row
     assert run_rollback(conn, "012") == "012_follow_league_scope.down.sql"
     assert "012_follow_league_scope.sql" not in _ledger(conn)

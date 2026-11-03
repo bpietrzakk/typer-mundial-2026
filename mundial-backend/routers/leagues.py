@@ -16,6 +16,7 @@ from db.queries import (
 )
 from db.queries.badges import list_league_finished_picks, list_league_unit_matches
 from db.queries.competitions import get_season
+from domain.leagues import effective_ranking_mode
 from db.queries.coupon import get_league_coupon_ranking, update_league_coupon_settings
 from db.queries.leagues import (
     get_league_preview_by_code,
@@ -302,6 +303,15 @@ def _league_season_ids(league_id: int, season_id: int | None) -> list[int]:
     return [season_id]
 
 
+def _ranking_mode(detail: dict, season_id: int | None) -> str:
+    # an archived season (Mundial) has no coupons, so it is ranked by all its matches
+    statuses = []
+    if season_id is not None:
+        season = get_season(season_id)
+        statuses = [season.get("status")] if season else []
+    return effective_ranking_mode(detail.get("ranking_mode"), statuses)
+
+
 @router.get("/{league_id}/ranking", response_model=list[LeagueRankingEntry])
 def get_league_scoped_ranking(
     league_id: int,
@@ -318,7 +328,7 @@ def get_league_scoped_ranking(
     detail = _require_member(league_id, current_user["id"])
     season_ids = _league_season_ids(league_id, season_id)
 
-    mode = detail.get("ranking_mode") or "scope"
+    mode = _ranking_mode(detail, season_id)
     if mode == "coupon":
         # each member's joker match counts double (domain/joker.py)
         ranking = sort_ranking(
@@ -340,7 +350,7 @@ def get_league_badges(
     # same seasons as GET /leagues/{id}/ranking, coupon mode = coupon matches only
     detail = _require_member(league_id, current_user["id"])
     season_ids = _league_season_ids(league_id, season_id)
-    coupon_only = (detail.get("ranking_mode") or "scope") == "coupon"
+    coupon_only = _ranking_mode(detail, season_id) == "coupon"
 
     members = list_league_members(league_id)
     member_ids = [m["user_id"] for m in members]

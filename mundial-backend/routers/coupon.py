@@ -1,4 +1,5 @@
-# weekly coupon of a private league + "my coupon" for the start screen
+# weekly coupon: the global "hity tygodnia", the coupon of a private league
+# (a copy of the global one the owner can change) + "my coupon" for the start screen
 # spec: docs/rozwoj/spec-kupon-tygodnia.md
 # unknown league -> 404, not a member -> 403, not owner / admin -> 403
 
@@ -8,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from db.queries import coupon as q
 from db.queries import reactions as rq
+from db.queries import weekly_coupon as wq
 from domain.coupon import check_coupon_edit, week_start, week_start_of
 from domain.joker import check_joker_clear, check_joker_set, joker_multiplier
 from domain.league_picks import pick_summary
@@ -19,6 +21,7 @@ from routers.deps import get_current_user
 from schemas.models import (
     CouponJokerRequest,
     CouponUpdateRequest,
+    GlobalCouponResponse,
     LeagueCouponResponse,
     MyCouponResponse,
     PickReactionDeleteRequest,
@@ -26,9 +29,11 @@ from schemas.models import (
     PickReactionsResponse,
 )
 from services.coupons import (
+    ensure_global_coupon,
     ensure_league_coupon,
-    hits_of_the_week,
+    global_coupon_match_ids,
     regenerate_league_coupon,
+    reset_league_coupon,
     to_checks,
 )
 from services.live_points import add_provisional_points
@@ -216,6 +221,20 @@ def regenerate_coupon(
     return _coupon_response(league, True, week, current_user["id"], now)
 
 
+@router.post("/leagues/{league_id}/coupon/reset", response_model=LeagueCouponResponse)
+def reset_coupon_to_global(
+    league_id: int,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    # "przywróć kupon ogólny": the league plays the global coupon again
+    # (in its scope), started matches stay where they are
+    league = _require_manager(league_id, current_user["id"])
+    now = _now()
+    week = week_start(now)
+    reset_league_coupon(league, week, now)
+    return _coupon_response(league, True, week, current_user["id"], now)
+
+
 def _current_coupon_checks(league_id: int, now: datetime) -> tuple[int | None, dict]:
     # (coupon id, match checks) of this week's coupon, (None, {}) without one
     coupon = q.get_coupon(league_id, week_start(now))
@@ -313,10 +332,48 @@ def delete_pick_reaction(
     return _pick_reactions(league_id, match_id, body.target_user_id, user_id)
 
 
+def _summary(matches: list[dict]) -> dict:
+    # my counters for a list of coupon matches
+    open_untyped = [m["kickoff_at"] for m in matches if m["can_predict"] and m["my_prediction"] is None]
+    return {
+        "typed": sum(1 for m in matches if m["my_prediction"] is not None),
+        "total": len(matches),
+        "next_deadline": min(open_untyped) if open_untyped else None,
+    }
+
+
+@router.get("/coupon/global", response_model=GlobalCouponResponse)
+def get_global_coupon(
+    week: date | None = Query(default=None, description="dowolny dzień tygodnia, domyślnie bieżący"),
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    # the one general coupon of the week for everybody. made on first use
+    # in the current week, other weeks are only read
+    user_id = current_user["id"]
+    now = _now()
+    current_week = week_start(now)
+    target = week_start_of(week) if week is not None else current_week
+    coupon = ensure_global_coupon(target, now) if target == current_week else wq.get_global_coupon(target)
+    rows = wq.list_global_coupon_matches(coupon["id"]) if coupon else []
+    hit = {r["match_id"]: r["is_hit"] for r in rows}
+
+    matches = add_provisional_points(_with_can_predict(q.list_matches_by_ids(user_id, list(hit)), now))
+    for m in matches:
+        m["is_hit"] = hit[m["id"]]
+    return {
+        "week_start": target,
+        "week_end": target + timedelta(days=6),
+        "is_current_week": target == current_week,
+        "coupon_id": coupon["id"] if coupon else None,
+        **_summary(matches),
+        "matches": matches,
+    }
+
+
 @router.get("/me/coupon", response_model=MyCouponResponse)
 def get_my_coupon(current_user: dict = Depends(get_current_user)) -> dict:
     # the start screen: coupons of all my leagues this week, a match only once
-    # with the leagues it belongs to. no league -> "hits of the week"
+    # with the leagues it belongs to. no league -> the global coupon
     user_id = current_user["id"]
     now = _now()
     week = week_start(now)
@@ -343,20 +400,17 @@ def get_my_coupon(current_user: dict = Depends(get_current_user)) -> dict:
                 refs.append(league_ref)
         match_ids = list(labels)
     else:
-        source = "hits"
-        match_ids = hits_of_the_week(user_id, week)
+        source = "global"
+        match_ids = global_coupon_match_ids(week, now)
 
     matches = add_provisional_points(_with_can_predict(q.list_matches_by_ids(user_id, match_ids), now))
     for m in matches:
         m["leagues"] = sorted(labels.get(m["id"], []), key=lambda ref: ref["name"].casefold())
 
-    open_untyped = [m["kickoff_at"] for m in matches if m["can_predict"] and m["my_prediction"] is None]
     return {
         "source": source,
         "week_start": week,
         "week_end": week + timedelta(days=6),
-        "typed": sum(1 for m in matches if m["my_prediction"] is not None),
-        "total": len(matches),
-        "next_deadline": min(open_untyped) if open_untyped else None,
+        **_summary(matches),
         "matches": matches,
     }

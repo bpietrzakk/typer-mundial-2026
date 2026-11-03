@@ -19,3 +19,12 @@ def added_scope_competitions(old_ids: list[int], new_ids: list[int]) -> list[int
     # bring back a competition somebody unfollowed on purpose
     old = set(old_ids)
     return [cid for cid in dict.fromkeys(new_ids) if cid not in old]
+
+
+def effective_ranking_mode(mode: str | None, season_statuses: list[str]) -> str:
+    # coupon mode needs coupons, archived seasons (Mundial 2026) ended before
+    # coupons existed, so there every finished match of the season counts
+    mode = mode or "scope"
+    if mode == "coupon" and season_statuses and all(s == "archived" for s in season_statuses):
+        return "scope"
+    return mode

@@ -44,7 +44,6 @@ from db.queries.coupon import (
     get_member_admin_flag,
     list_coupon_match_checks,
     list_coupons_match_ids,
-    list_hit_candidates,
     list_league_coupon_candidates,
     list_leagues_missing_auto_coupon,
     list_match_checks_for_league,
@@ -55,6 +54,13 @@ from db.queries.coupon import (
     list_user_coupon_leagues,
     replace_coupon_matches,
     update_league_coupon_settings,
+)
+from db.queries.weekly_coupon import (
+    create_global_coupon_if_missing,
+    get_global_coupon,
+    list_global_coupon_candidates,
+    list_global_coupon_matches,
+    list_team_league_seasons,
 )
 from db.queries.errors import (
     AlreadyMember,
@@ -252,7 +258,6 @@ __all__ = [
     "get_member_admin_flag",
     "list_coupon_match_checks",
     "list_coupons_match_ids",
-    "list_hit_candidates",
     "list_league_coupon_candidates",
     "list_leagues_missing_auto_coupon",
     "list_match_checks_for_league",
@@ -263,6 +268,11 @@ __all__ = [
     "list_user_coupon_leagues",
     "replace_coupon_matches",
     "update_league_coupon_settings",
+    "create_global_coupon_if_missing",
+    "get_global_coupon",
+    "list_global_coupon_candidates",
+    "list_global_coupon_matches",
+    "list_team_league_seasons",
     "create_password_reset_token",
     "create_user",
     "delete_league",
