@@ -210,7 +210,6 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
   // joker chip: my joker here, or a free joker and an open match
   const showJoker = Boolean(joker) && (joker.active || (editable && !joker.locked));
   const jokerHere = Boolean(joker?.active);
-  const showMeta = showCompetition || (leagues && leagues.length > 0) || showJoker;
 
   return (
     <div className={`px-3 sm:px-4 py-2.5 ${jokerHere ? 'bg-accent/10 ring-1 ring-inset ring-accent/40' : isLive ? 'bg-live/5' : ''}`}>
@@ -229,12 +228,6 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
               {tbd ? '—' : formatTime(match.kickoff_at)}
             </span>
             )}
-            <MatchContextButton
-              open={contextOpen}
-              onToggle={() => setContextOpen((o) => !o)}
-              controls={contextId}
-              className="!w-4 !h-4 !text-[10px]"
-            />
           </div>
 
           {/* home */}
@@ -254,9 +247,8 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
           <div className="flex items-center justify-center" aria-live="polite">{stateIcon}</div>
         </div>
 
-        {/* second line: what happened with the prediction + tags */}
-        {(showMeta || !editable || state === 'error' || zeroNote) && (
-          <div className="mt-1 pl-[2.5rem] sm:pl-[3.75rem] flex items-center gap-x-2 gap-y-1 flex-wrap text-[11px] leading-4">
+        {/* second line: what happened with the prediction + tags + stats button */}
+        <div className="mt-1 pl-[2.5rem] sm:pl-[3.75rem] flex items-center gap-x-2 gap-y-1 flex-wrap text-[11px] leading-4">
             {state === 'error' && (
               <span className="text-red-400" role="alert">
                 {error} ·{' '}
@@ -298,8 +290,14 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
                 {l.name}
               </span>
             ))}
+            {/* the time column is too narrow for a text button, so it sits here */}
+            <MatchContextButton
+              open={contextOpen}
+              onToggle={() => setContextOpen((o) => !o)}
+              controls={contextId}
+              className="ml-auto"
+            />
           </div>
-        )}
 
         {contextOpen && <MatchContextPanel match={match} id={contextId} className="mt-2" />}
 

@@ -14,8 +14,10 @@ export default function PasswordInput({ id, value, onChange, placeholder, autoCo
         autoComplete={autoComplete}
         className="input-field pr-11"
       />
+      {/* out of the tab order so tab + space after the password hits the submit button */}
       <button
         type="button"
+        tabIndex={-1}
         onClick={() => setShow((s) => !s)}
         aria-label={show ? 'Ukryj hasło' : 'Pokaż hasło'}
         className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-300 transition-colors"

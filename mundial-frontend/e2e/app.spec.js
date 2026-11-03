@@ -184,3 +184,38 @@ test('archived Mundial ranking switches between with and without bonuses', async
   // the table without bonuses comes from ?bonuses=false (bartek leads there)
   await expect(section.getByText('120 + 32')).toHaveCount(0);
 });
+
+test('"Statystyki" opens the match stats panel', async ({ page }) => {
+  await mockApi(page, { loggedIn: true });
+  await page.goto('/matches');
+
+  const toggle = page.getByRole('button', { name: 'Statystyki' }).first();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+  const panel = page.getByRole('region', { name: 'Statystyki meczu' });
+  await expect(panel.getByText('Gospodarze wygrali 4 z 5 ostatnich meczów u siebie')).toBeVisible();
+  await expect(panel.getByRole('group', { name: /gole strzelone \/ mecz: gospodarze 1,9, goście 1,6/ })).toBeVisible();
+  await expect(panel.getByRole('cell', { name: 'Aston Villa' })).toBeVisible();
+
+  // keyboard: enter closes it again
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(panel).toBeHidden();
+});
+
+test('tab from the password and space logs in', async ({ page }) => {
+  const api = await mockApi(page);
+  await page.goto('/login');
+
+  await page.getByLabel('Email').fill('bartek@example.com');
+  await page.getByLabel('Hasło', { exact: true }).fill('tajne-haslo');
+  // next stop after the password is the submit button, not the show-password eye
+  await page.getByLabel('Hasło', { exact: true }).press('Tab');
+  await page.keyboard.press('Space');
+
+  await expect(page).toHaveURL(/\/$/);
+  expect(api.requests.some((r) => r.method === 'POST' && r.path === '/auth/login')).toBe(true);
+});
+
