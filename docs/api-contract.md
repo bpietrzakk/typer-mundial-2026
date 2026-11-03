@@ -66,10 +66,11 @@ Typy meczów `cancelled` / `awarded` nie liczą się nigdzie.
 | GET | `/seasons/{id}` | Szczegóły sezonu. |
 | GET | `/seasons/{id}/rounds` | Rundy sezonu w kolejności `sort_order`, potem `matchday`. |
 | GET | `/seasons/{id}/matches?round_id=` | Mecze sezonu (opcjonalnie jednej rundy), po `kickoff_at`. Lista `Match`. |
-| GET | `/matches/{id}/context` | Kontekst do typowania (z naszych wyników, `domain.match_context`). Dla obu drużyn: miejsce w tabeli sezonu (tylko fazy `regular`/`league_phase`; `rank: null` gdy drużyna ma < 3 mecze, `points: null` gdy nie gra w tabeli), forma z ostatnich 5 zakończonych meczów sezonu (`W`/`R`/`P`, od najnowszego, bez tego meczu), do 3 ostatnich meczów bezpośrednich z całej bazy. Nieznany mecz → 404 „Mecz nie istnieje”. |
+| GET | `/matches/{id}/context` | Statystyki do typowania (przycisk „Statystyki”), liczone z naszych wyników w `domain.match_context` — bez zewnętrznego API. `home`/`away`: miejsce w tabeli sezonu (tylko fazy `regular`/`league_phase`; `rank: null` gdy drużyna ma < 3 mecze, `points: null` gdy nie gra w tabeli), forma z ostatnich 5 zakończonych meczów sezonu (`W`/`R`/`P`, od najnowszego, bez tego meczu). `head_to_head`: do 3 ostatnich meczów bezpośrednich z całej bazy (obie kolejności gospodarz/gość, od najnowszego); `head_to_head_summary`: bilans **wszystkich** meczów bezpośrednich w bazie z punktu widzenia gospodarza tego meczu. `table`: wycinek tabeli sezonu — obie drużyny ± 1 miejsce (z nazwą i herbem); `[]` dla pucharów i gdy w tabeli nikt nie ma jeszcze 3 meczów. `stats.home` / `stats.away`: liczby z zakończonych meczów sezonu (bez tego meczu): bilans, gole, średnie goli na mecz (1 miejsce po przecinku, `null` bez meczów), `btts_pct` (obie strzeliły) i `over25_pct` (3+ gole) w % meczów (`null` bez meczów), czyste konta; `venue` = `home` dla gospodarza, `away` dla gościa, `venue_form` = forma tylko w meczach u siebie / na wyjeździe (max 5). `hint`: jedno najciekawsze zdanie po polsku albo `null` (`domain.match_context.match_hint`: forma u siebie / na wyjeździe, 3 wygrane z rzędu w meczach bezpośrednich, serie, bramkostrzelność obu drużyn; przy remisie ważności wygrywa wcześniejszy fakt). Nieznany mecz → 404 „Mecz nie istnieje”. |
 | GET | `/seasons/{id}/teams` | Drużyny sezonu (`season_teams`), po nazwie. Lista `Team` + `group_name`. |
 | GET | `/seasons/{id}/ranking?bonuses=` | Ranking sezonu (wszyscy użytkownicy z ≥1 typem w sezonie). Dla archiwum Mundialu dolicza stare bonusy (`bonus_predictions`, `group_advance_predictions` z tym `season_id`), żeby sumy były takie jak w starym rankingu. `bonuses` (bool, domyślnie `true` = oficjalny ranking „Z bonusami”); `bonuses=false` = ranking „Bez bonusów”: tylko punkty z meczów, stare bonusy pominięte (gracze tylko z bonusem wypadają z listy). Front pokazuje przełącznik tylko dla sezonu `WC` z `bonus_points > 0`. |
 | GET | `/feed?days=7` | Mecze z obserwowanych rozgrywek (gdy użytkownik nic nie obserwuje — ze wszystkich aktywnych) z oknem: od teraz − 3 h do teraz + `days` dni (1–30, domyślnie 7), plus wszystkie `live`. Lista `Match`. |
+| GET | `/me/upcoming-matches?days=7` | „Najbliższe” na stronie Mecze. Mecze `scheduled`, które się jeszcze nie zaczęły, z oknem: od teraz do teraz + `days` dni (1–30, domyślnie 7; `domain.competitions.upcoming_window`), po `kickoff_at`. Zakres = suma zakresów **wszystkich moich lig** (liga bez wierszy w `private_league_competitions` = wszystkie aktywne rozgrywki, jawny zakres liczy się także dla nieaktywnej rozgrywki). Bez żadnej ligi: reguła feedu — obserwowane rozgrywki, a gdy nic nie obserwuję, wszystkie aktywne. Sezony `archived` nigdy. Lista `Match` (z `can_predict` i moim typem). Mecze z kuponu tygodnia też tu są — front sam je pomija (pokazuje je wyżej, w sekcji „Kupon tygodnia” z `GET /me/coupon`). SQL: `db/queries/competitions.SQL_LIST_UPCOMING_LEAGUE_MATCHES`. |
 | POST | `/predictions` | Bez zmian w body. Zmiana: odrzuca 409 każdy mecz, dla którego `is_prediction_allowed(kickoff_at, now, status)` = false (dziś da się typować mecz przełożony). Odpowiedź dostaje `hit_type`. |
 | GET | `/predictions/mine?season_id=` | Jak dziś + pola `season_id`, `competition_code`, `round_name`, `hit_type`. Bez `season_id` — wszystkie typy. |
 
@@ -89,7 +90,23 @@ Typy meczów `cancelled` / `awarded` nie liczą się nigdzie.
   "home": { "team_id": 1, "rank": 4, "points": 1, "played": 4, "form": ["P", "P", "P", "R"] },
   "away": { "team_id": 2, "rank": 1, "points": 12, "played": 4, "form": ["W", "W", "W", "W"] },
   "head_to_head": [ { "match_id": 990, "kickoff_at": "2026-10-09T15:00:00Z",
-                      "home_team_id": 2, "away_team_id": 1, "home_goals": 1, "away_goals": 0 } ]
+                      "home_team_id": 2, "away_team_id": 1, "home_goals": 1, "away_goals": 0 } ],
+  "head_to_head_summary": { "played": 5, "home_wins": 1, "draws": 1, "away_wins": 3 },  // z perspektywy gospodarza TEGO meczu
+  "table": [                       // obie drużyny ± 1 miejsce, [] dla pucharów / za wcześnie w sezonie
+    { "rank": 3, "team_id": 7, "name": "Aston Villa", "short_name": "AVL", "crest_url": "https://...",
+      "played": 4, "points": 7, "goal_diff": 3 }
+  ],
+  "stats": {
+    "home": { "team_id": 1, "played": 4, "wins": 0, "draws": 1, "losses": 3,
+              "goals_for": 3, "goals_against": 9,
+              "goals_for_avg": 0.8, "goals_against_avg": 2.3,   // null bez meczów
+              "btts_pct": 50, "over25_pct": 75,                   // % meczów, null bez meczów
+              "clean_sheets": 0,
+              "venue": "home",                                    // home = mecze u siebie, away = na wyjeździe
+              "venue_form": ["P", "R"] },                         // forma tylko w meczach z tego venue, max 5
+    "away": { "team_id": 2, "venue": "away", "...": "jak wyżej" }
+  },
+  "hint": "Goście wygrali 4 ostatnie mecze"    // null gdy nic ciekawego
 }
 
 // GET /seasons/{id}/rounds
@@ -173,16 +190,18 @@ Rodzaje przebiegów (każdy zapisuje wiersz w `sync_runs`):
 
 ## Kupon tygodnia
 
-Specyfikacja: [rozwoj/spec-kupon-tygodnia.md](rozwoj/spec-kupon-tygodnia.md). Tydzień = poniedziałek 00:00 – niedziela 23:59 czasu polskiego (`domain.coupon.week_start`). Dobór meczów: `domain.coupon.pick_coupon`, SQL: `db/queries/coupon.py`, sklejanie: `services/coupons.py`.
+Specyfikacja: [rozwoj/spec-kupon-tygodnia.md](rozwoj/spec-kupon-tygodnia.md). Tydzień = poniedziałek 00:00 – niedziela 23:59 czasu polskiego (`domain.coupon.week_start`). Jest **jeden kupon ogólny** tygodnia („hity tygodnia”, migracja 013, `domain/coupon_hits.py`), a kupon ligi to jego kopia (w zakresie ligi), którą organizator może zmienić. Dobór hitów: `domain.coupon_hits.pick_global_coupon`, zapas dla ligi z wąskim zakresem: `domain.coupon.pick_coupon`. SQL: `db/queries/coupon.py` + `db/queries/weekly_coupon.py`, sklejanie: `services/coupons.py`.
 „Organizator” = właściciel ligi albo członek z `is_admin`. Nieznana liga → 404, nie członek → 403, nie organizator → 403.
 
 | Metoda | Ścieżka | Opis |
 |---|---|---|
-| GET | `/leagues/{id}/coupon?week=YYYY-MM-DD` | Członek. `week` = dowolny dzień tygodnia (domyślnie bieżący). Gdy kuponu na **bieżący** tydzień brak, a liga ma `coupon_auto=true`, powstaje w locie (idempotentnie, `UNIQUE (liga, tydzień)`). Tydzień bez meczów = brak kuponu (`coupon_id: null`, `matches: []`) — front pokazuje „przerwa”. Typy członków (`member_predictions`) tylko dla meczów po `kickoff_at` (bez przełożonych). |
-| PUT | `/leagues/{id}/coupon` | Organizator, tylko bieżący tydzień. Body `{"match_ids": [...]}` = pełna nowa lista. 422: rozmiar spoza 5–15 („Kupon musi mieć od 5 do 15 meczów”), nieznany mecz, mecz spoza zakresu ligi, mecz spoza tygodnia. 409: dodanie meczu, który już się zaczął (albo przełożonego), usunięcie meczu, który już się zaczął. Zwraca to co GET (`created_by: "owner"`). |
-| POST | `/leagues/{id}/coupon/regenerate` | Organizator. Automat układa bieżący tydzień od nowa (rozmiar `coupon_size`), rozpoczęte mecze zostają. `created_by: "auto"`. Zwraca to co GET. |
-| GET | `/me/coupon` | Zalogowany. Suma kuponów wszystkich moich lig na bieżący tydzień (brakujące auto-kupony powstają w locie), mecz raz z listą lig. Bez żadnej ligi: „Hity tygodnia” (`source: "hits"`) — `pick_coupon` na obserwowanych rozgrywkach (gdy nic nie obserwuje — wszystkie aktywne), z rozpoczętymi meczami tygodnia, żeby lista nie malała. |
-| PATCH | `/leagues/{id}/settings` | Właściciel. Dochodzą pola `ranking_mode` (`scope`/`coupon`), `coupon_size` (5–15), `coupon_auto`. Zmienia się tylko to, co jest w body (`prize_pool_per_person: null` nadal kasuje pulę). → 204. |
+| GET | `/coupon/global?week=YYYY-MM-DD` | Zalogowany (każdy, także bez ligi). Kupon ogólny tygodnia: `week` = dowolny dzień tygodnia (domyślnie bieżący). Na **bieżący** tydzień powstaje w locie przy pierwszym wywołaniu (idempotentnie, `UNIQUE (week_start)`), inne tygodnie są tylko czytane. Raz zrobiony się nie zmienia (rozpoczęte mecze zostają). Tydzień bez otwartych meczów = brak kuponu (`coupon_id: null`, `matches: []`). Mecze z `can_predict`, moim typem i `is_hit` (`false` = mecz dobrany, bo hitów było mniej niż 6). 422: zły `week`. |
+| GET | `/leagues/{id}/coupon?week=YYYY-MM-DD` | Członek. `week` = dowolny dzień tygodnia (domyślnie bieżący). Gdy kuponu na **bieżący** tydzień brak, a liga ma `coupon_auto=true`, powstaje w locie (idempotentnie, `UNIQUE (liga, tydzień)`) jako kopia kuponu ogólnego: mecze kuponu ogólnego z zakresu ligi (`created_by: "global"`). Gdy z zakresu zostaje mniej niż 5 meczów, dochodzą najlepsze mecze z rozgrywek ligi (`pick_coupon`, do `coupon_size`) i `created_by: "auto"`. Tydzień bez meczów = brak kuponu (`coupon_id: null`, `matches: []`) — front pokazuje „przerwa”. Typy członków (`member_predictions`) tylko dla meczów po `kickoff_at` (bez przełożonych). |
+| PUT | `/leagues/{id}/coupon` | Organizator, tylko bieżący tydzień. Body `{"match_ids": [...]}` = pełna nowa lista. 422: rozmiar spoza 5–15 („Kupon musi mieć od 5 do 15 meczów”), nieznany mecz, mecz spoza zakresu ligi, mecz spoza tygodnia. 409: dodanie meczu, który już się zaczął (albo przełożonego), usunięcie meczu, który już się zaczął. Zwraca to co GET (`created_by: "owner"`). Tak organizator dodaje własne mecze i usuwa niechciane — kupon ogólny się od tego nie zmienia. |
+| POST | `/leagues/{id}/coupon/reset` | Organizator. „Przywróć kupon ogólny”: mecze, które się już zaczęły, zostają; otwarte mecze = kopia kuponu ogólnego jak przy tworzeniu (z zapasem z rozgrywek ligi przy wąskim zakresie). Rozpoczętego meczu kuponu ogólnego, którego nie było na kuponie ligi, nie da się już dodać. `created_by: "global"` (albo `"auto"` z zapasem). Zwraca to co GET. |
+| POST | `/leagues/{id}/coupon/regenerate` | Organizator. Stary automat ligi: układa bieżący tydzień od nowa z rozgrywek ligi (`pick_coupon`, rozmiar `coupon_size`), rozpoczęte mecze zostają. `created_by: "auto"`. Zwraca to co GET. Front już go nie używa (zastąpił go `reset`). |
+| GET | `/me/coupon` | Zalogowany. Suma kuponów wszystkich moich lig na bieżący tydzień (brakujące auto-kupony powstają w locie), mecz raz z listą lig. Bez żadnej ligi: kupon ogólny (`source: "global"`, ten sam co `GET /coupon/global`, powstaje w locie). |
+| PATCH | `/leagues/{id}/settings` | Właściciel. Dochodzą pola `ranking_mode` (`scope`/`coupon`), `coupon_size` (5–15, teraz tylko rozmiar zapasu, gdy z zakresu ligi zostaje mniej niż 5 hitów), `coupon_auto` (czy liga co tydzień dostaje kopię kuponu ogólnego). Zmienia się tylko to, co jest w body (`prize_pool_per_person: null` nadal kasuje pulę). → 204. |
 | POST | `/leagues` | Opcjonalnie `ranking_mode`, `coupon_size`, `competition_ids` (zakres; nieznane id → 422, liga nie powstaje). Bez nich: domyślne z bazy (`scope`, 10). |
 | GET | `/leagues/{id}`, `POST /leagues`, `POST /leagues/join` | Odpowiedź ligi ma pola `ranking_mode`, `coupon_size`, `coupon_auto`. |
 | GET | `/leagues/{id}/ranking` | W trybie `coupon` punkty za mecze liczą się tylko z meczów z kuponów tej ligi (bonusy ligowe bez zmian), a mecz-joker członka liczy się ×2. |
@@ -195,15 +214,25 @@ Specyfikacja: [rozwoj/spec-kupon-tygodnia.md](rozwoj/spec-kupon-tygodnia.md). Ty
 
 **Reakcje pod typem** (migracja 011, `domain/reactions.py`): każdy typ w `member_predictions` ma `reactions` (emoji → liczba, kolejność jak `REACTION_EMOJI`, `{}` bez reakcji) i `my_reaction` (moje emoji albo `null`). Widać je tylko razem z typami, czyli po starcie meczu.
 
-Generowanie w tle: scheduler synchronizacji (`services/sync.run_scheduler`) co tick woła `services.coupons.coupon_tick`, który najwyżej raz na godzinę, od poniedziałku 06:00 czasu PL, tworzy brakujące kupony lig z `coupon_auto=true`.
+Generowanie w tle: scheduler synchronizacji (`services/sync.run_scheduler`) co tick woła `services.coupons.coupon_tick`, który najwyżej raz na godzinę, od poniedziałku 06:00 czasu PL, tworzy najpierw kupon ogólny tygodnia, a potem brakujące kupony lig z `coupon_auto=true` (kopie kuponu ogólnego). Błąd kuponu ogólnego albo jednej ligi nie zatrzymuje reszty.
 
 ```jsonc
-// GET /leagues/{id}/coupon (także odpowiedź PUT i regenerate)
+// GET /coupon/global
+{
+  "week_start": "2026-11-02", "week_end": "2026-11-08",
+  "is_current_week": true,
+  "coupon_id": 3,                // null = brak kuponu w tym tygodniu
+  "typed": 2, "total": 9,
+  "next_deadline": "2026-11-04T20:00:00Z",
+  "matches": [ Match + { "is_hit": true } ]   // false = dobrany do minimum 6
+}
+
+// GET /leagues/{id}/coupon (także odpowiedź PUT, reset i regenerate)
 {
   "league_id": 1, "week_start": "2026-11-02", "week_end": "2026-11-08",
   "is_current_week": true,
   "coupon_id": 7,                // null = brak kuponu w tym tygodniu
-  "created_by": "auto",          // auto | owner | null
+  "created_by": "global",        // global (kopia kuponu ogólnego) | owner (zmieniony przez organizatora) | auto (zapas z rozgrywek ligi) | null
   "ranking_mode": "coupon", "coupon_size": 10, "coupon_auto": true,
   "can_edit": true,              // organizator i bieżący tydzień
   "my_joker_match_id": 1205,     // mój joker tego tygodnia, null bez jokera / w lidze scope
@@ -236,12 +265,12 @@ Generowanie w tle: scheduler synchronizacji (`services/sync.run_scheduler`) co t
 
 // GET /me/coupon
 {
-  "source": "leagues",           // leagues | hits
+  "source": "leagues",           // leagues | global (bez ligi)
   "week_start": "2026-11-02", "week_end": "2026-11-08",
   "typed": 3, "total": 10,
   "next_deadline": "2026-11-04T20:00:00Z",   // najbliższy otwarty mecz bez mojego typu, null gdy brak
   "matches": [ Match + { "leagues": [ { "id": 1, "name": "Biuro",
-                                        "ranking_mode": "coupon", "is_my_joker": false } ] } ]   // [] dla hits
+                                        "ranking_mode": "coupon", "is_my_joker": false } ] } ]   // [] dla global
 }
 
 // PUT /leagues/{id}/coupon/joker
@@ -267,6 +296,6 @@ Front buduje adres w `src/utils/imageProxy.js`: `${VITE_API_URL || '/api'}/img/c
 | Właściciel | Pliki |
 |---|---|
 | A | `services/sync.py`, `domain/sync_plan.py` (+ wykrywanie mistrza), `db/queries/sync.py`, `db/queries/results.py`, `routers/admin_sync.py`, `services/providers/*`, `main.py` (job + rejestracja routerów), migracja `007_*` jeśli potrzebna |
-| B | `routers/competitions.py` (też `/seasons/*`, `/feed`), `db/queries/competitions.py`, `db/queries/ranking.py` (nowe funkcje, stare zostają), `routers/predictions.py`, `db/queries/predictions.py`, `routers/leagues.py` + `db/queries/leagues.py` (zakres i ranking ligi), migracja `008_*` |
+| B | `routers/competitions.py` (też `/seasons/*`, `/feed`, `/me/upcoming-matches`), `db/queries/competitions.py`, `db/queries/ranking.py` (nowe funkcje, stare zostają), `routers/predictions.py`, `db/queries/predictions.py`, `routers/leagues.py` + `db/queries/leagues.py` (zakres i ranking ligi), migracja `008_*` |
 | D | `routers/league_bonus.py`, `db/queries/league_bonus.py`, `domain/league_bonus.py`, migracja `009_*` |
 | wspólne | `schemas/models.py` — każdy dopisuje własną sekcję na końcu pliku (`# --- <obszar> ---`). `main.py` — B i D dodają tylko swoje `include_router`. `db/queries/__init__.py` — nikt nie dotyka; nowe funkcje importujemy z modułu (`from db.queries.sync import ...`). |

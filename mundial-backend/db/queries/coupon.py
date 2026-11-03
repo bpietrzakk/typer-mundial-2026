@@ -61,8 +61,8 @@ SQL_LIST_LEAGUES_MISSING_AUTO_COUPON = """
 # names (derbies) and season / team ids (league table)
 
 _SQL_CANDIDATE_SELECT = """
-    SELECT m.id AS match_id, c.code AS competition_code, r.phase, m.kickoff_at,
-           m.season_id, m.home_team_id, m.away_team_id,
+    SELECT m.id AS match_id, c.code AS competition_code, c.kind AS competition_kind,
+           r.phase, m.kickoff_at, m.season_id, m.home_team_id, m.away_team_id,
            h.name AS home_name, a.name AS away_name
     FROM matches m
     JOIN seasons s ON s.id = m.season_id
@@ -91,23 +91,6 @@ SQL_LIST_LEAGUE_COUPON_CANDIDATES = _SQL_CANDIDATE_SELECT + """
               AND NOT EXISTS (
                   SELECT 1 FROM private_league_competitions plc WHERE plc.private_league_id = %s
               )
-          )
-      )
-    ORDER BY m.kickoff_at ASC, m.id ASC
-"""
-
-# "hits of the week" for a user without leagues: followed competitions (all
-# active ones when nothing is followed). started matches stay in, so the list
-# does not shrink during the week. params: week start, week end, user, user
-SQL_LIST_HIT_CANDIDATES = _SQL_CANDIDATE_SELECT + """
-    WHERE m.kickoff_at >= %s AND m.kickoff_at < %s
-      AND m.status IN ('scheduled', 'live', 'finished')
-      AND s.status <> 'archived'
-      AND (
-          c.id IN (SELECT uc.competition_id FROM user_competitions uc WHERE uc.user_id = %s)
-          OR (
-              c.is_active
-              AND NOT EXISTS (SELECT 1 FROM user_competitions uc WHERE uc.user_id = %s)
           )
       )
     ORDER BY m.kickoff_at ASC, m.id ASC
@@ -452,11 +435,6 @@ def list_league_coupon_candidates(
     return _with_utc_kickoff(rows)
 
 
-def list_hit_candidates(user_id: int, week_from: datetime, week_to: datetime) -> list[dict]:
-    rows = _fetch_all(SQL_LIST_HIT_CANDIDATES, (week_from, week_to, user_id, user_id))
-    return _with_utc_kickoff(rows)
-
-
 def list_season_table_results(season_ids: list[int]) -> dict[int, list[tuple[int, int, int, int]]]:
     # season id -> finished results (home id, away id, home goals, away goals)
     by_season: dict[int, list[tuple[int, int, int, int]]] = {}
@@ -486,14 +464,17 @@ def list_coupon_match_checks(coupon_id: int) -> list[dict]:
     return _with_utc_kickoff(_fetch_all(SQL_LIST_COUPON_MATCH_CHECKS, (coupon_id,)))
 
 
-def create_coupon_if_missing(league_id: int, week: date, match_ids: list[int]) -> bool:
-    # auto coupon: coupon row + its matches in one transaction.
-    # False when the league already has a coupon for that week (nothing written)
+def create_coupon_if_missing(
+    league_id: int, week: date, match_ids: list[int], created_by: str = "auto",
+) -> bool:
+    # auto coupon (copy of the global one = 'global'): coupon row + its matches
+    # in one transaction. False when the league already has a coupon for that
+    # week (nothing written)
     conn = get_conn()
     try:
         with conn:
             with conn.cursor() as cur:
-                cur.execute(SQL_INSERT_COUPON_IF_MISSING, (league_id, week, "auto"))
+                cur.execute(SQL_INSERT_COUPON_IF_MISSING, (league_id, week, created_by))
                 row = cur.fetchone()
                 if row is None:
                     return False

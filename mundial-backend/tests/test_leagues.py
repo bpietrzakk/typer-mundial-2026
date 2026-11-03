@@ -52,3 +52,30 @@ def test_added_scope_cleared_to_all_adds_nothing():
 
 def test_added_scope_drops_duplicates():
     assert added_scope_competitions([1], [2, 2, 1, 3, 3]) == [2, 3]
+
+
+# --- effective ranking mode (archived seasons ignore coupon mode) ---
+
+from domain.leagues import effective_ranking_mode  # noqa: E402
+
+
+def test_coupon_mode_stays_for_active_seasons():
+    assert effective_ranking_mode("coupon", ["active"]) == "coupon"
+
+
+def test_coupon_mode_falls_back_to_scope_for_archived_season():
+    # Mundial 2026 ended before coupons existed, so all its matches count
+    assert effective_ranking_mode("coupon", ["archived"]) == "scope"
+
+
+def test_scope_mode_is_never_changed():
+    assert effective_ranking_mode("scope", ["archived"]) == "scope"
+    assert effective_ranking_mode("scope", ["active"]) == "scope"
+
+
+def test_missing_mode_defaults_to_scope():
+    assert effective_ranking_mode(None, ["active"]) == "scope"
+
+
+def test_coupon_mode_with_no_seasons_stays_coupon():
+    assert effective_ranking_mode("coupon", []) == "coupon"

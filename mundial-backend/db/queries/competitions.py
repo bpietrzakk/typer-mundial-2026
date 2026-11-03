@@ -130,6 +130,47 @@ SQL_LIST_FEED_MATCHES = _SQL_MATCH_SELECT + """
     ORDER BY m.kickoff_at ASC, m.id ASC
 """
 
+# "upcoming in my leagues": scheduled matches that have not kicked off yet, in the
+# scope of every league of the viewer (a league without scope rows = every active
+# competition). a viewer without a league gets the feed rule: followed
+# competitions, or every active one when following nothing. archived seasons never show up
+# params: viewer id, window start, window end, viewer id (5 times)
+SQL_LIST_UPCOMING_LEAGUE_MATCHES = _SQL_MATCH_SELECT + """
+    WHERE m.status = 'scheduled'
+      AND m.kickoff_at > %s AND m.kickoff_at <= %s
+      AND s.status <> 'archived'
+      AND (
+          (
+              c.is_active
+              AND EXISTS (
+                  SELECT 1 FROM private_league_members plm
+                  WHERE plm.user_id = %s
+                    AND NOT EXISTS (
+                        SELECT 1 FROM private_league_competitions plc
+                        WHERE plc.private_league_id = plm.private_league_id
+                    )
+              )
+          )
+          OR c.id IN (
+              SELECT plc.competition_id
+              FROM private_league_members plm
+              JOIN private_league_competitions plc ON plc.private_league_id = plm.private_league_id
+              WHERE plm.user_id = %s
+          )
+          OR (
+              NOT EXISTS (SELECT 1 FROM private_league_members plm WHERE plm.user_id = %s)
+              AND (
+                  c.id IN (SELECT uc.competition_id FROM user_competitions uc WHERE uc.user_id = %s)
+                  OR (
+                      c.is_active
+                      AND NOT EXISTS (SELECT 1 FROM user_competitions uc WHERE uc.user_id = %s)
+                  )
+              )
+          )
+      )
+    ORDER BY m.kickoff_at ASC, m.id ASC
+"""
+
 SQL_LIST_SEASON_TEAMS = """
     SELECT t.id, t.name, t.short_name, t.crest_url, st.group_name
     FROM season_teams st
@@ -317,5 +358,15 @@ def list_feed_matches(user_id: int, window_start: datetime, window_end: datetime
     rows = _fetch_all(
         SQL_LIST_FEED_MATCHES,
         (user_id, window_start, window_end, user_id, user_id),
+    )
+    return [_row_to_competition_match(r) for r in rows]
+
+
+def list_upcoming_league_matches(user_id: int, window_start: datetime, window_end: datetime) -> list[dict]:
+    # not started matches in (window_start, window_end] from the scope of my
+    # leagues (followed competitions when I have no league), nearest first
+    rows = _fetch_all(
+        SQL_LIST_UPCOMING_LEAGUE_MATCHES,
+        (user_id, window_start, window_end, user_id, user_id, user_id, user_id, user_id),
     )
     return [_row_to_competition_match(r) for r in rows]

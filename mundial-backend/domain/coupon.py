@@ -118,6 +118,11 @@ _CLUB_ALIASES = {
     "olympique lyon": "lyon", "lyon": "lyon", "olympique lyonnais": "lyon",
     "nice": "nice", "ogc nice": "nice",
     "monaco": "monaco", "as monaco": "monaco",
+    # big clubs without a derby on the list (domain/coupon_hits.py)
+    "leverkusen": "leverkusen", "bayer leverkusen": "leverkusen", "bayer 04 leverkusen": "leverkusen",
+    "napoli": "napoli", "ssc napoli": "napoli",
+    "benfica": "benfica", "sl benfica": "benfica",
+    "porto": "porto",
 }
 
 _DERBY_PAIRS = {
@@ -152,7 +157,8 @@ _DERBY_PAIRS = {
 _IGNORED_TOKENS = {"fc", "cf", "afc", "ac", "sc"}
 
 
-def _club_key(name: str | None) -> str | None:
+def club_key(name: str | None) -> str | None:
+    # one key per club whatever name variant the provider sends, None = not on our lists
     if not name:
         return None
     words = [w for w in name.casefold().split() if w not in _IGNORED_TOKENS]
@@ -160,7 +166,7 @@ def _club_key(name: str | None) -> str | None:
 
 
 def is_derby(home_name: str | None, away_name: str | None) -> bool:
-    home, away = _club_key(home_name), _club_key(away_name)
+    home, away = club_key(home_name), club_key(away_name)
     if home is None or away is None or home == away:
         return False
     return frozenset((home, away)) in _DERBY_PAIRS

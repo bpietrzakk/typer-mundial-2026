@@ -181,7 +181,7 @@ export default function Dashboard() {
             />
           )}
 
-          {coupon?.source === 'hits' && (
+          {(coupon?.source === 'hits' || coupon?.source === 'global') && (
             <div className="glass-card p-5 border-brand/30 flex items-center justify-between gap-4 flex-wrap">
               <div className="min-w-0">
                 <p className="font-semibold text-gray-100">Załóż ligę i zaproś znajomych</p>

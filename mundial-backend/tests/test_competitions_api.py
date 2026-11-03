@@ -85,6 +85,7 @@ def _round_row(id_, match_count, finished_count, pending_count=None, matchday=No
     ("get", "/seasons/5/teams"),
     ("get", "/seasons/5/ranking"),
     ("get", "/feed"),
+    ("get", "/me/upcoming-matches"),
 ])
 def test_requires_login(method, path):
     assert getattr(client, method)(path).status_code == 401
@@ -488,3 +489,45 @@ def test_feed_days_out_of_range_returns_422(days):
 def test_feed_days_edges_are_allowed(monkeypatch, days):
     monkeypatch.setattr(competitions_module, "list_feed_matches", lambda uid, start, end: [])
     assert client.get(f"/feed?days={days}", cookies=_cookie()).status_code == 200
+
+
+# --- GET /me/upcoming-matches ---
+
+def test_upcoming_matches_window_starts_now(monkeypatch):
+    seen = {}
+
+    def fake_upcoming(uid, start, end):
+        seen.update(uid=uid, start=start, end=end)
+        return [_match(1, kickoff_in=timedelta(hours=2)), _match(2, kickoff_in=timedelta(days=3))]
+
+    monkeypatch.setattr(competitions_module, "list_upcoming_league_matches", fake_upcoming)
+    before = datetime.now(timezone.utc)
+    resp = client.get("/me/upcoming-matches?days=4", cookies=_cookie())
+    after = datetime.now(timezone.utc)
+
+    assert resp.status_code == 200
+    assert seen["uid"] == USER["id"]
+    # no look back, unlike the feed
+    assert before <= seen["start"] <= after
+    assert before + timedelta(days=4) <= seen["end"] <= after + timedelta(days=4)
+    body = resp.json()
+    # same Match shape as the season lists, so the match card works unchanged
+    assert [m["id"] for m in body] == [1, 2]
+    assert [m["can_predict"] for m in body] == [True, True]
+    assert body[0]["home_team"]["name"] == "Arsenal"
+    assert body[0]["round"]["name"] == "Kolejka 9"
+
+
+def test_upcoming_matches_default_is_seven_days(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(
+        competitions_module, "list_upcoming_league_matches",
+        lambda uid, start, end: seen.update(span=end - start) or [],
+    )
+    assert client.get("/me/upcoming-matches", cookies=_cookie()).json() == []
+    assert seen["span"] == timedelta(days=7)
+
+
+@pytest.mark.parametrize("days", ["0", "31", "abc"])
+def test_upcoming_matches_days_out_of_range_returns_422(days):
+    assert client.get(f"/me/upcoming-matches?days={days}", cookies=_cookie()).status_code == 422

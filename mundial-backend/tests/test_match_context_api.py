@@ -59,12 +59,25 @@ def test_context_shape(monkeypatch):
                         ])
     monkeypatch.setattr(matches_module.ctx_q, "list_head_to_head",
                         lambda a, b: seen.update(pair=(a, b)) or [_r(4, 4, 1, 2, 0, 2), _r(2, 2, 2, 1, 1, 1)])
+    monkeypatch.setattr(matches_module.ctx_q, "list_teams_by_ids", lambda ids: seen.update(team_ids=sorted(ids)) or {
+        i: {"id": i, "name": f"Team {i}", "short_name": f"T{i}", "crest_url": None} for i in ids
+    })
     resp = client.get("/matches/50/context", cookies=_cookie())
     assert resp.status_code == 200
     body = resp.json()
-    assert seen == {"season": 5, "pair": (1, 2)}
+    assert seen == {"season": 5, "pair": (1, 2), "team_ids": [1, 2, 3]}
     assert body["match_id"] == 50
     assert body["home"] == {"team_id": 1, "rank": 2, "points": 4, "played": 3, "form": ["P", "R", "W"]}
     assert body["away"] == {"team_id": 2, "rank": 1, "points": 7, "played": 3, "form": ["W", "W", "R"]}
     assert [m["match_id"] for m in body["head_to_head"]] == [4, 2]
     assert body["head_to_head"][0]["kickoff_at"].startswith("2026-10-05")
+
+    # extended part: table snippet with names, season numbers, summary, hint
+    assert [(r["rank"], r["team_id"], r["name"]) for r in body["table"]] == [
+        (1, 2, "Team 2"), (2, 1, "Team 1"), (3, 3, "Team 3"),
+    ]
+    assert body["stats"]["home"]["venue"] == "home"
+    assert body["stats"]["home"]["played"] == 3
+    assert body["stats"]["away"]["goals_for_avg"] == 1.3
+    assert body["head_to_head_summary"] == {"played": 2, "home_wins": 0, "draws": 1, "away_wins": 1}
+    assert "hint" in body

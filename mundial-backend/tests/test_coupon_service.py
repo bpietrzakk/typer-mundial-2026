@@ -37,6 +37,7 @@ def test_tick_waits_for_monday_six_polish_time(calls):
 def test_generate_missing_survives_one_broken_league(monkeypatch):
     leagues = [{"id": 1, "coupon_auto": True}, {"id": 2, "coupon_auto": True}]
     monkeypatch.setattr(coupons.q, "list_leagues_missing_auto_coupon", lambda week: leagues)
+    monkeypatch.setattr(coupons, "ensure_global_coupon", lambda week, now: {"id": 1})
 
     def ensure(league, week, now):
         if league["id"] == 1:
@@ -78,3 +79,42 @@ def test_scheduler_loop_calls_the_coupon_tick_and_survives_it(monkeypatch):
 
     asyncio.run(go())
     assert len(ticks) >= 2
+
+
+def test_generate_missing_makes_the_global_coupon_first_and_survives_it(monkeypatch):
+    order = []
+
+    def broken_global(week, now):
+        order.append("global")
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(coupons, "ensure_global_coupon", broken_global)
+    monkeypatch.setattr(coupons.q, "list_leagues_missing_auto_coupon", lambda week: [{"id": 1}])
+    monkeypatch.setattr(coupons, "ensure_league_coupon", lambda lg, week, now: order.append("league") or {"id": 9})
+    assert coupons.generate_missing_coupons(WED) == 1
+    assert order == ["global", "league"]
+
+
+def _plan_fakes(monkeypatch, global_ids, in_scope, league_pick):
+    monkeypatch.setattr(coupons, "global_coupon_match_ids", lambda week, now: global_ids)
+    monkeypatch.setattr(coupons.q, "list_match_checks_for_league", lambda lid, ids: [
+        {"id": i, "kickoff_at": WED, "status": "scheduled", "in_scope": i in in_scope} for i in ids
+    ])
+    picked = []
+    monkeypatch.setattr(coupons, "league_candidates", lambda *a: picked.append(1) or [])
+    monkeypatch.setattr(coupons, "pick_coupon", lambda cands, size: league_pick[:size])
+    return picked
+
+
+def test_league_plan_copies_the_global_coupon_in_scope(monkeypatch):
+    picked = _plan_fakes(monkeypatch, [1, 2, 3, 4, 5, 6], {1, 2, 3, 4, 5}, [])
+    league = {"id": 1, "coupon_size": 10}
+    assert coupons.league_plan(league, WED.date(), WED) == ([1, 2, 3, 4, 5], "global")
+    assert picked == []   # no need for the league's own candidates
+
+
+def test_league_plan_falls_back_to_the_league_pick(monkeypatch):
+    picked = _plan_fakes(monkeypatch, [1, 2, 3], set(), [7, 8, 9])
+    league = {"id": 1, "coupon_size": 2}
+    assert coupons.league_plan(league, WED.date(), WED) == ([7, 8], "auto")
+    assert picked == [1]
