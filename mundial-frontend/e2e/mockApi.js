@@ -25,6 +25,8 @@ export async function mockApi(page, { loggedIn = false, live = false, mundial = 
     ['GET', /^\/seasons\/5\/matches$/, () => [fx.MATCH]],
     ['GET', /^\/seasons\/5\/ranking$/, () => []],
     ['GET', /^\/feed$/, () => []],
+    ['GET', /^\/matches\/1201\/context$/, () => fx.MATCH_CONTEXT],
+    ['GET', /^\/matches\/1201\/context$/, () => fx.MATCH_CONTEXT],
     ['GET', /^\/me\/coupon$/, () => fx.MY_COUPON],
     ['GET', /^\/predictions\/mine$/, () => fx.MY_PREDICTIONS],
     ['POST', /^\/predictions$/, (body) => ({

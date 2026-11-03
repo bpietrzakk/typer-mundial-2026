@@ -237,3 +237,36 @@ const wcRow = (rank, userId, nick, match, bonus, exact) => ({
 // with bonuses ola wins on her champion pick, without them bartek does
 export const WC_RANKING = [wcRow(1, 3, 'ola', 120, 32, 9), wcRow(2, 1, 'bartek', 135, 0, 12)];
 export const WC_RANKING_NO_BONUSES = [wcRow(1, 1, 'bartek', 135, 0, 12), wcRow(2, 3, 'ola', 120, 0, 9)];
+
+export const MATCH_CONTEXT = {
+  match_id: 1201,
+  home: { team_id: 11, rank: 2, points: 19, played: 9, form: ['W', 'W', 'R', 'W', 'P'] },
+  away: { team_id: 12, rank: 5, points: 15, played: 9, form: ['P', 'W', 'R', 'R', 'W'] },
+  head_to_head: [
+    { match_id: 990, kickoff_at: '2026-03-14T17:30:00Z', home_team_id: 12, away_team_id: 11, home_goals: 1, away_goals: 2 },
+    { match_id: 991, kickoff_at: '2025-11-02T16:30:00Z', home_team_id: 11, away_team_id: 12, home_goals: 1, away_goals: 1 },
+    { match_id: 992, kickoff_at: '2025-04-20T15:00:00Z', home_team_id: 11, away_team_id: 12, home_goals: 3, away_goals: 0 },
+  ],
+  head_to_head_summary: { played: 5, home_wins: 3, draws: 1, away_wins: 1 },
+  table: [
+    { rank: 1, team_id: 30, name: 'Liverpool', short_name: 'LIV', crest_url: null, played: 9, points: 21, goal_diff: 12 },
+    { rank: 2, team_id: 11, name: 'Arsenal', short_name: 'ARS', crest_url: null, played: 9, points: 19, goal_diff: 10 },
+    { rank: 3, team_id: 31, name: 'Man City', short_name: 'MCI', crest_url: null, played: 9, points: 18, goal_diff: 8 },
+    { rank: 4, team_id: 32, name: 'Aston Villa', short_name: 'AVL', crest_url: null, played: 9, points: 16, goal_diff: 3 },
+    { rank: 5, team_id: 12, name: 'Chelsea', short_name: 'CHE', crest_url: null, played: 9, points: 15, goal_diff: 4 },
+    { rank: 6, team_id: 33, name: 'Newcastle', short_name: 'NEW', crest_url: null, played: 9, points: 14, goal_diff: 2 },
+  ],
+  stats: {
+    home: {
+      team_id: 11, played: 9, wins: 6, draws: 1, losses: 2, goals_for: 17, goals_against: 7,
+      goals_for_avg: 1.9, goals_against_avg: 0.8, btts_pct: 44, over25_pct: 56, clean_sheets: 4,
+      venue: 'home', venue_form: ['W', 'W', 'P', 'W', 'W'],
+    },
+    away: {
+      team_id: 12, played: 9, wins: 4, draws: 3, losses: 2, goals_for: 14, goals_against: 10,
+      goals_for_avg: 1.6, goals_against_avg: 1.1, btts_pct: 67, over25_pct: 44, clean_sheets: 2,
+      venue: 'away', venue_form: ['P', 'R', 'W', 'R'],
+    },
+  },
+  hint: 'Gospodarze wygrali 4 z 5 ostatnich meczów u siebie',
+};
