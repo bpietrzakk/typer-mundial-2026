@@ -352,3 +352,45 @@ test('start page puts the nearest coupon match on top and saves a pick from ther
   await coupon.getByLabel('Gole: Everton').fill('1');
   expect((await rowSave).postDataJSON()).toEqual({ match_id: 1202, pred_home: 1, pred_away: 1 });
 });
+
+test('a pick changed in a competition shows up after going back to "Najbliższe"', async ({ page }) => {
+  await mockApi(page, { loggedIn: true });
+  await page.goto('/matches');
+  const nav = page.getByRole('navigation', { name: 'Rozgrywki' });
+  const home = page.getByLabel('Gole gospodarzy', { exact: true });
+  const away = page.getByLabel('Gole gości', { exact: true });
+
+  // 2:1 in "Najbliższe"
+  await home.fill('2');
+  await away.fill('1');
+  await page.getByRole('button', { name: 'Zapisz' }).click();
+  await expect(page.getByRole('button', { name: 'Zapisano' })).toBeVisible();
+
+  // changed to 3:1 in the Premier League schedule
+  await nav.getByRole('button', { name: /Premier League/ }).click();
+  await expect(home).toHaveValue('2');
+  await home.fill('3');
+  await page.getByRole('button', { name: 'Zmień' }).click();
+  await expect(page.getByRole('button', { name: 'Zapisano' })).toBeVisible();
+
+  // back in "Najbliższe" the form shows the newer pick, not the 2:1 from before
+  await nav.getByRole('button', { name: 'Najbliższe' }).click();
+  await expect(home).toHaveValue('3');
+  await expect(page.getByRole('button', { name: 'Zapisano' })).toBeVisible();
+});
+
+test('start hero: a pick refused at kickoff is announced and not sent again', async ({ page }) => {
+  const api = await mockApi(page, { loggedIn: true, nearest: true, locked: true });
+  await page.goto('/');
+  const hero = page.getByRole('region', { name: 'Najbliższy mecz' });
+
+  await hero.getByLabel('Gole: Arsenal').fill('2');
+  await hero.getByLabel('Gole: Chelsea').fill('1');
+
+  // the hero moves on to the next match, the refusal stays visible as a toast
+  await expect(page.getByText('Mecz już się rozpoczął, nie można już typować')).toBeVisible();
+  await expect(hero.getByText('Liverpool')).toBeVisible();
+  await page.waitForTimeout(800);
+  const saves = api.requests.filter((r) => r.method === 'POST' && r.path === '/predictions');
+  expect(saves).toHaveLength(1);
+});

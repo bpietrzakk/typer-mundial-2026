@@ -14,7 +14,7 @@ const SHORT_STATUS = { postponed: 'przeł.', suspended: 'przerw.', cancelled: 'o
 
 // one coupon match in one line: time, home, [h]:[a], away, save state.
 // typing and autosave live in usePredictionAutosave (shared with the start hero).
-// onSaved(matchId, myPrediction), onLocked(matchId) after a 409.
+// onSaved(matchId, myPrediction), onLocked(matchId, message) after a 409.
 // leagues = small league tags, children = extra content under the row.
 // joker = { active, locked, onSet, onClear } in a 'coupon' league, undefined = no joker here
 export default function CouponRow({ match, onSaved, onLocked, leagues, joker, showCompetition = false, children }) {

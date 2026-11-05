@@ -6,10 +6,14 @@ import * as fx from './fixtures.js';
 // mundial = the archived Mundial 2026 is in the competition list (ranking with bonuses)
 // organizer = I run league 1 and changed its coupon (editor + "przywróć kupon ogólny")
 // nearest = a full week for "Najbliższe" on /matches (league coupon + 12 league matches)
+// locked = every POST /predictions answers 409 (the match has just kicked off)
+// saved picks are remembered and come back in later match lists, like the real backend
 export async function mockApi(page, {
-  loggedIn = false, live = false, mundial = false, organizer = false, nearest = false,
+  loggedIn = false, live = false, mundial = false, organizer = false, nearest = false, locked = false,
 } = {}) {
-  const state = { loggedIn, joined: loggedIn, requests: [] };
+  const state = { loggedIn, joined: loggedIn, requests: [], picks: {} };
+  const withPicks = (list) => list.map((m) => (state.picks[m.id] ? { ...m, my_prediction: state.picks[m.id] } : m));
+  const couponWithPicks = (c) => ({ ...c, matches: withPicks(c.matches) });
 
   const routes = [
     ['GET', /^\/auth\/me$/, () => (state.loggedIn ? fx.USER : [401, { detail: 'Nie zalogowano' }])],
@@ -26,18 +30,21 @@ export async function mockApi(page, {
     ['GET', /^\/competitions\/2\/seasons$/, () => [fx.SEASON]],
     ['GET', /^\/seasons\/5$/, () => fx.SEASON],
     ['GET', /^\/seasons\/5\/rounds$/, () => fx.ROUNDS],
-    ['GET', /^\/seasons\/5\/matches$/, () => [fx.MATCH]],
+    ['GET', /^\/seasons\/5\/matches$/, () => withPicks([fx.MATCH])],
     ['GET', /^\/matches\/1201\/context$/, () => fx.MATCH_CONTEXT],
     ['GET', /^\/seasons\/5\/ranking$/, () => []],
     ['GET', /^\/feed$/, () => []],
-    ['GET', /^\/me\/coupon$/, () => (nearest ? fx.MY_COUPON_FULL : fx.MY_COUPON)],
+    ['GET', /^\/me\/coupon$/, () => couponWithPicks(nearest ? fx.MY_COUPON_FULL : fx.MY_COUPON)],
     // default: only the coupon match again, so /matches keeps one prediction form
-    ['GET', /^\/me\/upcoming-matches$/, () => (nearest ? fx.UPCOMING_MATCHES : [fx.MATCH])],
+    ['GET', /^\/me\/upcoming-matches$/, () => withPicks(nearest ? fx.UPCOMING_MATCHES : [fx.MATCH])],
     ['GET', /^\/predictions\/mine$/, () => fx.MY_PREDICTIONS],
     ['GET', /^\/predictions\/user\/3$/, () => fx.OLA_PREDICTIONS],
-    ['POST', /^\/predictions$/, (body) => ({
-      id: 900, ...body, points_awarded: null, hit_type: null,
-    })],
+    ['POST', /^\/predictions$/, (body) => {
+      if (locked) return [409, { detail: 'Mecz już się rozpoczął, nie można już typować' }];
+      const pick = { pred_home: body.pred_home, pred_away: body.pred_away, points_awarded: null, hit_type: null };
+      state.picks[body.match_id] = pick;
+      return { id: 900, ...body, points_awarded: null, hit_type: null };
+    }],
     ['GET', /^\/leagues$/, () => (state.joined ? [{ id: 1, name: 'Biuro', member_count: 2 }] : [])],
     ['GET', /^\/leagues\/preview\/[^/]+$/, () => fx.LEAGUE_PREVIEW],
     ['POST', /^\/leagues\/join$/, () => { state.joined = true; return fx.LEAGUE; }],

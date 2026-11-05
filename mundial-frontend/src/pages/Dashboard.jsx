@@ -65,6 +65,12 @@ export default function Dashboard() {
       matches: c.matches.map((m) => (m.id === matchId ? { ...m, can_predict: false } : m)),
     }));
   }, [mutateCoupon]);
+  // the hero moves on to the next match right away and its error line goes
+  // with the old form, so a refused pick is announced in a toast instead
+  const handleHeroLocked = useCallback((matchId, message) => {
+    handleLocked(matchId);
+    if (message) addToast(message, 'error');
+  }, [handleLocked, addToast]);
 
   // joker of one league: matchId = put / move it there, null = take it back.
   // the start screen only marks it on the league tags of the matches
@@ -199,7 +205,7 @@ export default function Dashboard() {
                 hero={hero}
                 matches={couponMatches}
                 onSaved={handleSaved}
-                onLocked={handleLocked}
+                onLocked={handleHeroLocked}
                 onKickoff={handleKickoff}
                 jokerOf={jokerOf}
                 leaguesOf={leaguesOf}

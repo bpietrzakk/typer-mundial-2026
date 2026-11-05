@@ -12,7 +12,8 @@ const sameAsSaved = (saved, home, away) =>
 // both boxes filled -> save after a short pause.
 // only one side typed -> the other shows a grey "0" hint and the save
 // happens when the player leaves the boxes (then the 0 is taken for real).
-// onSaved(matchId, myPrediction), onLocked(matchId) after a 409.
+// onSaved(matchId, myPrediction), onLocked(matchId, message) after a 409, and
+// when the form goes away at kickoff with a pick that was never saved.
 // handleBlur goes on the element that wraps both boxes
 export default function usePredictionAutosave(match, { onSaved, onLocked } = {}) {
   const pred = match.my_prediction;
@@ -28,9 +29,12 @@ export default function usePredictionAutosave(match, { onSaved, onLocked } = {})
 
   const awayRef = useRef(null);
   const noteTimer = useRef(null);
-  const latest = useRef({ home, away, saved, editable });
+  // values the backend refused, set at once (a 409 can unmount the hero form
+  // in the same render, before failedKey ever reaches latest)
+  const refused = useRef(null);
+  const latest = useRef({ home, away, saved, editable, onLocked });
   useEffect(() => {
-    latest.current = { home, away, saved, editable };
+    latest.current = { home, away, saved, editable, onLocked };
   });
 
   const save = useCallback(async (h, a, { zeroFilled = false } = {}) => {
@@ -45,6 +49,7 @@ export default function usePredictionAutosave(match, { onSaved, onLocked } = {})
         hit_type: res.hit_type ?? null,
       };
       setSaved(next);
+      refused.current = null;
       setFailedKey(null);
       setState('idle');
       if (zeroFilled) {
@@ -55,10 +60,11 @@ export default function usePredictionAutosave(match, { onSaved, onLocked } = {})
       onSaved?.(match.id, next);
     } catch (err) {
       setState('error');
+      refused.current = `${h}:${a}`;
       setFailedKey(`${h}:${a}`);
       setError(errorMessage(err, 'Nie zapisano'));
       // 409 = the match is closed now, the row turns read only
-      if (err.response?.status === 409) onLocked?.(match.id);
+      if (err.response?.status === 409) onLocked?.(match.id, errorMessage(err, 'Typowanie zamknięte'));
     }
   }, [match.id, onSaved, onLocked]);
 
@@ -72,14 +78,19 @@ export default function usePredictionAutosave(match, { onSaved, onLocked } = {})
     return () => clearTimeout(timer);
   }, [editable, home, away, saved, state, failedKey, save]);
 
-  // leaving the page before the pause ends still saves the prediction
+  // leaving the page before the pause ends still saves the prediction.
+  // not when these values were already refused, and not after kickoff:
+  // that save would fail, so the player is told the pick is lost instead
   useEffect(() => () => {
     clearTimeout(noteTimer.current);
-    const { home: h, away: a, saved: s, editable: e } = latest.current;
-    if (e && h !== '' && a !== '' && !sameAsSaved(s, h, a)) {
-      addPrediction(match.id, Number(h), Number(a)).catch(() => {});
+    const { home: h, away: a, saved: s, editable: e, onLocked: lock } = latest.current;
+    if (!e || h === '' || a === '' || sameAsSaved(s, h, a) || refused.current === `${h}:${a}`) return;
+    if (new Date(match.kickoff_at) <= new Date()) {
+      lock?.(match.id, 'Mecz już się zaczął, ostatni typ nie został zapisany');
+      return;
     }
-  }, [match.id]);
+    addPrediction(match.id, Number(h), Number(a)).catch(() => {});
+  }, [match.id, match.kickoff_at]);
 
   const changeHome = (value) => {
     setHome(value);

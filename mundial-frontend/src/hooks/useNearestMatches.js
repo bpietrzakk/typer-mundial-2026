@@ -8,13 +8,20 @@ import useLivePolling from './useLivePolling';
 // "Najbliższe" on the matches page: my coupon of the week + other upcoming
 // matches from my leagues (next 7 days). enabled=false stays idle
 const UPCOMING_DAYS = 7;
-const fetchUpcoming = () => getMyUpcomingMatches(UPCOMING_DAYS);
 
 const byKickoff = (a, b) => new Date(a.kickoff_at) - new Date(b.kickoff_at);
 
 export default function useNearestMatches(enabled) {
-  const couponQ = useAsync(enabled ? getMyCoupon : null);
-  const upcomingQ = useAsync(enabled ? fetchUpcoming : null);
+  // new fetchers every time the view opens: useAsync would hand back the old
+  // result of the same fetcher, and the forms read a saved pick only once,
+  // so a pick changed in a competition meanwhile has to be loaded again
+  const fetchCoupon = useMemo(() => (enabled ? () => getMyCoupon() : null), [enabled]);
+  const fetchUpcoming = useMemo(
+    () => (enabled ? () => getMyUpcomingMatches(UPCOMING_DAYS) : null),
+    [enabled],
+  );
+  const couponQ = useAsync(fetchCoupon);
+  const upcomingQ = useAsync(fetchUpcoming);
 
   const coupon = couponQ.data;
   const couponMatches = useMemo(() => coupon?.matches ?? [], [coupon]);
