@@ -8,6 +8,23 @@ Krótka lista otwartych rzeczy. Historia testów i to, co już zrobione, jest w
 - [ ] **Sentry:** darmowe konto, dwa projekty (FastAPI i React), oba DSN do zmiennych na
   Renderze i Vercelu. Potem podpięcie SDK w kodzie (wyłączone, gdy DSN pusty).
 
+## Na później (decyzje z 10.11.2026)
+
+- [ ] **Domena `czutka.uk` w Resend** (SPF/DKIM w Cloudflare), potem `EMAIL_FROM="czutka <hej@czutka.uk>"`.
+  Bez tego maile (reset hasła, weryfikacja) docierają tylko do właściciela konta Resend.
+  Nie pilne, dopóki nikt nie zapomina hasła.
+- [ ] **Nocny backup bazy**: GitHub Actions → `pg_dump -Fc` → szyfrowanie → Cloudflare R2 (10 GB za darmo),
+  raz w miesiącu test odtworzenia na branchu Neona. Wymaga konta R2 i sekretów w GitHubie.
+- [ ] **Docker bez roota i CSP.**
+  - Docker bez roota: kontener backendu działa dziś jako `root`. Gdyby ktoś przejął aplikację,
+    miałby w kontenerze pełne uprawnienia. Poprawka: osobny użytkownik w `Dockerfile` (`USER app`),
+    przypięta wersja obrazu `uv`, usunięty nieużywany `postgresql-client`.
+  - CSP (Content-Security-Policy): nagłówek, który mówi przeglądarce, skąd strona może ładować
+    skrypty, style i obrazki. Chroni przed wstrzyknięciem cudzego skryptu (XSS). Trzeba dobrać
+    listę źródeł (Google Fonts, herby przez `/img/crest`), inaczej coś przestanie się ładować.
+- Odrzucone 10.11: przypomnienia i podsumowania mailem (na razie nie), usunięcie BTTS / over 2,5
+  z panelu statystyk (zostają).
+
 ## Pomysły
 
 - **Karta meczu jako fiszka.** Przód zostaje jak teraz (drużyny, godzina, pola wyniku).
@@ -32,7 +49,7 @@ Krótka lista otwartych rzeczy. Historia testów i to, co już zrobione, jest w
 4. **Paczka frontu ponad 500 kB:** podział na chunki (lazy routes).
 5. **Opisy trafień w meczu Holandia–Maroko** (Mundial, 1/16): 3 typy mają opis niepasujący do
    punktów, bo wynik zmienił się po rozliczeniu. Punkty zostają, poprawić tylko `hit_type`.
-6. **Mecz nie może wrócić do typowania po tym, jak typy było widać.** Okienko typów gracza
+6. ~~**Mecz nie może wrócić do typowania po tym, jak typy było widać.**~~ Zrobione 06.11 (migracja 014 `locked_at`). Okienko typów gracza
    (i kupon ligi) pokazuje typy od statusu `live`. Jeśli przerwany mecz dostanie od dostawcy nowy
    termin pod tym samym id, sync zmienia go z `live` na `scheduled` i typowanie znów się otwiera,
    a wszyscy widzieli już cudze typy. Poprawka: nowa kolumna `first_live_at` (migracja), ustawiana

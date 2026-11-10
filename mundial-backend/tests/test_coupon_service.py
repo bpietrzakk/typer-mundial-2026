@@ -95,10 +95,12 @@ def test_generate_missing_makes_the_global_coupon_first_and_survives_it(monkeypa
     assert order == ["global", "league"]
 
 
-def _plan_fakes(monkeypatch, global_ids, in_scope, league_pick):
+def _plan_fakes(monkeypatch, global_ids, in_scope, league_pick, finished=()):
     monkeypatch.setattr(coupons, "global_coupon_match_ids", lambda week, now: global_ids)
     monkeypatch.setattr(coupons.q, "list_match_checks_for_league", lambda lid, ids: [
-        {"id": i, "kickoff_at": WED, "status": "scheduled", "in_scope": i in in_scope} for i in ids
+        {"id": i, "kickoff_at": WED + timedelta(days=-2 if i in finished else 1),
+         "status": "finished" if i in finished else "scheduled", "in_scope": i in in_scope}
+        for i in ids
     ])
     picked = []
     monkeypatch.setattr(coupons, "league_candidates", lambda *a: picked.append(1) or [])
@@ -111,6 +113,13 @@ def test_league_plan_copies_the_global_coupon_in_scope(monkeypatch):
     league = {"id": 1, "coupon_size": 10}
     assert coupons.league_plan(league, WED.date(), WED) == ([1, 2, 3, 4, 5], "global")
     assert picked == []   # no need for the league's own candidates
+
+
+def test_mid_week_league_copy_skips_played_matches_and_keeps_its_size(monkeypatch):
+    # 12 global matches, 3 already played: the league gets 9 open ones capped at its size 8
+    _plan_fakes(monkeypatch, list(range(1, 13)), set(range(1, 13)), [], finished={1, 2, 3})
+    league = {"id": 1, "coupon_size": 8}
+    assert coupons.league_plan(league, WED.date(), WED) == (list(range(4, 12)), "global")
 
 
 def test_league_plan_falls_back_to_the_league_pick(monkeypatch):

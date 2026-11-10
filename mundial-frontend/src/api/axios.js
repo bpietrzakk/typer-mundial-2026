@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { loginUrlWithNext } from '../utils/nextPath';
 
 // single axios instance for the whole app
 // withCredentials sends the httpOnly auth cookie automatically
@@ -23,8 +24,10 @@ api.interceptors.response.use(
     // public calls made on guest pages (invite preview) handle errors themselves
     const skipRedirect = Boolean(error.config?.skipAuthRedirect);
 
-    if (error.response?.status === 401 && !isAuthCall && !skipRedirect) {
-      window.location.href = '/login';
+    // keep the page in ?next= so login brings the player back to it
+    const onLogin = window.location.pathname.startsWith('/login');
+    if (error.response?.status === 401 && !isAuthCall && !skipRedirect && !onLogin) {
+      window.location.href = loginUrlWithNext();
     }
 
     return Promise.reject(error);

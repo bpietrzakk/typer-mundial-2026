@@ -1,26 +1,48 @@
-import { useEffect, useState } from 'react';
+import useMinuteClock from '../hooks/useMinuteClock';
+import { couponProgress, formatDeadline } from '../utils/coupon';
 import { formatTimeLeft } from '../utils/format';
 
-// "███████░░░ 7 z 10" + "najbliższy zamyka się za 2 h 15 min"
-export default function CouponProgress({ typed, total, nextDeadline }) {
-  const [now, setNow] = useState(() => Date.now());
-
-  // the countdown ticks once a minute
-  useEffect(() => {
-    if (!nextDeadline) return undefined;
-    const id = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(id);
-  }, [nextDeadline]);
+// "███████░░░ 7 z 10" + what is left: "do wytypowania: 3 · najbliższy zamyka się za 2 h 15 min"
+// (the nearest open match, typed or not — a typed pick can still change until then),
+// or "komplet na teraz" when every open match is typed (still editable)
+export default function CouponProgress({ matches }) {
+  // the countdown ticks once a minute while something is still open
+  const now = useMinuteClock(matches.some((m) => m.can_predict));
+  const { typed, total, toType, missed, nextOpen } = couponProgress(matches, now);
 
   const pct = total > 0 ? Math.round((typed / total) * 100) : 0;
   const done = total > 0 && typed >= total;
-  const left = nextDeadline ? new Date(nextDeadline).getTime() - now : null;
+
+  let text;
+  if (nextOpen && toType > 0) {
+    text = (
+      <>
+        do wytypowania: <span className="text-gray-200 font-semibold tabular-nums">{toType}</span>
+        <span aria-hidden="true"> · </span>
+        najbliższy zamyka się za{' '}
+        <span className="text-gray-200 font-semibold">{formatTimeLeft(new Date(nextOpen).getTime() - now)}</span>
+      </>
+    );
+  } else if (nextOpen) {
+    // all open matches typed — picks can still change until each kickoff
+    text = (
+      <>
+        {done ? 'Komplet' : 'Komplet na teraz'} — możesz zmieniać do gwizdka, najbliższy mecz{' '}
+        <span className="text-gray-200 font-semibold">{formatDeadline(nextOpen)}</span>
+        {missed > 0 && <span className="text-gray-500"> · bez typu: {missed}</span>}
+      </>
+    );
+  } else if (done) {
+    text = 'Komplet — wszystkie mecze wytypowane';
+  } else {
+    text = 'w tym tygodniu nie ma już otwartych meczów';
+  }
 
   return (
     <div>
       <div className="flex items-center gap-3">
         <div
-          className="flex-1 h-2.5 rounded-full bg-surface-600/60 overflow-hidden"
+          className="flex-1 h-2 rounded-sm bg-surface-600/70 overflow-hidden"
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={total}
@@ -28,21 +50,15 @@ export default function CouponProgress({ typed, total, nextDeadline }) {
           aria-label="Wytypowane mecze kuponu"
         >
           <div
-            className={`h-full rounded-full transition-all duration-500 ${done ? 'bg-emerald-400' : 'bg-gradient-to-r from-brand to-brand/70'}`}
+            className={`h-full rounded-sm transition-all duration-500 ${done ? 'bg-brand' : 'bg-brand/80'}`}
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className={`text-sm font-bold tabular-nums whitespace-nowrap ${done ? 'text-emerald-300' : 'text-gray-200'}`}>
+        <span className={`text-sm font-bold tabular-nums whitespace-nowrap ${done ? 'text-brand' : 'text-gray-200'}`}>
           {typed} z {total}
         </span>
       </div>
-      <p className="text-xs text-gray-400 mt-1.5">
-        {done
-          ? 'Komplet — wszystkie mecze wytypowane'
-          : left != null && left > 0
-            ? <>najbliższy zamyka się za <span className="text-gray-200 font-semibold">{formatTimeLeft(left)}</span></>
-            : nextDeadline ? 'zamyka się za chwilę' : 'w tym tygodniu nie ma już otwartych meczów'}
-      </p>
+      <p className="text-xs text-gray-400 mt-1.5">{text}</p>
     </div>
   );
 }

@@ -17,7 +17,8 @@ import SkeletonCard from './SkeletonCard';
 import SkeletonLine from './SkeletonLine';
 import UserPredictionsModal from './UserPredictionsModal';
 
-// private league page: weekly coupon first, then ranking, bonus questions and settings.
+// private league page: weekly coupon first, then one ranking block (week | season),
+// bonus questions and settings.
 // router state { created } / { joined } comes from the create form / invite link
 export default function LeagueDetail({ leagueId }) {
   const { user } = useAuth();
@@ -30,6 +31,8 @@ export default function LeagueDetail({ leagueId }) {
   const [error, setError] = useState(null); // { message, missing } — missing = unknown league or not a member
   const [reloadKey, setReloadKey] = useState(0);
   const [selectedUser, setSelectedUser] = useState(null);
+  // the week shown in the coupon section, for the "Tydzień" view of the ranking
+  const [weekCoupon, setWeekCoupon] = useState({ data: null, loading: true });
 
   useEffect(() => {
     let cancelled = false;
@@ -113,14 +116,14 @@ export default function LeagueDetail({ leagueId }) {
   // a fresh league needs friends first
   const showShare = isOwner && !shareDismissed && (justCreated || memberCount <= 1);
   // new coupon settings -> the coupon section loads again
-  const couponKey = `${league.ranking_mode}|${league.coupon_size}|${league.coupon_auto}`;
+  const couponKey = `${league.coupon_size}|${league.coupon_auto}`;
 
   return (
     <div className="page-container">
       <Link
         to="/leagues"
         aria-label="Wróć do lig"
-        className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-300 transition-colors mb-4 -ml-0.5"
+        className="inline-flex items-center gap-1.5 min-h-[40px] pr-2 text-sm text-gray-400 hover:text-gray-300 transition-colors mb-2 -mt-2 -ml-0.5"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
@@ -137,13 +140,15 @@ export default function LeagueDetail({ leagueId }) {
         scope={scope}
         competitions={competitions}
         welcome={justJoined}
+        onCoupon={setWeekCoupon}
       />
 
       <LeagueStandings
         leagueId={leagueId}
+        leagueName={league.name}
         scope={scope}
         competitions={competitions}
-        rankingMode={league.ranking_mode}
+        week={weekCoupon}
         onSelectUser={setSelectedUser}
       />
 
@@ -197,6 +202,7 @@ export default function LeagueDetail({ leagueId }) {
           userId={selectedUser.user_id}
           nick={selectedUser.nick}
           league={{ id: leagueId, seasonId: selectedUser.seasonId, bonuses: selectedUser.bonuses }}
+          livePoints={selectedUser.live_points ?? 0}
           onClose={() => setSelectedUser(null)}
         />
       )}

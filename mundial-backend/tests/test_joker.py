@@ -128,3 +128,17 @@ def test_league_points_of_a_live_match_stay_empty():
 def test_league_points_keep_the_other_fields():
     rows = with_league_points([{**_pick(2, False), "nick": "ala"}], multiplier=2)
     assert rows[0]["nick"] == "ala" and rows[0]["points_awarded"] == 2
+
+
+REOPENED = MatchCheck(kickoff_at=NOW + timedelta(days=3), status="scheduled", locked_at=NOW - timedelta(days=1))
+
+
+def test_joker_cannot_go_on_a_reopened_match():
+    # suspended at 2:0, played on next week: everybody already knows a lot
+    assert check_joker_set("coupon", {1: LATER, 9: REOPENED}, None, 9, NOW) == "started"
+
+
+def test_joker_on_a_reopened_match_cannot_be_moved_or_cleared():
+    coupon = {1: LATER, 9: REOPENED}
+    assert check_joker_set("coupon", coupon, 9, 1, NOW) == "locked"
+    assert check_joker_clear("coupon", coupon, 9, NOW) == "locked"

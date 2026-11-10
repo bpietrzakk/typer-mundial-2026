@@ -3,8 +3,9 @@ import { formatDayLong, groupMatchesByDay, relativeDayLabel } from '../utils/mat
 
 // coupon matches grouped by day, one compact row per match.
 // leaguesOf(match) -> league tags, renderExtra(match) -> content under the row,
-// jokerOf(match) -> joker props of the row (undefined = no joker button)
-export default function CouponDayList({ matches, onSaved, onLocked, showCompetition = true, leaguesOf, jokerOf, renderExtra }) {
+// jokerOf(match) -> joker props of the row (undefined = no joker button),
+// onEditing(matchId, bool) -> a row is being typed (see CouponRow)
+export default function CouponDayList({ matches, onSaved, onLocked, onEditing, showCompetition = true, leaguesOf, jokerOf, renderExtra }) {
   const groups = groupMatchesByDay(matches);
 
   return (
@@ -17,13 +18,14 @@ export default function CouponDayList({ matches, onSaved, onLocked, showCompetit
               {relative && <span className="text-brand">{relative}</span>}
               <span className="text-gray-500">{formatDayLong(group.iso)}</span>
             </h3>
-            <div className="divide-y divide-surface-500/10">
+            <div className="divide-y divide-surface-500/25">
               {group.matches.map((m) => (
                 <CouponRow
                   key={m.id}
                   match={m}
                   onSaved={onSaved}
                   onLocked={onLocked}
+                  onEditing={onEditing}
                   showCompetition={showCompetition}
                   leagues={leaguesOf?.(m)}
                   joker={jokerOf?.(m)}

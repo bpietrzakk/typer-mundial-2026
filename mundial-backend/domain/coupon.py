@@ -329,11 +329,13 @@ class MatchCheck:
     status: str
     in_scope: bool = True              # competition is in the league scope
     season_status: str | None = None
+    locked_at: datetime | None = None  # set once it was played, see domain/prediction_lock.py
 
 
-def has_started(status: str, kickoff_at: datetime, now: datetime) -> bool:
+def has_started(status: str, kickoff_at: datetime, now: datetime, locked_at: datetime | None = None) -> bool:
     # postponed / cancelled matches were never played, they can be dropped
-    if status in _PLAYED_STATUSES:
+    # a locked match counts as started even when it was moved to a new date
+    if status in _PLAYED_STATUSES or locked_at is not None:
         return True
     return status == "scheduled" and as_utc(kickoff_at) <= as_utc(now)
 
@@ -364,13 +366,13 @@ def check_coupon_edit(
     if any(not start <= as_utc(requested[i].kickoff_at) < end for i in added):
         return "out_of_week"
     if any(
-        not is_open_for_predictions(m.status, m.kickoff_at, now, season_status=m.season_status)
+        not is_open_for_predictions(m.status, m.kickoff_at, now, season_status=m.season_status, locked_at=m.locked_at)
         for m in (requested[i] for i in added)
     ):
         return "started_add"
 
     removed = [i for i in current if i not in wanted]
-    if any(has_started(current[i].status, current[i].kickoff_at, now) for i in removed):
+    if any(has_started(current[i].status, current[i].kickoff_at, now, current[i].locked_at) for i in removed):
         return "started_remove"
     return None
 
@@ -383,6 +385,6 @@ def regenerated_coupon(
     max_per_competition: int = DEFAULT_MAX_PER_COMPETITION,
 ) -> list[int]:
     # started matches stay, the rest is picked again by the automat
-    kept = [i for i, m in current.items() if has_started(m.status, m.kickoff_at, now)]
+    kept = [i for i, m in current.items() if has_started(m.status, m.kickoff_at, now, m.locked_at)]
     fresh = [c for c in candidates if c.match_id not in kept]
     return kept + pick_coupon(fresh, size - len(kept), max_per_competition)

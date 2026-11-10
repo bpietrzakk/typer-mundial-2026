@@ -14,6 +14,7 @@ SQL_LIST_GLOBAL_COUPON_CANDIDATES = _SQL_CANDIDATE_SELECT + """
     WHERE m.kickoff_at >= %s AND m.kickoff_at < %s
       AND m.kickoff_at > %s
       AND m.status = 'scheduled'
+      AND m.locked_at IS NULL
       AND s.status <> 'archived'
       AND c.is_active
     ORDER BY m.kickoff_at ASC, m.id ASC

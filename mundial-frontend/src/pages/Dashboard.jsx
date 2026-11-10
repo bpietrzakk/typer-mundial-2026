@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
@@ -10,6 +10,7 @@ import ErrorState from '../components/ErrorState';
 import MatchCard from '../components/MatchCard';
 import MyCouponCard from '../components/MyCouponCard';
 import MyLeaguesCard from '../components/MyLeaguesCard';
+import NextMatchHero from '../components/NextMatchHero';
 import PointsExplain from '../components/PointsExplain';
 import SectionCard from '../components/SectionCard';
 import SkeletonCard from '../components/SkeletonCard';
@@ -20,9 +21,9 @@ import useLivePolling from '../hooks/useLivePolling';
 import useCompetitions from '../hooks/useCompetitions';
 import useMyLeagues from '../hooks/useMyLeagues';
 import useMySeasonStandings from '../hooks/useMySeasonStandings';
-import { isJokerLocked } from '../utils/coupon';
+import { holdHero, isJokerLocked, isUnderway, pickHeroMatch } from '../utils/coupon';
 import { settledHit } from '../utils/scoring';
-import { VOID_STATUSES, errorMessage, formatDayShort, isArchiveCompetition } from '../utils/matchUi';
+import { VOID_STATUSES, errorMessage, formatDayShort, groupCompetitions } from '../utils/matchUi';
 
 // live matches only — the coupon replaced the long "upcoming" list
 const fetchFeed = () => getFeed(1);
@@ -42,11 +43,15 @@ export default function Dashboard() {
   const leaguesQ = useMyLeagues({ enabled: !coreLoading });
 
   const competitions = useMemo(() => compsQ.data ?? [], [compsQ.data]);
-  const followed = competitions.filter((c) => c.is_followed && !isArchiveCompetition(c));
+  // competitions of my leagues (every active one without a league)
+  const { mine } = groupCompetitions(competitions);
 
-  // my standing in the current season of each followed competition
-  const seasonKey = followed
-    .filter((c) => c.current_season)
+  // my standing in the current season of my competitions — only the seasons I
+  // typed in (my picks carry season_id), so a league counting every competition
+  // does not fire one ranking request per competition on every visit
+  const typedSeasons = new Set((predsQ.data ?? []).map((p) => p.season_id));
+  const seasonKey = mine
+    .filter((c) => c.current_season && typedSeasons.has(c.current_season.id))
     .map((c) => c.current_season.id)
     .join(',');
   const standingsQ = useMySeasonStandings(seasonKey, user?.id);
@@ -64,6 +69,19 @@ export default function Dashboard() {
       matches: c.matches.map((m) => (m.id === matchId ? { ...m, can_predict: false } : m)),
     }));
   }, [mutateCoupon]);
+  // the hero moves on to the next match right away and its error line goes
+  // with the old form, so a refused / lost pick is announced in a toast instead.
+  // the same for coupon rows: a row whose match kicks off may become the hero
+  const handleHeroLocked = useCallback((matchId, message) => {
+    handleLocked(matchId);
+    if (message) addToast(message, 'error');
+  }, [handleLocked, addToast]);
+
+  // the coupon row being typed right now (focus or unsaved input), see holdHero
+  const [editingId, setEditingId] = useState(null);
+  const handleEditing = useCallback((matchId, editing) => {
+    setEditingId((cur) => (editing ? matchId : (cur === matchId ? null : cur)));
+  }, []);
 
   // joker of one league: matchId = put / move it there, null = take it back.
   // the start screen only marks it on the league tags of the matches
@@ -94,7 +112,8 @@ export default function Dashboard() {
   const couponIds = new Set((coupon?.matches ?? []).map((m) => m.id));
   // live matches outside the coupon (coupon rows show their own live score)
   const live = (feedQ.data ?? []).filter((m) => m.status === 'live' && !couponIds.has(m.id));
-  const anyLive = live.length > 0 || (coupon?.matches ?? []).some((m) => m.status === 'live');
+  // underway = kicked off, maybe not marked live yet: polling brings the real status
+  const anyLive = live.length > 0 || (coupon?.matches ?? []).some((m) => isUnderway(m));
 
   // live scores — silent refresh while a match is in play
   const refreshCoupon = couponQ.refresh;
@@ -102,15 +121,22 @@ export default function Dashboard() {
   const refreshLive = useCallback(() => { refreshCoupon(); refreshFeed(); }, [refreshCoupon, refreshFeed]);
   useLivePolling(anyLive, refreshLive);
 
+  // the hero match kicked off while the page was open: close it here at once,
+  // then ask the backend (the hero moves on to the next open match)
+  const handleKickoff = useCallback((matchId) => {
+    handleLocked(matchId);
+    refreshCoupon();
+  }, [handleLocked, refreshCoupon]);
+
   // league tags only make sense with more than one league
   const leagueNames = new Set((coupon?.matches ?? []).flatMap((m) => m.leagues.map((l) => l.id)));
   const showLeagues = (leaguesQ.data?.total ?? leagueNames.size) > 1;
 
   // joker button only when the match is on the coupon of exactly one league
-  // and that league plays for coupon points (otherwise: which league?)
+  // (otherwise: which league?). every league has the joker
   const couponMatches = coupon?.matches ?? [];
   const jokerOf = (m) => {
-    if (m.leagues.length !== 1 || m.leagues[0].ranking_mode !== 'coupon') return undefined;
+    if (m.leagues.length !== 1) return undefined;
     const leagueId = m.leagues[0].id;
     const jokerMatch = couponMatches.find((x) => x.leagues.some((l) => l.id === leagueId && l.is_my_joker));
     return {
@@ -120,11 +146,19 @@ export default function Dashboard() {
       onClear: () => changeJoker(leagueId, null),
     };
   };
-  const anyJoker = couponMatches.some((m) => m.leagues.some((l) => l.ranking_mode === 'coupon'));
+  const anyJoker = couponMatches.some((m) => m.leagues.length > 0);
+  const leaguesOf = showLeagues ? (m) => m.leagues : undefined;
+
+  // live match (or the nearest open one) on top, the list below skips only that one.
+  // while a coupon row is typed the hero does not jump onto it (holdHero)
+  const [shownHero, setShownHero] = useState(null); // { kind, id } on screen
+  const hero = holdHero(pickHeroMatch(couponMatches), shownHero, editingId, couponMatches);
+  const heroId = hero.match?.id ?? null;
+  if (shownHero?.kind !== hero.kind || shownHero?.id !== heroId) setShownHero({ kind: hero.kind, id: heroId });
 
   const standings = standingsQ.data ?? [];
   const codeBySeason = Object.fromEntries(
-    followed.filter((c) => c.current_season).map((c) => [c.current_season.id, c]),
+    mine.filter((c) => c.current_season).map((c) => [c.current_season.id, c]),
   );
 
   const recent = (predsQ.data ?? [])
@@ -140,15 +174,26 @@ export default function Dashboard() {
       <div className="page-container lg:max-w-6xl">
         <SkeletonLine width="w-32" height="h-3.5" className="mb-4" />
         <div className={gridCls}>
-          <SkeletonCard label="Ładuję kupon">
-            <div className="px-4 sm:px-5 py-3 border-b border-surface-500/20 space-y-2" aria-hidden="true">
-              <SkeletonLine height="h-2" className="!rounded-full" />
-              <SkeletonLine width="w-40" height="h-2.5" />
+          <div className="space-y-5 min-w-0">
+            <div className="panel p-5 space-y-4" role="status" aria-busy="true" aria-label="Ładuję najbliższy mecz">
+              <SkeletonLine width="w-28" height="h-2.5" />
+              <div className="flex items-center justify-between gap-4" aria-hidden="true">
+                <div className="skeleton w-12 h-12 !rounded-full" />
+                <div className="skeleton w-36 h-14" />
+                <div className="skeleton w-12 h-12 !rounded-full" />
+              </div>
+              <SkeletonLine width="w-48" height="h-3" />
             </div>
-            <div className="divide-y divide-surface-500/10">
-              {[...Array(5)].map((_, i) => <SkeletonRow key={i} variant="match" />)}
-            </div>
-          </SkeletonCard>
+            <SkeletonCard label="Ładuję kupon">
+              <div className="px-4 sm:px-5 py-3 border-b border-surface-500/35 space-y-2" aria-hidden="true">
+                <SkeletonLine height="h-2" className="!rounded-full" />
+                <SkeletonLine width="w-40" height="h-2.5" />
+              </div>
+              <div className="divide-y divide-surface-500/25">
+                {[...Array(4)].map((_, i) => <SkeletonRow key={i} variant="match" />)}
+              </div>
+            </SkeletonCard>
+          </div>
           <div className="space-y-5">
             <SkeletonCard rows={2} label="Ładuję ligi" />
             <SkeletonCard rows={3} label="Ładuję wyniki" />
@@ -166,22 +211,38 @@ export default function Dashboard() {
 
       <div className={gridCls}>
 
-        {/* coupon + live */}
+        {/* nearest match + the rest of the coupon + live */}
         <div className="min-w-0 space-y-5">
           {couponQ.error || !coupon ? (
             <ErrorState text="Nie udało się załadować kuponu" onRetry={couponQ.reload} />
           ) : (
-            <MyCouponCard
-              coupon={coupon}
-              showLeagues={showLeagues}
-              onSaved={handleSaved}
-              onLocked={handleLocked}
-              jokerOf={jokerOf}
-              showJokerRule={anyJoker}
-            />
+            <>
+              <NextMatchHero
+                hero={hero}
+                matches={couponMatches}
+                onSaved={handleSaved}
+                onLocked={handleHeroLocked}
+                onKickoff={handleKickoff}
+                jokerOf={jokerOf}
+                leaguesOf={leaguesOf}
+              />
+              {/* an empty week already says so in the hero */}
+              {hero.kind !== 'empty' && (
+                <MyCouponCard
+                  coupon={coupon}
+                  showLeagues={showLeagues}
+                  onSaved={handleSaved}
+                  onLocked={handleHeroLocked}
+                  onEditing={handleEditing}
+                  jokerOf={jokerOf}
+                  showJokerRule={anyJoker}
+                  hideMatchId={hero.match?.id ?? null}
+                />
+              )}
+            </>
           )}
 
-          {(coupon?.source === 'hits' || coupon?.source === 'global') && (
+          {coupon?.source === 'global' && (
             <div className="glass-card p-5 border-brand/30 flex items-center justify-between gap-4 flex-wrap">
               <div className="min-w-0">
                 <p className="font-semibold text-gray-100">Załóż ligę i zaproś znajomych</p>
@@ -212,7 +273,7 @@ export default function Dashboard() {
         <div className="space-y-5 min-w-0">
           <MyLeaguesCard leaguesData={leaguesQ.data} loading={leaguesQ.loading} userId={user?.id} />
 
-          {/* points in followed seasons */}
+          {/* points in the seasons of my leagues */}
           {standings.length > 0 && (
             <SectionCard title="Twoje sezony" link="/ranking" linkLabel="Ranking →">
               <div className="p-4 flex flex-wrap gap-2">
@@ -245,13 +306,13 @@ export default function Dashboard() {
           {/* recent results */}
           <SectionCard title="Ostatnie wyniki" link="/predictions" linkLabel="Wszystkie →">
             {predsQ.loading ? (
-              <div className="divide-y divide-surface-500/10" role="status" aria-busy="true" aria-label="Ładuję wyniki">
+              <div className="divide-y divide-surface-500/25" role="status" aria-busy="true" aria-label="Ładuję wyniki">
                 {[...Array(3)].map((_, i) => <SkeletonRow key={i} />)}
               </div>
             ) : recent.length === 0 ? (
               <div className="p-8 text-center text-gray-500 text-sm">Brak rozliczonych typów</div>
             ) : (
-              <div className="divide-y divide-surface-500/10">
+              <div className="divide-y divide-surface-500/25">
                 {recent.map((p, i) => (
                   <div key={p.id} className={`px-5 py-2.5 items-center justify-between gap-3 ${i >= 4 ? 'hidden lg:flex' : 'flex'}`}>
                     <div className="min-w-0">

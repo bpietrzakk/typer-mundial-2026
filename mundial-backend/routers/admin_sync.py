@@ -17,7 +17,7 @@ from schemas.models import (
     SyncRunRequest,
     SyncRunResponse,
 )
-from services.sync import CompetitionNotSyncable, UnknownCompetition, run_sync
+from services.sync import CompetitionNotSyncable, UnknownCompetition, reset_scheduler_cache, run_sync
 
 # admin-only: manual provider sync, sync log and switching competitions on / off
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -80,4 +80,6 @@ def update_competition(
             detail="Rozgrywka bez dostawcy danych nie może być włączona",
         )
     set_competition_active(competition_id, body.is_active)
+    # the scheduler looks at the db again on its next tick (a new competition needs a season sync)
+    reset_scheduler_cache()
     return get_admin_competition(admin["id"], competition_id)

@@ -16,7 +16,7 @@ from db.queries import (
 )
 from db.queries.badges import list_league_finished_picks, list_league_unit_matches
 from db.queries.competitions import get_season
-from domain.leagues import effective_ranking_mode
+from domain.leagues import LEAGUE_RANKING_MODE, effective_ranking_mode, is_allowed_ranking_mode
 from db.queries.coupon import get_league_coupon_ranking, update_league_coupon_settings
 from db.queries.leagues import (
     get_league_preview_by_code,
@@ -65,7 +65,7 @@ def _league_to_response(league: dict, members: list[dict]) -> dict:
         "members": members,
         "prize_pool_per_person": league.get("prize_pool_per_person"),
         # weekly coupon settings (008), defaults when an older row shape comes in
-        "ranking_mode": league.get("ranking_mode") or "scope",
+        "ranking_mode": league.get("ranking_mode") or LEAGUE_RANKING_MODE,
         "coupon_size": league.get("coupon_size") or 10,
         "coupon_auto": league.get("coupon_auto", True),
     }
@@ -100,10 +100,11 @@ def create_new_league(
 
     # creator becomes the owner AND first admin member, both in one transaction
     league = create_league(body.name, current_user["id"])
-    # coupon settings + scope go right after (left out = database defaults)
-    # saving the scope also follows its competitions for the owner
-    if body.ranking_mode is not None or body.coupon_size is not None:
-        update_league_coupon_settings(league["id"], body.ranking_mode, body.coupon_size, None)
+    # every league ranks by its coupons (docs/decisions.md #014): the mode is
+    # written here, not left to the column default, and body.ranking_mode is
+    # only accepted for old clients and ignored. coupon size goes along (left
+    # out = 10), the scope right after
+    update_league_coupon_settings(league["id"], LEAGUE_RANKING_MODE, body.coupon_size, None)
     if competition_ids:
         replace_league_competitions(league["id"], competition_ids)
     # re-fetch with owner_nick joined; members list has just the creator
@@ -222,6 +223,12 @@ def update_league_settings(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Liga nie istnieje")
     if detail["owner_user_id"] != current_user["id"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tylko właściciel może edytować ligę")
+    # coupon is the only ranking mode (docs/decisions.md #014), checked before anything is saved
+    if not is_allowed_ranking_mode(body.ranking_mode):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Ranking ligi liczy tylko mecze z kuponu tygodnia — innego trybu już nie ma",
+        )
     # partial update: only what the body sends changes (null prize pool = no pool)
     if "prize_pool_per_person" in body.model_fields_set:
         update_prize_pool(league_id, current_user["id"], body.prize_pool_per_person)
@@ -285,7 +292,6 @@ def set_league_scope(
             detail="Nieznane rozgrywki: " + ", ".join(str(i) for i in sorted(unknown)),
         )
 
-    # competitions new to the scope get followed by every member (never unfollows)
     replace_league_competitions(league_id, competition_ids)
     return _scope_response(league_id)
 

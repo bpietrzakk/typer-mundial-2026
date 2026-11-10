@@ -9,7 +9,6 @@ export default function Register() {
   const [nick, setNick] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const location = useLocation();
@@ -27,7 +26,7 @@ export default function Register() {
     setError('');
 
     // client-side validation matching backend constraints
-    if (!nick || !email || !password || !confirmPassword) {
+    if (!nick || !email || !password) {
       setError('Wypełnij wszystkie pola');
       return;
     }
@@ -37,10 +36,6 @@ export default function Register() {
     }
     if (password.length < 8) {
       setError('Hasło musi mieć minimum 8 znaków');
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError('Hasła nie są identyczne');
       return;
     }
 
@@ -75,7 +70,7 @@ export default function Register() {
       <div className="relative w-full max-w-md animate-fade-in">
         {/* header */}
         <div className="text-center mb-8">
-          <img src="/favicon.svg" alt="czutka" className="w-16 h-16 mx-auto mb-4 rounded-xl" />
+          <p className="wordmark text-4xl mb-4" aria-hidden="true">czutka</p>
           <h1 className="text-3xl font-extrabold tracking-tight text-white mb-2">
             Dołącz do gry!
           </h1>
@@ -97,7 +92,7 @@ export default function Register() {
         )}
 
         {/* register form */}
-        <form onSubmit={handleSubmit} className="glass-card p-8 space-y-5">
+        <form onSubmit={handleSubmit} className="panel p-6 sm:p-8 space-y-5">
           <div>
             <label htmlFor="reg-nick" className="block text-sm font-medium text-gray-400 mb-1.5">
               Nick
@@ -129,6 +124,7 @@ export default function Register() {
             />
           </div>
 
+          {/* one password box: the eye lets the player check it instead of typing it twice */}
           <div>
             <label htmlFor="reg-password" className="block text-sm font-medium text-gray-400 mb-1.5">
               Hasło
@@ -139,24 +135,15 @@ export default function Register() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Minimum 8 znaków"
               autoComplete="new-password"
+              describedBy="reg-password-hint"
             />
-          </div>
-
-          <div>
-            <label htmlFor="reg-confirm" className="block text-sm font-medium text-gray-400 mb-1.5">
-              Potwierdź hasło
-            </label>
-            <PasswordInput
-              id="reg-confirm"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Powtórz hasło"
-              autoComplete="new-password"
-            />
+            <p id="reg-password-hint" className="mt-1.5 text-xs text-gray-500">
+              Minimum 8 znaków. Oko pokazuje wpisane hasło.
+            </p>
           </div>
 
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-sm text-red-400">
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-sm text-red-400" role="alert">
               {error}
             </div>
           )}

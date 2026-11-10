@@ -1,25 +1,30 @@
 import { useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { getSeasonMatches, getSeasonRounds } from '../api/competitions';
-import CompetitionPicker from '../components/CompetitionPicker';
+import CompetitionNav from '../components/CompetitionNav';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import MatchDayList from '../components/MatchDayList';
 import MatchesTitle from '../components/MatchesTitle';
 import MatchListSkeleton from '../components/MatchListSkeleton';
+import NearestMatches from '../components/NearestMatches';
 import RoundSelector from '../components/RoundSelector';
 import SelectField from '../components/SelectField';
 import SkeletonChips from '../components/SkeletonChips';
 import SkeletonLine from '../components/SkeletonLine';
 import useAsync from '../hooks/useAsync';
 import useLivePolling from '../hooks/useLivePolling';
+import useNearestMatches from '../hooks/useNearestMatches';
 import useSeasonSelection from '../hooks/useSeasonSelection';
-import { SEASON_STATUS_LABELS, formatDayShort, toId } from '../utils/matchUi';
+import { SEASON_STATUS_LABELS, formatDayShort, groupCompetitions, toId } from '../utils/matchUi';
 
 export default function Matches() {
-  // no params in the url = competition with the soonest match to predict
-  const sel = useSeasonSelection({ preferNextMatch: true });
+  // no params in the url = "Najbliższe" (my coupon + upcoming matches of my leagues),
+  // ?competition= / ?season= = the schedule of one competition
+  const sel = useSeasonSelection({ autoPick: false });
   const { params, setParams, competition, seasons, season, seasonId } = sel;
+  const isNearest = !params.get('competition') && !params.get('season');
+  const nearest = useNearestMatches(isNearest);
 
   // rounds of the picked season
   const roundsFetcher = useMemo(
@@ -67,23 +72,9 @@ export default function Matches() {
   }, [mutateMatches]);
 
   const isArchive = season?.status === 'archived';
+  const showNearest = useCallback(() => setParams({}), [setParams]);
 
-  // --- states before the picker is usable ---
-
-  if (sel.loading) {
-    return (
-      <div className="page-container">
-        <MatchesTitle />
-        <SkeletonChips count={4} />
-        <div className="flex items-end gap-2 mb-6" aria-hidden="true">
-          <SkeletonLine width="w-11" height="h-11" className="!rounded-xl shrink-0" />
-          <SkeletonLine width="flex-1" height="h-11" className="!rounded-xl" />
-          <SkeletonLine width="w-11" height="h-11" className="!rounded-xl shrink-0" />
-        </div>
-        <MatchListSkeleton />
-      </div>
-    );
-  }
+  // --- states before the competition list is usable ---
 
   if (sel.error) {
     return (
@@ -94,7 +85,7 @@ export default function Matches() {
     );
   }
 
-  if (sel.competitions.length === 0) {
+  if (!sel.loading && sel.competitions.length === 0) {
     return (
       <div className="page-container">
         <MatchesTitle />
@@ -104,102 +95,126 @@ export default function Matches() {
   }
 
   return (
-    <div className="page-container">
-      <MatchesTitle hasLive={hasLive} />
+    <div className="page-container lg:max-w-6xl">
+      <MatchesTitle hasLive={isNearest ? nearest.hasLive : hasLive} />
 
-      <div className="mb-4">
-        <CompetitionPicker
-          competitions={sel.competitions}
-          selectedId={sel.competitionId}
-          onSelect={sel.selectCompetition}
-        />
-      </div>
-
-      {!competition ? (
-        <EmptyState title="Nie znaleziono rozgrywki" text="Wybierz rozgrywki z listy powyżej." />
-      ) : (
-        <>
-          {/* season + round pickers */}
-          <div className="glass-card p-4 mb-4 grid gap-3 sm:grid-cols-[minmax(0,180px)_1fr] sm:items-end">
-            <SelectField
-              label="Sezon"
-              value={seasonId}
-              onChange={selectSeason}
-              disabled={seasons.length <= 1}
-            >
-              {seasons.length === 0 && season && (
-                <option value={season.id}>{season.label}</option>
-              )}
-              {seasons.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}{s.status === 'archived' ? ' · archiwum' : ''}
-                </option>
-              ))}
-            </SelectField>
-
-            {rounds.length > 0 ? (
-              <RoundSelector key={seasonId} rounds={rounds} selectedId={roundId} onSelect={selectRound} />
-            ) : (
-              <div className="skeleton h-[42px] rounded-xl" aria-hidden={!roundsQ.loading} />
-            )}
-          </div>
-
-          {/* season / round info */}
-          <div className="flex items-center justify-between gap-3 flex-wrap mb-5 px-1 text-xs text-gray-500">
-            <span>
-              {competition.name}
-              {season && <> · {season.label} · {SEASON_STATUS_LABELS[season.status] || season.status}</>}
-            </span>
-            {round && round.match_count > 0 && (
-              <span className="tabular-nums">
-                {round.name}: rozegrano {round.finished_count}/{round.match_count}
-                {round.first_kickoff && <> · {formatDayShort(round.first_kickoff)}
-                  {formatDayShort(round.last_kickoff) !== formatDayShort(round.first_kickoff) && <>–{formatDayShort(round.last_kickoff)}</>}
-                </>}
-              </span>
-            )}
-          </div>
-
-          {isArchive && (
-            <div className="rounded-xl border border-surface-500/30 bg-surface-700/40 px-4 py-3 mb-5 text-sm text-gray-300 flex items-center justify-between gap-3 flex-wrap">
-              <span>
-                <span className="font-semibold text-gray-100">Archiwum.</span>{' '}
-                Sezon zakończony — typy tylko do odczytu.
-              </span>
-              {competition.code === 'WC' && (
-                <Link to="/bonus" className="text-brand hover:underline whitespace-nowrap">
-                  Bonusy Mundialu →
-                </Link>
-              )}
-            </div>
-          )}
-
-          {/* matches */}
-          {roundsQ.error || matchesQ.error ? (
-            <ErrorState
-              text="Nie udało się załadować meczów"
-              onRetry={roundsQ.error ? roundsQ.reload : matchesQ.reload}
-            />
-          ) : roundsQ.loading || matchesQ.loading ? (
-            <MatchListSkeleton />
-          ) : rounds.length === 0 ? (
-            <EmptyState
-              title="Brak terminarza"
-              text={season?.status === 'upcoming'
-                ? 'Terminarz tego sezonu pojawi się wkrótce.'
-                : 'Ten sezon nie ma jeszcze żadnych meczów.'}
-            />
-          ) : matches.length === 0 ? (
-            <EmptyState title="Brak meczów w tej rundzie" text="Wybierz inną rundę." />
+      <div className="lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-8">
+        {/* left: "Najbliższe" + competitions (a row on phones) */}
+        <aside className="mb-5 lg:mb-0 lg:sticky lg:top-20 lg:self-start min-w-0">
+          {sel.loading && sel.competitions.length === 0 ? (
+            <SkeletonChips count={4} className="lg:flex-col" />
           ) : (
-            <MatchDayList
-              matches={matches}
-              readOnly={isArchive}
-              onMatchChange={handleMatchChange}
+            <CompetitionNav
+              competitions={sel.competitions}
+              selectedId={isNearest ? null : sel.competitionId}
+              onSelectNearest={showNearest}
+              onSelect={sel.selectCompetition}
             />
           )}
-        </>
-      )}
+        </aside>
+
+        <div className="min-w-0">
+          {isNearest ? (
+            <NearestMatches
+              nearest={nearest}
+              fromLeagues={sel.competitions.length > 0 ? groupCompetitions(sel.competitions).fromLeagues : null}
+            />
+          ) : sel.loading ? (
+            <>
+              <div className="flex items-end gap-2 mb-6" aria-hidden="true">
+                <SkeletonLine width="w-11" height="h-11" className="!rounded-xl shrink-0" />
+                <SkeletonLine width="flex-1" height="h-11" className="!rounded-xl" />
+                <SkeletonLine width="w-11" height="h-11" className="!rounded-xl shrink-0" />
+              </div>
+              <MatchListSkeleton />
+            </>
+          ) : !competition ? (
+            <EmptyState title="Nie znaleziono rozgrywki" text="Wybierz rozgrywki z listy." />
+          ) : (
+            <>
+              {/* season + round pickers */}
+              <div className="glass-card p-4 mb-4 grid gap-3 sm:grid-cols-[minmax(0,180px)_1fr] sm:items-end">
+                <SelectField
+                  label="Sezon"
+                  value={seasonId}
+                  onChange={selectSeason}
+                  disabled={seasons.length <= 1}
+                >
+                  {seasons.length === 0 && season && (
+                    <option value={season.id}>{season.label}</option>
+                  )}
+                  {seasons.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label}{s.status === 'archived' ? ' · archiwum' : ''}
+                    </option>
+                  ))}
+                </SelectField>
+
+                {rounds.length > 0 ? (
+                  <RoundSelector key={seasonId} rounds={rounds} selectedId={roundId} onSelect={selectRound} />
+                ) : (
+                  <div className="skeleton h-[42px] rounded-xl" aria-hidden={!roundsQ.loading} />
+                )}
+              </div>
+
+              {/* season / round info */}
+              <div className="flex items-center justify-between gap-3 flex-wrap mb-5 px-1 text-xs text-gray-500">
+                <span>
+                  {competition.name}
+                  {season && <> · {season.label} · {SEASON_STATUS_LABELS[season.status] || season.status}</>}
+                </span>
+                {round && round.match_count > 0 && (
+                  <span className="tabular-nums">
+                    {round.name}: rozegrano {round.finished_count}/{round.match_count}
+                    {round.first_kickoff && <> · {formatDayShort(round.first_kickoff)}
+                      {formatDayShort(round.last_kickoff) !== formatDayShort(round.first_kickoff) && <>–{formatDayShort(round.last_kickoff)}</>}
+                    </>}
+                  </span>
+                )}
+              </div>
+
+              {isArchive && (
+                <div className="rounded-xl border border-surface-500/30 bg-surface-700/40 px-4 py-3 mb-5 text-sm text-gray-300 flex items-center justify-between gap-3 flex-wrap">
+                  <span>
+                    <span className="font-semibold text-gray-100">Archiwum.</span>{' '}
+                    Sezon zakończony — typy tylko do odczytu.
+                  </span>
+                  {competition.code === 'WC' && (
+                    <Link to="/bonus" className="text-brand hover:underline whitespace-nowrap">
+                      Bonusy Mundialu →
+                    </Link>
+                  )}
+                </div>
+              )}
+
+              {/* matches */}
+              {roundsQ.error || matchesQ.error ? (
+                <ErrorState
+                  text="Nie udało się załadować meczów"
+                  onRetry={roundsQ.error ? roundsQ.reload : matchesQ.reload}
+                />
+              ) : roundsQ.loading || matchesQ.loading ? (
+                <MatchListSkeleton />
+              ) : rounds.length === 0 ? (
+                <EmptyState
+                  title="Brak terminarza"
+                  text={season?.status === 'upcoming'
+                    ? 'Terminarz tego sezonu pojawi się wkrótce.'
+                    : 'Ten sezon nie ma jeszcze żadnych meczów.'}
+                />
+              ) : matches.length === 0 ? (
+                <EmptyState title="Brak meczów w tej rundzie" text="Wybierz inną rundę." />
+              ) : (
+                <MatchDayList
+                  matches={matches}
+                  readOnly={isArchive}
+                  onMatchChange={handleMatchChange}
+                />
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

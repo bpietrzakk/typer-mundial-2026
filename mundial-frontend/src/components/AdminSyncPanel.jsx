@@ -152,7 +152,7 @@ export default function AdminSyncPanel() {
       </div>
 
       <div className="glass-card overflow-hidden mb-4">
-        <div className="px-5 py-4 border-b border-surface-500/20">
+        <div className="px-5 py-4 border-b border-surface-500/35">
           <h3 className="font-semibold text-gray-200">Rozgrywki</h3>
           <p className="text-xs text-gray-400 mt-0.5">
             Aktywne rozgrywki są synchronizowane automatycznie. „Sezon” pobiera sezon, drużyny i wszystkie mecze rozgrywki.

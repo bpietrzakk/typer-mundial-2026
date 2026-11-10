@@ -97,7 +97,7 @@ def test_competitions_list_picks_current_season(monkeypatch):
     monkeypatch.setattr(competitions_module, "list_competitions", lambda uid: [
         {
             "id": 2, "code": "EPL", "name": "Premier League", "country": "Anglia", "kind": "league",
-            "logo_url": None, "is_active": True, "is_followed": True,
+            "logo_url": None, "is_active": True, "in_my_leagues": True,
             "seasons": [
                 {"id": 4, "label": "2025/26", "status": "archived", "starts_on": date(2025, 8, 1)},
                 {"id": 5, "label": "2026/27", "status": "active", "starts_on": date(2026, 8, 1)},
@@ -105,12 +105,12 @@ def test_competitions_list_picks_current_season(monkeypatch):
         },
         {
             "id": 100, "code": "WC", "name": "Mistrzostwa Świata", "country": None, "kind": "national_cup",
-            "logo_url": None, "is_active": False, "is_followed": False,
+            "logo_url": None, "is_active": False, "in_my_leagues": False,
             "seasons": [{"id": 1, "label": "2026", "status": "archived", "starts_on": date(2026, 6, 11)}],
         },
         {
             "id": 20, "code": "EKS", "name": "Ekstraklasa", "country": "Polska", "kind": "league",
-            "logo_url": None, "is_active": True, "is_followed": False, "seasons": [],
+            "logo_url": None, "is_active": True, "in_my_leagues": False, "seasons": [],
         },
     ])
     resp = client.get("/competitions", cookies=_cookie())
@@ -118,14 +118,17 @@ def test_competitions_list_picks_current_season(monkeypatch):
     body = resp.json()
     assert [c["code"] for c in body] == ["EPL", "WC", "EKS"]
     assert body[0]["current_season"] == {"id": 5, "label": "2026/27", "status": "active"}
-    assert body[0]["is_followed"] is True
+    # "in my leagues", is_followed stays as the old name of the same flag
+    assert (body[0]["in_my_leagues"], body[0]["is_followed"]) == (True, True)
+    assert (body[2]["in_my_leagues"], body[2]["is_followed"]) == (False, False)
     # no active season -> the newest one
     assert body[1]["current_season"] == {"id": 1, "label": "2026", "status": "archived"}
     # no seasons at all
     assert body[2]["current_season"] is None
     # contract fields only, the helper 'seasons' list does not leak
     assert set(body[0]) == {
-        "id", "code", "name", "country", "kind", "logo_url", "is_active", "is_followed", "current_season",
+        "id", "code", "name", "country", "kind", "logo_url", "is_active", "is_followed", "in_my_leagues",
+        "current_season",
     }
 
 
@@ -138,44 +141,28 @@ def test_competitions_list_gets_the_viewer_id(monkeypatch):
     assert seen == {"uid": USER["id"]}
 
 
-# --- follow / unfollow ---
+# --- follow / unfollow: deprecated no-ops (docs/decisions.md #014) ---
 
-def test_follow_returns_204_and_stores_for_current_user(monkeypatch):
-    calls = []
-    monkeypatch.setattr(competitions_module, "get_competition", lambda cid: COMPETITION)
-    monkeypatch.setattr(competitions_module, "follow_competition", lambda uid, cid: calls.append((uid, cid)))
-    resp = client.post("/competitions/2/follow", cookies=_cookie())
+def _no_db(*_args):
+    raise AssertionError("follow endpoints must not touch the database")
+
+
+@pytest.mark.parametrize("method", ["post", "delete"])
+@pytest.mark.parametrize("competition_id", [2, 999])
+def test_follow_endpoints_are_204_no_ops(monkeypatch, method, competition_id):
+    # old clients and cached service workers still call them, nothing is stored
+    # and even an unknown competition is fine
+    monkeypatch.setattr(competitions_module, "get_competition", _no_db)
+    resp = getattr(client, method)(f"/competitions/{competition_id}/follow", cookies=_cookie())
     assert resp.status_code == 204
     assert resp.content == b""
-    assert calls == [(USER["id"], 2)]
 
 
-def test_follow_twice_is_still_204(monkeypatch):
-    monkeypatch.setattr(competitions_module, "get_competition", lambda cid: COMPETITION)
-    monkeypatch.setattr(competitions_module, "follow_competition", lambda uid, cid: None)
-    assert client.post("/competitions/2/follow", cookies=_cookie()).status_code == 204
-    assert client.post("/competitions/2/follow", cookies=_cookie()).status_code == 204
-
-
-def test_follow_unknown_competition_returns_404(monkeypatch):
-    monkeypatch.setattr(competitions_module, "get_competition", lambda cid: None)
-    resp = client.post("/competitions/999/follow", cookies=_cookie())
-    assert resp.status_code == 404
-    assert resp.json()["detail"] == "Rozgrywka nie istnieje"
-
-
-def test_unfollow_returns_204(monkeypatch):
-    calls = []
-    monkeypatch.setattr(competitions_module, "get_competition", lambda cid: COMPETITION)
-    monkeypatch.setattr(competitions_module, "unfollow_competition", lambda uid, cid: calls.append((uid, cid)))
-    resp = client.delete("/competitions/2/follow", cookies=_cookie())
-    assert resp.status_code == 204
-    assert calls == [(USER["id"], 2)]
-
-
-def test_unfollow_unknown_competition_returns_404(monkeypatch):
-    monkeypatch.setattr(competitions_module, "get_competition", lambda cid: None)
-    assert client.delete("/competitions/999/follow", cookies=_cookie()).status_code == 404
+def test_follow_endpoints_are_marked_deprecated():
+    paths = client.get("/openapi.json").json()["paths"]
+    follow = paths["/competitions/{competition_id}/follow"]
+    assert follow["post"]["deprecated"] is True
+    assert follow["delete"]["deprecated"] is True
 
 
 # --- seasons ---

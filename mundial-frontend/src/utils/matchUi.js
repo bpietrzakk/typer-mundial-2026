@@ -2,7 +2,7 @@
 
 // --- hit types (how well a prediction scored) ---
 // label = short name, explain = text next to the points ("+3 · trafiona różnica bramek")
-// colours: shades of green (strongest = exact), miss = red
+// colours: hit tokens (strongest = exact, kept apart from the brand colour), miss = red
 
 export const HIT_META = {
   exact:    { label: 'dokładny wynik', explain: 'dokładny wynik', short: 'dokładny', text: 'text-hit-exact', badge: 'bg-hit-exact/15 text-hit-exact border-hit-exact/40', bar: 'bg-hit-exact' },
@@ -28,10 +28,8 @@ export const VOID_STATUSES = ['cancelled', 'awarded'];
 
 // --- competitions ---
 
-// one neutral look for every competition badge (the logo tells them apart)
-const COMP_COLOR = 'bg-surface-700/80 text-gray-200 border-surface-500/40';
-
-export const competitionColor = () => COMP_COLOR;
+// trophy outline (svg path) — stands in for a missing competition logo
+export const TROPHY_ICON_D = 'M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0';
 
 // readable short names — the codes (SA, L1, LIGA...) mean nothing to a normal player
 const COMP_SHORT_NAMES = {
@@ -51,27 +49,28 @@ export const competitionLabel = (code, name) => COMP_SHORT_NAMES[code] || name |
 export const isArchiveCompetition = (c) =>
   !c.is_active || c.current_season?.status === 'archived';
 
-// followed first, then active ones, archive last (backend order is kept inside groups)
+// competitions of my leagues first, then other active ones, archive last
+// (backend order is kept inside groups)
 export function sortCompetitions(list) {
-  const rank = (c) => (isArchiveCompetition(c) ? 2 : c.is_followed ? 0 : 1);
+  const rank = (c) => (isArchiveCompetition(c) ? 2 : c.in_my_leagues ? 0 : 1);
   return [...list].sort((a, b) => rank(a) - rank(b));
 }
 
-// default pick: first followed active, else first active, else anything
+// my competitions = the ones in the scope of my leagues (in_my_leagues).
+// none marked (no league yet) = every active one, the same pool as the global
+// coupon. fromLeagues tells which of the two it is. backend order is kept
+export function groupCompetitions(list) {
+  const active = list.filter((c) => !isArchiveCompetition(c));
+  const archive = list.filter(isArchiveCompetition);
+  const marked = active.filter((c) => c.in_my_leagues);
+  if (marked.length === 0) return { mine: active, others: [], archive, fromLeagues: false };
+  return { mine: marked, others: active.filter((c) => !c.in_my_leagues), archive, fromLeagues: true };
+}
+
+// default pick: first active one of my leagues, else first active, else anything
 export function pickDefaultCompetition(list) {
   if (!list || list.length === 0) return null;
   return sortCompetitions(list)[0];
-}
-
-// competition id of the soonest match still open for a prediction (feed list)
-// only competitions from the list that are not archived count
-export function nextMatchCompetitionId(matches, competitions) {
-  if (!matches || !competitions) return null;
-  const allowed = new Set(competitions.filter((c) => !isArchiveCompetition(c)).map((c) => c.id));
-  const next = matches
-    .filter((m) => m.can_predict && allowed.has(m.competition?.id))
-    .sort((a, b) => new Date(a.kickoff_at) - new Date(b.kickoff_at))[0];
-  return next?.competition.id ?? null;
 }
 
 export const SEASON_STATUS_LABELS = {

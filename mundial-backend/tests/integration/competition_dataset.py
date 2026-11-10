@@ -190,7 +190,8 @@ def build_competitions(conn) -> dict:
                 for nick, pred in picks.items():
                     _predict(cur, u[nick], m[match], pred)
 
-            # who follows what (ala follows nothing)
+            # old follows (before docs/decisions.md #014): nothing reads them any more,
+            # the tests prove that (ewa "follows" the inactive EKS)
             for nick, codes in {"celina": ("EPL", "UCL"), "daniel": ("UCL",), "ewa": ("EKS",)}.items():
                 for code in codes:
                     cur.execute(

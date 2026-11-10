@@ -1,5 +1,4 @@
-# health check query — keep-alive pings /health so the db must be touched too
-# (Neon free tier suspends when nothing talks to it)
+# readiness check query for GET /health (keep-alive uses /health/live, which skips the db)
 
 from db.connection import PoolBusy, get_conn, release_conn
 

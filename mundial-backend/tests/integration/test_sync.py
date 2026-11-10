@@ -365,6 +365,51 @@ def test_scored_match_never_goes_back_to_live_or_scheduled(db, fake, caplog):
     assert "scored_regress" in caplog.text
 
 
+def test_match_that_was_live_and_comes_back_scheduled_stays_closed(db, fake):
+    from db.queries import get_match_by_id, upsert_prediction
+
+    future = datetime.now(UTC) + timedelta(days=1)
+    as_scheduled(fake, PL_FINISHED)
+    fake.change(PL_FINISHED, kickoff_at=future)
+    ok_run("season", "EPL")
+    ids = users(db)
+    mid = match_id(db, PL_FINISHED)
+    assert scalar(db, "SELECT locked_at FROM matches WHERE id = %s", (mid,)) is None
+    assert upsert_prediction(ids["ala"], mid, 1, 0) is not None
+
+    # kicked off early in the fake's world: live, everybody sees the picks
+    fake.change(PL_FINISHED, status="live", home_goals=0, away_goals=0)
+    fake.window_matches = [fake.match(PL_FINISHED)]
+    ok_run("window")
+    locked_at = scalar(db, "SELECT locked_at FROM matches WHERE id = %s", (mid,))
+    assert locked_at is not None
+
+    # suspended, then the provider moves it to next week as scheduled again
+    as_scheduled(fake, PL_FINISHED)
+    fake.change(PL_FINISHED, kickoff_at=future + timedelta(days=7))
+    fake.window_matches = [fake.match(PL_FINISHED)]
+    ok_run("window")
+
+    match = get_match_by_id(mid)
+    assert match["status"] == "scheduled"
+    assert match["locked_at"] == locked_at
+    # the sql refuses the write too, not only the router check
+    assert upsert_prediction(ids["bartek"], mid, 2, 2) is None
+    assert upsert_prediction(ids["ala"], mid, 5, 5) is None
+    assert one(db, "SELECT pred_home, pred_away FROM predictions WHERE user_id = %s AND match_id = %s", (ids["ala"], mid)) == (1, 0)
+
+
+def test_scheduled_match_past_kickoff_is_locked_by_the_sync(db, fake):
+    from db.queries import upsert_prediction
+
+    # provider lags: still "scheduled" although the kickoff was in august
+    ids, mid = prepare_unplayed_match(db, fake)
+    assert scalar(db, "SELECT locked_at FROM matches WHERE id = %s", (mid,)) is not None
+    execute(db, "UPDATE matches SET locked_at = NULL WHERE id = %s", (mid,))
+    # even without the stamp the kickoff in the past closes the write
+    assert upsert_prediction(ids["ala"], mid, 1, 1) is None
+
+
 def test_leftover_finished_match_without_scored_at_is_scored(db, fake):
     ok_run("season", "EPL")
     ids = users(db)
@@ -921,6 +966,31 @@ def test_scheduler_runs_what_is_due_and_remembers_it(db, fake):
     assert scheduler_tick() == "window"
     assert scheduler_tick() is None
     assert [r[0] for r in rows(db, "SELECT kind FROM sync_runs ORDER BY id")] == ["season", "window"]
+
+
+def test_idle_scheduler_waits_in_memory_and_wakes_up_before_the_next_kickoff(db, fake, monkeypatch):
+    import services.sync as sync_service
+
+    ok_run("season")
+    ok_run("window")
+    now = datetime.now(UTC)
+    mid = match_id(db, PL_SCHEDULED)
+    execute(db, "UPDATE matches SET status = 'scheduled', kickoff_at = %s WHERE id = %s", (now + timedelta(minutes=40), mid))
+
+    state = load_scheduler_state(now)
+    assert state.busy is False
+    assert state.busy_starts_at == now + timedelta(minutes=25)
+    assert scheduler_tick(now=now) is None
+
+    # until 15 minutes before kickoff the db is not read at all
+    reads = []
+    real_get_last_runs = sync_service.q.get_last_runs
+    monkeypatch.setattr(sync_service.q, "get_last_runs", lambda: reads.append(1) or real_get_last_runs())
+    assert scheduler_tick(now=now + timedelta(minutes=24)) is None
+    assert reads == []
+    # then the window run switches to every 5 minutes
+    assert scheduler_tick(now=now + timedelta(minutes=25)) == "window"
+    assert reads == [1]
 
 
 def test_scheduler_after_restart_does_not_repeat_the_daily_season_sync(db, fake):

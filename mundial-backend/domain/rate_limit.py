@@ -14,6 +14,17 @@ RESEND_MAX_ATTEMPTS = 3
 RESEND_WINDOW_SECONDS = 3600
 RESEND_LOCKOUT_SECONDS = 3600
 
+# failed logins per email, from any IP: slows down password guessing spread
+# over many IPs. a locked account unlocks by itself after 15 minutes
+LOGIN_EMAIL_MAX_ATTEMPTS = 10
+LOGIN_EMAIL_WINDOW_SECONDS = 15 * 60
+LOGIN_EMAIL_LOCKOUT_SECONDS = 15 * 60
+
+# new accounts per IP. generous, friends often sign up on the same wifi
+REGISTER_MAX_ATTEMPTS = 10
+REGISTER_WINDOW_SECONDS = 3600
+REGISTER_LOCKOUT_SECONDS = 3600
+
 
 @dataclass
 class RateLimitState:
@@ -58,3 +69,22 @@ def record_failure(state: RateLimitState, now: datetime) -> RateLimitState:
 def reset() -> RateLimitState:
     # called after a successful login — clears the slate for that IP
     return RateLimitState()
+
+
+def is_stale(state: RateLimitState, now: datetime, window_seconds: int) -> bool:
+    # nothing left to remember: not locked and every attempt is out of the window.
+    # the router drops such keys so the in-memory dicts don't grow forever
+    if is_locked(state, now):
+        return False
+    return all((now - t).total_seconds() >= window_seconds for t in state.attempts)
+
+
+def client_ip_from_forwarded(forwarded: str | None, peer: str | None, trusted_hops: int = 1) -> str:
+    # X-Forwarded-For is "client, proxy1, proxy2"; every proxy appends the peer
+    # it saw, so only the right end is trustworthy. trusted_hops = how many
+    # proxies we sit behind: 1 takes the rightmost entry, 2 the one before it.
+    # 0 ignores the header (direct connection)
+    entries = [e.strip() for e in (forwarded or "").split(",") if e.strip()]
+    if trusted_hops <= 0 or not entries:
+        return peer or "unknown"
+    return entries[max(len(entries) - trusted_hops, 0)]

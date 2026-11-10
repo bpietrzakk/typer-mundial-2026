@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from db.queries.competitions import (
-    follow_competition,
     get_competition,
     get_season,
     is_round_in_season,
@@ -17,7 +16,6 @@ from db.queries.competitions import (
     list_season_rounds,
     list_season_teams,
     list_upcoming_league_matches,
-    unfollow_competition,
 )
 from db.queries.ranking import get_season_ranking
 from domain.competitions import feed_window, mark_current_round, pick_current_season, upcoming_window
@@ -59,7 +57,7 @@ def _with_can_predict(matches: list[dict], now: datetime) -> list[dict]:
     # the lock rule lives in the domain, not in SQL
     return [
         {**m, "can_predict": is_open_for_predictions(
-            m["status"], m["kickoff_at"], now, season_status=m.get("season_status"),
+            m["status"], m["kickoff_at"], now, season_status=m.get("season_status"), locked_at=m.get("locked_at"),
         )}
         for m in matches
     ]
@@ -69,26 +67,30 @@ def _with_can_predict(matches: list[dict], now: datetime) -> list[dict]:
 
 @router.get("/competitions", response_model=list[CompetitionListEntry])
 def get_competitions(current_user: dict = Depends(get_current_user)) -> list[dict]:
-    # visible competitions in sort order, with the viewer's follow flag
-    # and the current season (active one, otherwise the newest)
+    # visible competitions in sort order, with "in my leagues" and the current
+    # season (active one, otherwise the newest). is_followed = old name of the
+    # same flag, kept for old clients
     return [
-        {**c, "current_season": pick_current_season(c["seasons"])}
+        {
+            **c,
+            "is_followed": c["in_my_leagues"],
+            "current_season": pick_current_season(c["seasons"]),
+        }
         for c in list_competitions(current_user["id"])
     ]
 
 
-@router.post("/competitions/{competition_id}/follow", status_code=status.HTTP_204_NO_CONTENT)
-def follow(competition_id: int, current_user: dict = Depends(get_current_user)) -> None:
-    # idempotent: following twice is fine
-    _require_competition(competition_id)
-    follow_competition(current_user["id"], competition_id)
+# following is gone (docs/decisions.md #014): my competitions come from my leagues.
+# old clients and cached service workers still call these, so they answer 204
+# and do nothing, not even a database read
+@router.post("/competitions/{competition_id}/follow", status_code=status.HTTP_204_NO_CONTENT, deprecated=True)
+def follow(competition_id: int, _user: dict = Depends(get_current_user)) -> None:
+    return None
 
 
-@router.delete("/competitions/{competition_id}/follow", status_code=status.HTTP_204_NO_CONTENT)
-def unfollow(competition_id: int, current_user: dict = Depends(get_current_user)) -> None:
-    # idempotent too
-    _require_competition(competition_id)
-    unfollow_competition(current_user["id"], competition_id)
+@router.delete("/competitions/{competition_id}/follow", status_code=status.HTTP_204_NO_CONTENT, deprecated=True)
+def unfollow(competition_id: int, _user: dict = Depends(get_current_user)) -> None:
+    return None
 
 
 @router.get("/competitions/{competition_id}/seasons", response_model=list[SeasonDetail])
@@ -155,8 +157,8 @@ def get_feed(
     days: int = Query(default=7, ge=1, le=30),
     current_user: dict = Depends(get_current_user),
 ) -> list[dict]:
-    # what is on soon in the competitions the user follows (all active ones
-    # when they follow nothing) + everything live right now
+    # what is on soon in my competitions (scopes of my leagues, every active
+    # one without a league) + everything live right now there
     now = datetime.now(timezone.utc)
     window_start, window_end = feed_window(now, days)
     matches = list_feed_matches(current_user["id"], window_start, window_end)
@@ -169,7 +171,7 @@ def get_my_upcoming_matches(
     current_user: dict = Depends(get_current_user),
 ) -> list[dict]:
     # "Najbliższe" on the matches page: not started matches of the next days in
-    # the scope of my leagues (followed competitions without a league)
+    # the scope of my leagues (every active competition without a league)
     now = datetime.now(timezone.utc)
     window_start, window_end = upcoming_window(now, days)
     matches = list_upcoming_league_matches(current_user["id"], window_start, window_end)

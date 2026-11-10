@@ -12,8 +12,10 @@ const MORE_STEP = 10;
 // a player's picks on live and finished matches, newest first.
 // league = { id, seasonId, bonuses } (league ranking): only the picks that count
 // in that league, points with the joker, totals = the player's ranking row.
-// without it (global ranking): every pick, seasonId (optional) narrows it on our side
-export default function UserPredictionsModal({ userId, nick, onClose, seasonId, league }) {
+// without it (global ranking): every pick, seasonId (optional) narrows it on our side.
+// livePoints = the player's "+N na żywo" from the clicked ranking row (live matches
+// are not in the official totals yet), shown next to them like in the table
+export default function UserPredictionsModal({ userId, nick, onClose, seasonId, league, livePoints = 0 }) {
   const [predictions, setPredictions] = useState([]);
   const [leagueTotals, setLeagueTotals] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -105,14 +107,19 @@ export default function UserPredictionsModal({ userId, nick, onClose, seasonId, 
         role="dialog"
         aria-modal="true"
         aria-labelledby="user-predictions-title"
-        className="glass-card w-full max-w-lg max-h-[80vh] overflow-y-auto p-5 animate-fade-in"
+        className="panel w-full max-w-lg max-h-[80vh] overflow-y-auto p-5 animate-fade-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 id="user-predictions-title" className="text-lg font-bold text-gray-200">{nick}</h3>
             {!loading && !error && (
-              <p className="text-xs text-gray-300">{pointsLine}</p>
+              <p className="text-xs text-gray-300">
+                {pointsLine}
+                {leagueTotals && livePoints > 0 && (
+                  <span className="text-live font-semibold"> · +{livePoints} na żywo</span>
+                )}
+              </p>
             )}
             {hitCounts.length > 0 && (
               <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">

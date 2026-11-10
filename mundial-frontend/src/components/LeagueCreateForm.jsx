@@ -3,40 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import { createLeague } from '../api/leagues';
 import useCompetitions from '../hooks/useCompetitions';
 import { apiErrorMessage } from '../utils/apiError';
+import { JOKER_RULE } from '../utils/coupon';
 import { isArchiveCompetition } from '../utils/matchUi';
 import CompetitionChecklist from './CompetitionChecklist';
 
 const SIZES = Array.from({ length: 11 }, (_, i) => i + 5); // 5..15
 
-const MODES = [
-  {
-    value: 'coupon',
-    title: 'Kupon tygodnia z hitów',
-    badge: 'polecane',
-    text: 'Co tydzień ok. 10 najciekawszych meczów, te same dla wszystkich. Do rankingu liczą się tylko one — 3 minuty typowania na tydzień.',
-  },
-  {
-    value: 'scope',
-    title: 'Wszystkie mecze wybranych rozgrywek',
-    text: 'Liczy się każdy mecz z rozgrywek, które wybierzecie. Dla tych, którzy typują całe kolejki.',
-  },
-];
-
-// "create a league" wizard: name -> what do you play -> settings, then the league page
+// "create a league": name, optionally only some competitions, then the league page.
+// every league plays the weekly coupon, there is no ranking mode to pick
 export default function LeagueCreateForm({ onCancel }) {
   const navigate = useNavigate();
   const compsQ = useCompetitions();
   const competitions = (compsQ.data ?? []).filter((c) => !isArchiveCompetition(c));
 
   const [name, setName] = useState('');
-  const [mode, setMode] = useState('coupon');
   const [size, setSize] = useState(10);
-  const [narrow, setNarrow] = useState(false); // coupon: only some competitions
+  const [narrow, setNarrow] = useState(false); // only some competitions
   const [selectedIds, setSelectedIds] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const pickCompetitions = mode === 'scope' || narrow;
 
   const toggle = (id) => {
     setError('');
@@ -50,16 +35,16 @@ export default function LeagueCreateForm({ onCancel }) {
       setError('Podaj nazwę ligi');
       return;
     }
-    if (pickCompetitions && selectedIds.length === 0) {
+    if (narrow && selectedIds.length === 0) {
       setError('Wybierz co najmniej jedną rozgrywkę');
       return;
     }
     setLoading(true);
     try {
+      // the size only matters for a narrow league (not enough hits in its competitions)
       const league = await createLeague(name.trim(), {
-        rankingMode: mode,
-        couponSize: mode === 'coupon' ? size : undefined,
-        competitionIds: pickCompetitions ? selectedIds : undefined,
+        couponSize: narrow ? size : undefined,
+        competitionIds: narrow ? selectedIds : undefined,
       });
       navigate(`/leagues/${league.id}`, { state: { created: true } });
     } catch (err) {
@@ -85,42 +70,27 @@ export default function LeagueCreateForm({ onCancel }) {
         maxLength={64}
       />
 
-      <fieldset disabled={loading}>
-        <legend className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Co typujecie?</legend>
-        <div className="grid gap-2 sm:grid-cols-2 mb-4">
-          {MODES.map((m) => (
-            <label
-              key={m.value}
-              className={`flex items-start gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors
-                ${mode === m.value
-                  ? 'border-brand/50 bg-brand/10'
-                  : 'border-surface-500/30 bg-surface-700/30 hover:border-surface-500/60'}`}
-            >
-              <input
-                type="radio"
-                name="league-mode"
-                value={m.value}
-                checked={mode === m.value}
-                onChange={() => { setMode(m.value); setError(''); }}
-                className="accent-brand mt-1"
-              />
-              <span>
-                <span className={`flex items-center gap-2 text-sm font-semibold ${mode === m.value ? 'text-brand' : 'text-gray-200'}`}>
-                  {m.title}
-                  {m.badge && (
-                    <span className="px-1.5 py-0.5 rounded-md bg-brand/15 text-brand text-[10px] uppercase tracking-wider">{m.badge}</span>
-                  )}
-                </span>
-                <span className="block text-xs text-gray-400 mt-0.5">{m.text}</span>
-              </span>
-            </label>
-          ))}
-        </div>
+      <p className="text-sm text-gray-400 mb-4">
+        Co tydzień gracie kupon z hitów tygodnia — te same mecze dla wszystkich i tylko one liczą się do rankingu
+        ligi. Organizator może dodać własne mecze. <span aria-hidden="true">🃏 </span>{JOKER_RULE}.
+      </p>
 
-        {mode === 'coupon' && (
-          <div className="flex items-center gap-4 flex-wrap mb-3">
+      <fieldset disabled={loading}>
+        <legend className="sr-only">Rozgrywki ligi</legend>
+        <div className="flex items-center gap-4 flex-wrap mb-3">
+          <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={narrow}
+              onChange={(e) => { setNarrow(e.target.checked); setError(''); }}
+              className="accent-brand w-4 h-4"
+            />
+            Tylko wybrane rozgrywki
+          </label>
+          {/* only a narrow league may need its own pick next to the hits */}
+          {narrow && (
             <label className="flex items-center gap-2 text-sm text-gray-300">
-              Meczów w kuponie
+              Meczów, gdy hitów jest za mało
               <select
                 value={size}
                 onChange={(e) => setSize(Number(e.target.value))}
@@ -129,23 +99,12 @@ export default function LeagueCreateForm({ onCancel }) {
                 {SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </label>
-            <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={narrow}
-                onChange={(e) => { setNarrow(e.target.checked); setError(''); }}
-                className="accent-brand w-4 h-4"
-              />
-              Tylko wybrane rozgrywki
-            </label>
-          </div>
-        )}
+          )}
+        </div>
 
-        {pickCompetitions && (
+        {narrow && (
           <div className="mb-3">
-            <p className="text-xs text-gray-400 mb-2">
-              {mode === 'coupon' ? 'Kupon będzie układany tylko z tych rozgrywek:' : 'Liczą się mecze tych rozgrywek:'}
-            </p>
+            <p className="text-xs text-gray-400 mb-2">Z kuponu ogólnego zostaną mecze tylko tych rozgrywek:</p>
             {compsQ.loading ? (
               <div className="skeleton h-20 rounded-xl" />
             ) : (

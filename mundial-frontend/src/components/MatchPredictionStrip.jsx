@@ -1,10 +1,10 @@
 import PointsExplain from './PointsExplain';
-import PredictionForm from './PredictionForm';
+import MatchPredictionForm from './MatchPredictionForm';
 import ProvisionalPoints from './ProvisionalPoints';
 import { HIT_META, VOID_STATUSES } from '../utils/matchUi';
-import { matchPoints, settledHit } from '../utils/scoring';
+import { settledHit } from '../utils/scoring';
 
-// bottom strip of a match card: inline form, saved prediction or a short note.
+// bottom strip of a match card: autosaved boxes, saved prediction or a short note.
 // renders nothing (not even the divider) when there is nothing to say
 export default function MatchPredictionStrip({ match, readOnly, onSaved, onLocked }) {
   const { my_prediction: pred, status, can_predict: canPredict } = match;
@@ -13,14 +13,7 @@ export default function MatchPredictionStrip({ match, readOnly, onSaved, onLocke
   function pickContent() {
     if (canPredict && !readOnly) {
       return (
-        <PredictionForm
-          matchId={match.id}
-          initialHome={pred?.pred_home}
-          initialAway={pred?.pred_away}
-          points={matchPoints(match)}
-          onSaved={onSaved}
-          onLocked={onLocked}
-        />
+        <MatchPredictionForm match={match} onSaved={onSaved} onLocked={onLocked} />
       );
     }
 
@@ -62,5 +55,5 @@ export default function MatchPredictionStrip({ match, readOnly, onSaved, onLocke
   }
 
   if (!content) return null;
-  return <div className="mt-4 pt-3 border-t border-surface-500/20">{content}</div>;
+  return <div className="mt-4 pt-3 border-t border-surface-500/35">{content}</div>;
 }

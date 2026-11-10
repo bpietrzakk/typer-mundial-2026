@@ -34,7 +34,7 @@ RUN_ROW = {
 
 COMPETITION_ROW = {
     "id": 2, "code": "EPL", "name": "Premier League", "country": "Anglia", "kind": "league",
-    "logo_url": None, "is_active": True, "is_followed": False,
+    "logo_url": None, "is_active": True, "is_followed": False, "in_my_leagues": False,
     "current_season": {"id": 5, "label": "2026/27", "status": "active"},
     "provider": "football-data", "provider_ref": "PL",
     "last_sync_at": "2026-10-31T12:00:02+00:00", "last_sync_status": "ok",

@@ -30,14 +30,14 @@ from domain.coupon_hits import (
     HitCandidate,
     HitTeam,
     follow_global,
-    global_in_scope,
+    open_global_in_scope,
     pick_global_coupon,
     reset_to_global,
 )
 
 logger = logging.getLogger(__name__)
 
-# the scheduler ticks every minute, coupons are checked once an hour
+# coupons are checked at most once an hour, on scheduler ticks that read the db anyway
 COUPON_CHECK_INTERVAL = timedelta(hours=1)
 _last_check: datetime | None = None
 
@@ -74,6 +74,7 @@ def to_checks(rows: list[dict]) -> dict[int, MatchCheck]:
             status=r["status"],
             in_scope=bool(r.get("in_scope", True)),
             season_status=r.get("season_status"),
+            locked_at=r.get("locked_at"),
         )
         for r in rows
     }
@@ -151,7 +152,7 @@ def league_plan(league: dict, week: date, now: datetime) -> tuple[list[int], str
     # league scope, topped up by the league's own pick when that is too short
     global_ids = global_coupon_match_ids(week, now)
     checks = to_checks(q.list_match_checks_for_league(league["id"], global_ids))
-    mine = global_in_scope(global_ids, {i for i, c in checks.items() if c.in_scope})
+    mine = open_global_in_scope(global_ids, checks, now)
     size = league.get("coupon_size") or DEFAULT_COUPON_SIZE
     league_pick = [] if len(mine) >= MIN_COUPON_SIZE else pick_coupon(league_candidates(league["id"], week, now), size)
     return follow_global(mine, league_pick, size)

@@ -317,3 +317,44 @@ pracujących równolegle każdy edytował ten sam plik.
 `db/queries/__init__.py` re-eksportuje wszystkie dotychczasowe nazwy, więc
 `from db.queries import X` działa bez zmian. Zasada „SQL tylko jako stałe w
 warstwie db, parametryzowany przez %s” bez zmian.
+
+---
+
+## 014 — Uproszczenie: bez obserwowania, tylko tryb kupon (2026-11-10, bartek + Claude)
+
+**Kontekst.** Analiza ([ANALIZA_CZUTKA.md](ANALIZA_CZUTKA.md) rozdz. 2.1 pkt 6 i 7.1)
+pokazała, że gracz ma za dużo pojęć naraz: „Obserwuj rozgrywki” obok zakresu
+ligi, dwa tryby rankingu (`scope` i `coupon`) i joker, który działa tylko w
+jednym z nich. Migracja 012 i tak przepisywała zakres ligi do obserwowanych,
+więc obserwowanie było w praktyce kopią zakresu ligi.
+
+**Decyzja.**
+- **Bez obserwowania.** Rozgrywki gracza to suma zakresów jego lig (liga bez
+  zakresu = wszystkie aktywne), a gracz bez ligi ma wszystkie aktywne
+  rozgrywki (pula kuponu ogólnego). Liczone w zapytaniu, nic nie jest
+  zapisywane. `GET /feed`, `GET /me/upcoming-matches` i flaga
+  `in_my_leagues` (dawne `is_followed`, zostaje jako alias) w
+  `GET /competitions` korzystają z tej reguły. `POST`/`DELETE
+  /competitions/{id}/follow` zostają jako przestarzałe no-opy (204), bo stare
+  klienty i service workery mogą je jeszcze wołać. Tabela `user_competitions`
+  zostaje w bazie, ale nie jest czytana ani zapisywana.
+- **Tylko tryb kupon.** Każda liga liczy ranking z meczów swoich kuponów i ma
+  jokera. `POST /leagues` zawsze zakłada ligę `coupon` (pole `ranking_mode` w
+  body jest ignorowane), `PATCH /leagues/{id}/settings` z `scope` → 422.
+  Migracja 016 przestawiła istniejące ligi na `coupon`, a ich poprzednią
+  wartość zapisała w `league_ranking_mode_backup`, więc rollback ją przywraca.
+  Sezony archiwalne (Mundial) nie mają kuponów i dalej liczą wszystkie mecze
+  (`domain.leagues.effective_ranking_mode`).
+
+**Konsekwencje.** Ligi, które były w trybie `scope`, od teraz liczą w aktywnych
+sezonach tylko mecze z kuponów (mecze spoza kuponu znikają z ich sumy). Ligi z
+`coupon_auto = true` miały kupony od początku, ale liga z wyłączonym automatem
+i bez ręcznych kuponów pokaże tylko bonusy. Kolumna `ranking_mode`, tabela
+kopii i `user_competitions` czekają na migrację contract, podobnie jak
+endpointy follow. Front usuwa przyciski „Obserwuj”, krok wyboru rozgrywek w
+`/witaj` i wybór trybu rankingu.
+
+**Alternatywy.** Ukrycie trybu `scope` tylko we froncie (bez migracji) —
+odrzucone, bo stare ligi dalej działałyby bez jokera i z innymi zasadami niż
+nowe. Usunięcie `user_competitions` i endpointów follow od razu — odrzucone,
+bo zepsułoby stare klienty i rollback; to zrobi osobna migracja contract.

@@ -32,7 +32,7 @@ export default function ForgotPassword() {
         </div>
 
         {sent ? (
-          <div className="glass-card p-8 text-center space-y-4">
+          <div className="panel p-6 sm:p-8 text-center space-y-4">
             <p className="text-gray-200">
               Jeśli konto z tym adresem istnieje, wysłaliśmy na nie link do
               resetu hasła. Sprawdź skrzynkę (i folder spam).
@@ -42,7 +42,7 @@ export default function ForgotPassword() {
             </Link>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="glass-card p-8 space-y-5">
+          <form onSubmit={handleSubmit} className="panel p-6 sm:p-8 space-y-5">
             <div>
               <label htmlFor="fp-email" className="block text-sm font-medium text-gray-400 mb-1.5">
                 Email

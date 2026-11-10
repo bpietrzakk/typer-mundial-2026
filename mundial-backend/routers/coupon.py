@@ -97,7 +97,7 @@ def _require_manager(league_id: int, user_id: int) -> dict:
 def _with_can_predict(matches: list[dict], now: datetime) -> list[dict]:
     return [
         {**m, "can_predict": is_open_for_predictions(
-            m["status"], m["kickoff_at"], now, season_status=m.get("season_status"),
+            m["status"], m["kickoff_at"], now, season_status=m.get("season_status"), locked_at=m.get("locked_at"),
         )}
         for m in matches
     ]

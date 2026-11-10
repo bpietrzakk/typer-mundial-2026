@@ -80,6 +80,7 @@ SQL_LIST_LEAGUE_COUPON_CANDIDATES = _SQL_CANDIDATE_SELECT + """
     WHERE m.kickoff_at >= %s AND m.kickoff_at < %s
       AND m.kickoff_at > %s
       AND m.status = 'scheduled'
+      AND m.locked_at IS NULL
       AND s.status <> 'archived'
       AND (
           c.id IN (
@@ -112,7 +113,7 @@ SQL_LIST_SEASON_TABLE_RESULTS = """
 # in_scope: scope rows -> competition listed, no rows -> competition active.
 # params: league, league, match ids
 SQL_LIST_MATCH_CHECKS_FOR_LEAGUE = """
-    SELECT m.id, m.kickoff_at, m.status, s.status AS season_status,
+    SELECT m.id, m.kickoff_at, m.status, s.status AS season_status, m.locked_at,
            CASE
                WHEN EXISTS (
                    SELECT 1 FROM private_league_competitions plc WHERE plc.private_league_id = %s
@@ -140,7 +141,7 @@ SQL_GET_COUPON = """
 
 # matches on one coupon with what the edit check needs, by kickoff
 SQL_LIST_COUPON_MATCH_CHECKS = """
-    SELECT m.id, m.kickoff_at, m.status, s.status AS season_status
+    SELECT m.id, m.kickoff_at, m.status, s.status AS season_status, m.locked_at
     FROM league_coupon_matches lcm
     JOIN matches m ON m.id = lcm.match_id
     JOIN seasons s ON s.id = m.season_id
@@ -265,7 +266,8 @@ SQL_LIST_STARTED_MEMBER_PREDICTIONS = """
 # a match that is the member's joker on a coupon of this league counts with
 # the multiplier (domain.joker.JOKER_MULTIPLIER).
 # include_bonuses = false switches the old global Mundial bonuses off.
-# params: league, multiplier, season ids, league, season ids, flag, season ids, flag,
+# pred sums only the members' predictions (same result, far less work).
+# params: league, multiplier, season ids, league, league, season ids, flag, season ids, flag,
 #         league, season ids, league
 SQL_LEAGUE_COUPON_RANKING = """
     WITH
@@ -284,6 +286,7 @@ SQL_LEAGUE_COUPON_RANKING = """
         FROM predictions p
         JOIN matches m ON m.id = p.match_id
         WHERE m.season_id = ANY(%s::bigint[]) AND m.status = 'finished'
+          AND p.user_id IN (SELECT user_id FROM private_league_members WHERE private_league_id = %s)
           AND EXISTS (
               SELECT 1
               FROM league_coupon_matches lcm
@@ -546,7 +549,7 @@ def get_league_coupon_ranking(
     flag = bool(include_bonuses)
     rows = _fetch_all(
         SQL_LEAGUE_COUPON_RANKING,
-        (league_id, joker_multiplier, season_ids, league_id, season_ids, flag, season_ids, flag,
+        (league_id, joker_multiplier, season_ids, league_id, league_id, season_ids, flag, season_ids, flag,
          league_id, season_ids, league_id),
     )
     return _season_rows(rows)

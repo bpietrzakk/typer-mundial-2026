@@ -125,7 +125,7 @@ SQL_LIST_MATCHES = """
 SQL_GET_MATCH_BY_ID = """
     SELECT m.id, m.league_id, m.home_team_id, m.away_team_id,
            m.kickoff_at, m.home_goals, m.away_goals, m.status, m.stage,
-           s.status AS season_status
+           s.status AS season_status, m.locked_at
     FROM matches m
     LEFT JOIN seasons s ON s.id = m.season_id
     WHERE m.id = %s

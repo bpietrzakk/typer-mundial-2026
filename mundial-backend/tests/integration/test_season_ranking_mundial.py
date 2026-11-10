@@ -257,16 +257,21 @@ def test_mundial_season_ranking_endpoint_bonuses_flag(wc):
 
 
 def test_coupon_mode_league_ranks_the_archived_mundial_by_all_matches(wc, conn):
-    # a coupon-mode league has no coupons in the Mundial, so it would show only
-    # bonuses. archived seasons are ranked by every finished match instead.
+    # the Mundial league came through the real upgrade: 008 gave it 'scope',
+    # 016 moved it to coupon mode (docs/decisions.md #014). it has no coupons in
+    # the Mundial, so it would show only bonuses. archived seasons are ranked by
+    # every finished match instead.
     from db.queries import get_league_ranking
 
     with conn.cursor() as cur:
+        cur.execute("SELECT ranking_mode FROM private_leagues WHERE id = %s", (wc["private_league"],))
+        assert cur.fetchone()[0] == "coupon"
         cur.execute(
-            "UPDATE private_leagues SET ranking_mode = 'coupon' WHERE id = %s",
+            "SELECT ranking_mode FROM league_ranking_mode_backup WHERE private_league_id = %s",
             (wc["private_league"],),
         )
-    conn.commit()
+        assert cur.fetchone()[0] == "scope"
+    conn.rollback()
 
     client = TestClient(app)
     user = {"id": wc["users"]["ala"], "nick": "ala", "email": "ala@example.com", "is_admin": False}
@@ -280,5 +285,17 @@ def test_coupon_mode_league_ranks_the_archived_mundial_by_all_matches(wc, conn):
 
         badges = client.get(f"/leagues/{wc['private_league']}/badges?season_id={wc['season_id']}")
         assert badges.status_code == 200
+        # streak units are the Mundial rounds, not (missing) coupons
+        assert badges.json()["unit"] == "round"
+        assert badges.json()["finished_picks"] > 0
+
+        # the member picks view adds up to the same row, no joker in an archived season
+        row = resp.json()[0]
+        picks = client.get(
+            f"/leagues/{wc['private_league']}/members/{row['user_id']}/predictions?season_id={wc['season_id']}"
+        ).json()
+        assert picks["total_points"] == row["total_points"]
+        assert sum(p["league_points"] or 0 for p in picks["predictions"]) == picks["match_points"]
+        assert all(p["is_joker"] is False for p in picks["predictions"])
     finally:
         app.dependency_overrides.pop(get_current_user, None)

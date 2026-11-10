@@ -396,3 +396,26 @@ def test_submit_in_archived_season_returns_409(monkeypatch):
     )
     assert resp.status_code == 409
     assert "archiwum" in resp.json()["detail"]
+
+
+def test_reopened_match_stays_closed(monkeypatch):
+    # was live, came back as scheduled with a new date: locked_at keeps it closed
+    match = {**_match_with("scheduled", timedelta(days=7)), "locked_at": "2026-06-01T18:00:00+00:00"}
+    monkeypatch.setattr(predictions_module, "get_match_by_id", lambda mid: match)
+    saved = []
+    monkeypatch.setattr(predictions_module, "upsert_prediction", lambda *a: saved.append(a))
+    resp = client.post("/predictions", json={"match_id": 1, "pred_home": 1, "pred_away": 0}, cookies=_auth_cookie())
+    assert resp.status_code == 409
+    assert "rozpoczął" in resp.json()["detail"]
+    assert saved == []
+
+
+def test_match_closed_between_check_and_write_is_409(monkeypatch):
+    # the SQL refused the write (kickoff passed a millisecond ago): no row back
+    monkeypatch.setattr(
+        predictions_module, "get_match_by_id", lambda mid: _match_with("scheduled", timedelta(hours=2)),
+    )
+    monkeypatch.setattr(predictions_module, "upsert_prediction", lambda *a: None)
+    resp = client.post("/predictions", json={"match_id": 1, "pred_home": 1, "pred_away": 0}, cookies=_auth_cookie())
+    assert resp.status_code == 409
+    assert "rozpoczął" in resp.json()["detail"]

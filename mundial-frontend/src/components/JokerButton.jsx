@@ -32,7 +32,7 @@ export default function JokerButton({ active, canChange, onSet, onClear }) {
         onClick={() => run(onClear)}
         disabled={busy}
         aria-pressed="true"
-        className="inline-flex items-center gap-1 px-1.5 rounded bg-accent/20 text-accent font-bold hover:bg-accent/30 disabled:opacity-50"
+        className="tap-target inline-flex items-center gap-1 px-1.5 rounded bg-accent/20 text-accent font-bold hover:bg-accent/30 disabled:opacity-50"
         title="Zdejmij jokera z tego meczu"
       >
         <span aria-hidden="true">🃏</span> Joker ×2 <span aria-hidden="true" className="text-accent/70">✕</span>
@@ -47,7 +47,7 @@ export default function JokerButton({ active, canChange, onSet, onClear }) {
       onClick={() => run(onSet)}
       disabled={busy}
       aria-pressed="false"
-      className="inline-flex items-center gap-1 px-1.5 rounded border border-surface-500/40 text-gray-400 font-semibold hover:text-accent hover:border-accent/50 disabled:opacity-50"
+      className="tap-target inline-flex items-center gap-1 px-1.5 rounded border border-surface-500/40 text-gray-400 font-semibold hover:text-accent hover:border-accent/50 disabled:opacity-50"
       title="Postaw jokera: podwójne punkty za ten mecz"
     >
       <span aria-hidden="true">🃏</span> ×2

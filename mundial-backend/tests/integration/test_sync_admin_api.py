@@ -99,6 +99,7 @@ def test_competitions_list_has_provider_and_last_sync(api):
     assert before["EPL"]["provider_ref"] == "PL"
     assert before["EKS"]["provider"] is None
     assert before["EPL"]["is_followed"] is False
+    assert before["EPL"]["in_my_leagues"] is False
     # WC has its archived season
     assert before["WC"]["current_season"]["status"] == "archived"
 

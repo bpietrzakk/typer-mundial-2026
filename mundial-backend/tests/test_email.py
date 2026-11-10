@@ -46,3 +46,30 @@ def test_reset_email_builds_link_and_strips_trailing_slash(monkeypatch):
     monkeypatch.setattr(email.resend.Emails, "send", lambda p: sent.update(p))
     email.send_password_reset_email("u@e.com", "rtok")
     assert "https://app.test/reset-password?token=rtok" in sent["html"]
+
+
+def test_emails_use_the_czutka_name(monkeypatch):
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")
+    monkeypatch.delenv("EMAIL_FROM", raising=False)
+    sent = []
+    monkeypatch.setattr(email.resend.Emails, "send", lambda p: sent.append(p))
+    email.send_verification_email("u@e.com", "tok")
+    email.send_password_reset_email("u@e.com", "rtok")
+    assert email._DEFAULT_FROM == "czutka <onboarding@resend.dev>"
+    for message in sent:
+        assert message["from"] == "czutka <onboarding@resend.dev>"
+        assert "czutka" in message["subject"]
+        assert "Mundial Typer" not in message["subject"] + message["html"]
+
+
+def test_logs_never_contain_the_email_address(monkeypatch, caplog):
+    import logging
+
+    caplog.set_level(logging.INFO, logger="services.email")
+    monkeypatch.setattr(email.resend.Emails, "send", lambda p: None)
+    monkeypatch.delenv("RESEND_API_KEY", raising=False)
+    email._send("secret.person@example.com", "subj", "<p>x</p>")
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")
+    email._send("secret.person@example.com", "subj", "<p>x</p>")
+    assert caplog.records
+    assert "secret.person" not in caplog.text

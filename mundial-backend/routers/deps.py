@@ -1,9 +1,11 @@
 import os
+from datetime import datetime, timezone
 
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, Response, status
 
 from db.queries import get_user_by_id
-from domain.auth import decode_access_token
+from domain.auth import decode_access_token, is_token_revoked, should_renew_token
+from routers.auth_cookie import issue_auth_cookie
 
 
 def _admin_emails() -> set[str]:
@@ -19,7 +21,10 @@ def is_admin_email(email: str) -> bool:
     return email.lower() in _admin_emails()
 
 
-def get_current_user(access_token: str | None = Cookie(default=None)) -> dict:
+def get_current_user(
+    response: Response,
+    access_token: str | None = Cookie(default=None),
+) -> dict:
     # FastAPI binds the cookie named 'access_token' to this parameter
     # 401 across the board — frontend can route to /login uniformly on any failure
 
@@ -44,6 +49,19 @@ def get_current_user(access_token: str | None = Cookie(default=None)) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Konto nie istnieje",
         )
+
+    # tokens signed before the last password change / reset are dead
+    changed_at = user.pop("password_changed_at", None)
+    if is_token_revoked(payload.get("iat"), changed_at):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sesja wygasła, zaloguj się ponownie",
+        )
+
+    # sliding session: a token older than a day gets a fresh cookie, so people
+    # who open the app at least once a week never get logged out
+    if should_renew_token(payload.get("iat"), datetime.now(timezone.utc)):
+        issue_auth_cookie(response, user["id"], user["nick"])
 
     # stamp admin flag so /auth/me and every protected route can expose it
     user["is_admin"] = is_admin_email(user["email"])

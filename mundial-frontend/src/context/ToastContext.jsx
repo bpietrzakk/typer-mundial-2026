@@ -48,14 +48,20 @@ const TYPE_ICON = {
   ),
 };
 
+// always in the page, so screen readers announce new toasts.
+// phone: bottom, above the bottom nav. desktop: top center, clear of the page corners
 function ToastStack({ toasts, onDismiss }) {
-  if (toasts.length === 0) return null;
   return (
-    <div className="fixed top-20 right-4 z-[200] flex flex-col gap-2 max-w-xs w-full pointer-events-none">
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed z-[200] left-4 right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] flex flex-col items-center gap-2 pointer-events-none
+        md:left-1/2 md:right-auto md:bottom-auto md:top-20 md:-translate-x-1/2 md:w-full md:max-w-sm"
+    >
       {toasts.map((t) => (
         <div
           key={t.id}
-          className={`flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-md shadow-card animate-slide-up pointer-events-auto ${TYPE_STYLES[t.type] || TYPE_STYLES.info}`}
+          className={`w-full max-w-sm flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-md shadow-card animate-slide-up pointer-events-auto ${TYPE_STYLES[t.type] || TYPE_STYLES.info}`}
         >
           {TYPE_ICON[t.type]}
           <span className="text-sm font-medium flex-1">{t.message}</span>

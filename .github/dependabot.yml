@@ -1,0 +1,21 @@
+# weekly dependency update PRs, a few at a time so they don't pile up.
+# uv ecosystem (not pip) so uv.lock gets updated together with pyproject.toml
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/mundial-backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "npm"
+    directory: "/mundial-frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 2

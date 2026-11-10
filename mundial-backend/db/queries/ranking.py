@@ -135,8 +135,10 @@ def get_league_ranking(league_id: int, bonuses: bool = True) -> list[dict]:
 #   gadv   - old global group advance picks tagged with one of the seasons
 # the fragment takes: season ids, season ids + include_bonuses, season ids + include_bonuses.
 # include_bonuses = false switches bonus/gadv off ("bez bonusów" Mundial ranking)
+# the league variant takes the league id right after the first season ids: pred only
+# sums the members' predictions instead of everybody's (same result, far less work)
 
-_SQL_SCORE_CTES = """
+_SQL_SCORE_CTES_TEMPLATE = """
     pred AS (
         SELECT p.user_id,
                COALESCE(SUM(p.points_awarded), 0) AS points,
@@ -145,7 +147,7 @@ _SQL_SCORE_CTES = """
                COUNT(p.points_awarded) AS scored_predictions
         FROM predictions p
         JOIN matches m ON m.id = p.match_id
-        WHERE m.season_id = ANY(%s::bigint[]) AND m.status = 'finished'
+        WHERE m.season_id = ANY(%s::bigint[]) AND m.status = 'finished'{member_filter}
         GROUP BY p.user_id
     ),
     bonus AS (
@@ -161,6 +163,9 @@ _SQL_SCORE_CTES = """
         GROUP BY user_id
     )
 """
+_SQL_SCORE_CTES = _SQL_SCORE_CTES_TEMPLATE.format(member_filter="")
+_SQL_LEAGUE_SCORE_CTES = _SQL_SCORE_CTES_TEMPLATE.format(member_filter="""
+          AND p.user_id IN (SELECT user_id FROM private_league_members WHERE private_league_id = %s)""")
 
 # season ranking: everyone who predicted a match of the season (or has an old
 # bonus pick for it, only while bonuses count). match_points / bonus_points
@@ -199,9 +204,9 @@ SQL_SEASON_RANKING = (
 # private league ranking: every member (also with 0 points), seasons chosen by
 # the caller, plus the points of this league's bonus answers for those seasons.
 # bonus_points = old global bonuses + league bonus answers.
-# params: season ids, (season ids, flag) x2, league id, season ids, league id
+# params: season ids, league id, (season ids, flag) x2, league id, season ids, league id
 SQL_LEAGUE_SEASONS_RANKING = (
-    "WITH" + _SQL_SCORE_CTES + """,
+    "WITH" + _SQL_LEAGUE_SCORE_CTES + """,
     league_bonus AS (
         SELECT a.user_id, SUM(a.points_awarded) AS total
         FROM league_bonus_answers a
@@ -275,7 +280,7 @@ def get_league_season_ranking(
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
                     SQL_LEAGUE_SEASONS_RANKING,
-                    (season_ids, season_ids, bool(include_bonuses), season_ids, bool(include_bonuses),
+                    (season_ids, league_id, season_ids, bool(include_bonuses), season_ids, bool(include_bonuses),
                      league_id, season_ids, league_id),
                 )
                 return _season_rows(cur.fetchall())

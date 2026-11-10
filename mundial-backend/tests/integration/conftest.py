@@ -86,6 +86,9 @@ def app_pool(db_params):
     old = db_connection._pool
     test_pool = pool.SimpleConnectionPool(minconn=1, maxconn=3, **db_params)
     db_connection._pool = test_pool
+    # idle times are kept by id(conn), ids of a dropped test pool can come back
+    db_connection._idle_since.clear()
     yield test_pool
     db_connection._pool = old
     test_pool.closeall()
+    db_connection._idle_since.clear()

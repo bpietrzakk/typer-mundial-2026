@@ -46,18 +46,18 @@ export default function ResetPassword() {
         </div>
 
         {!token ? (
-          <div className="glass-card p-8 text-center space-y-4">
+          <div className="panel p-6 sm:p-8 text-center space-y-4">
             <p className="text-red-400">Brak tokenu w linku — otwórz link z emaila ponownie.</p>
             <Link to="/forgot-password" className="btn-secondary inline-block text-sm">
               Poproś o nowy link
             </Link>
           </div>
         ) : done ? (
-          <div className="glass-card p-8 text-center">
+          <div className="panel p-6 sm:p-8 text-center">
             <p className="text-emerald-400">Hasło zmienione! Przekierowuję do logowania…</p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="glass-card p-8 space-y-5">
+          <form onSubmit={handleSubmit} className="panel p-6 sm:p-8 space-y-5">
             <div>
               <label htmlFor="rp-pass" className="block text-sm font-medium text-gray-400 mb-1.5">
                 Nowe hasło

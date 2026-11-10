@@ -1,10 +1,10 @@
 import api from './axios';
 
-// create a new private league
-// options: { rankingMode: 'scope' | 'coupon', couponSize, competitionIds } — all optional
+// create a new private league — every league plays the weekly coupon
+// (ranking_mode is not sent any more, ADR #014)
+// options: { couponSize, competitionIds } — all optional
 export const createLeague = async (name, options = {}) => {
   const body = { name };
-  if (options.rankingMode) body.ranking_mode = options.rankingMode;
   if (options.couponSize) body.coupon_size = options.couponSize;
   if (options.competitionIds?.length) body.competition_ids = options.competitionIds;
   const res = await api.post('/leagues', body);
@@ -42,10 +42,9 @@ export const updateLeagueSettings = async (id, prizePoolPerPerson) =>
   api.patch(`/leagues/${id}/settings`, { prize_pool_per_person: prizePoolPerPerson });
 
 // partial settings update — only the sent fields change, owner only.
-// fields: { rankingMode, couponSize, couponAuto } (prize pool stays untouched)
-export const patchLeagueSettings = async (id, { rankingMode, couponSize, couponAuto } = {}) => {
+// fields: { couponSize, couponAuto } (prize pool stays untouched, no ranking mode any more)
+export const patchLeagueSettings = async (id, { couponSize, couponAuto } = {}) => {
   const body = {};
-  if (rankingMode !== undefined) body.ranking_mode = rankingMode;
   if (couponSize !== undefined) body.coupon_size = couponSize;
   if (couponAuto !== undefined) body.coupon_auto = couponAuto;
   return api.patch(`/leagues/${id}/settings`, body);

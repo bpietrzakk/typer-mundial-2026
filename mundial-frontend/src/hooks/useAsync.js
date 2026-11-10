@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 // GET requests are retried on network / 5xx errors — the backend pool is small
 // (5 connections), so a burst of parallel requests sometimes ends with a 500
@@ -23,6 +23,9 @@ async function callWithRetry(fetcher, isStopped = () => false) {
 export default function useAsync(fetcher) {
   const [state, setState] = useState({ fetcher: null, nonce: 0, data: null, error: null });
   const [nonce, setNonce] = useState(0);
+  // bumped by every local patch: a silent refresh that started before one
+  // would bring older data than the patch (e.g. a pick saved meanwhile)
+  const patches = useRef(0);
 
   useEffect(() => {
     if (!fetcher) return undefined;
@@ -38,17 +41,27 @@ export default function useAsync(fetcher) {
   // full reload with skeleton (e.g. retry button)
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
-  // silent reload — keeps the old data on screen (live score polling)
+  // silent reload — keeps the old data on screen (live score polling).
+  // a local patch while it was on its way: ask once more (the answer may be older
+  // than the patch), still racing -> keep the patch, the next refresh brings the rest
   const refresh = useCallback(async () => {
     if (!fetcher) return;
-    try {
-      const data = await callWithRetry(fetcher);
-      setState((prev) => (prev.fetcher === fetcher ? { ...prev, data } : prev));
-    } catch { /* keep old data, try again next tick */ }
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const seen = patches.current;
+      let data;
+      try {
+        data = await callWithRetry(fetcher);
+      } catch { return; /* keep old data, try again next tick */ }
+      if (patches.current === seen) {
+        setState((prev) => (prev.fetcher === fetcher ? { ...prev, data } : prev));
+        return;
+      }
+    }
   }, [fetcher]);
 
   // local patch of the loaded data (optimistic updates)
   const mutate = useCallback((updater) => {
+    patches.current += 1;
     setState((prev) => ({ ...prev, data: updater(prev.data) }));
   }, []);
 

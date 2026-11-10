@@ -7,7 +7,7 @@ export default function MatchContextButton({ open, onToggle, controls, className
       aria-expanded={open}
       aria-controls={controls}
       title={open ? 'Ukryj statystyki meczu' : 'Pokaż statystyki meczu'}
-      className={`inline-flex items-center gap-1 h-6 px-2 rounded border text-[11px] font-semibold leading-none transition-colors
+      className={`tap-target inline-flex items-center gap-1 h-6 px-2 rounded border text-[11px] font-semibold leading-none transition-colors
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/70
         ${open ? 'bg-brand/20 border-brand/60 text-brand-light' : 'bg-brand/5 border-brand/35 text-brand hover:bg-brand/15 hover:border-brand/60'} ${className}`}
     >
@@ -17,7 +17,7 @@ export default function MatchContextButton({ open, onToggle, controls, className
         <rect x="6.5" y="4" width="3" height="10.5" rx="0.8" />
         <rect x="11.5" y="1.5" width="3" height="13" rx="0.8" />
       </svg>
-      Statystyki
+      {open ? 'Ukryj statystyki' : 'Statystyki'}
     </button>
   );
 }

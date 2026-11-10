@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import PasswordInput from '../components/PasswordInput';
 import InviteNotice from '../components/InviteNotice';
 import { clearPendingInvite, inviteCodeFromPath, isInvitePath, readPendingInvite, savePendingInvite } from '../utils/pendingInvite';
+import { safeNextPath } from '../utils/nextPath';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -15,9 +16,11 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // redirect to where the user came from (or /matches by default)
+  // redirect to where the user came from (or the start page by default):
+  // router state, ?next= after an expired session (own paths only), a pending invite.
   // an invite link (/join/CODE) also survives a detour through register / email verification
-  const from = location.state?.from?.pathname || readPendingInvite() || '/';
+  const next = safeNextPath(new URLSearchParams(location.search).get('next'));
+  const from = location.state?.from?.pathname || next || readPendingInvite() || '/';
   const invited = isInvitePath(from);
   savePendingInvite(from);
 
@@ -60,8 +63,7 @@ export default function Login() {
       <div className="relative w-full max-w-md animate-fade-in">
         {/* header */}
         <div className="text-center mb-8">
-          <img src="/favicon.svg" alt="czutka" className="w-16 h-16 mx-auto mb-4 rounded-xl" />
-          <h1 className="text-4xl font-sans font-extrabold tracking-tight text-white mb-2">
+          <h1 className="wordmark text-5xl mb-3">
             czutka
           </h1>
           <p className="text-gray-400">Masz czutkę? Zaloguj się i typuj.</p>
@@ -70,7 +72,7 @@ export default function Login() {
         {invited && <InviteNotice code={inviteCodeFromPath(from)} mode="login" />}
 
         {/* login form */}
-        <form onSubmit={handleSubmit} className="glass-card p-8 space-y-5">
+        <form onSubmit={handleSubmit} className="panel p-6 sm:p-8 space-y-5">
           <div>
             <label htmlFor="login-email" className="block text-sm font-medium text-gray-400 mb-1.5">
               Email

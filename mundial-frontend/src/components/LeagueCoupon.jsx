@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import useAsync from '../hooks/useAsync';
 import useLivePolling from '../hooks/useLivePolling';
-import { JOKER_RULE, formatWeekRange, isJokerLocked, nextOpenDeadline, shiftDay } from '../utils/coupon';
+import { JOKER_RULE, couponSourceLabel, formatWeekRange, isJokerLocked, shiftDay, splitPlayed } from '../utils/coupon';
 import { errorMessage } from '../utils/matchUi';
 import { distinctPoints } from '../utils/scoring';
 import CouponDayList from './CouponDayList';
@@ -13,14 +13,16 @@ import ErrorState from './ErrorState';
 import LeagueCouponEditor from './LeagueCouponEditor';
 import LeagueCouponProgress from './LeagueCouponProgress';
 import LeagueMatchPredictions from './LeagueMatchPredictions';
-import LeagueWeekResults from './LeagueWeekResults';
+import PlayedFold from './PlayedFold';
 import ScoringHint from './ScoringHint';
 import SkeletonRow from './SkeletonRow';
 
 // "Kupon tygodnia" of a league: week switcher, who typed, rows with autosave,
-// league predictions after kickoff, week results, organizer's editor.
+// league predictions after kickoff, organizer's editor.
+// the week table lives in the league ranking block: onCoupon({ data, loading })
+// tells it which week is shown here and its members' points.
 // welcome = player just joined -> big "type the coupon" button
-export default function LeagueCoupon({ league, scope, competitions, welcome = false }) {
+export default function LeagueCoupon({ league, scope, competitions, welcome = false, onCoupon }) {
   const { user } = useAuth();
   const { addToast } = useToast();
   const [week, setWeek] = useState(null); // null = current week
@@ -34,6 +36,12 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
   const couponQ = useAsync(fetcher);
   const coupon = couponQ.data;
   const mutate = couponQ.mutate;
+
+  // the ranking block below shows the same week (also after my picks / live refresh)
+  const couponLoading = couponQ.loading;
+  useEffect(() => {
+    onCoupon?.({ data: coupon, loading: couponLoading });
+  }, [coupon, couponLoading, onCoupon]);
 
   // my new prediction moves my counter and the match counter right away
   const handleSaved = useCallback((matchId, pred) => {
@@ -114,22 +122,22 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
 
   const matches = coupon?.matches ?? [];
   const typed = matches.filter((m) => m.my_prediction).length;
-  const scored = (coupon?.members ?? []).some((m) => m.scored_predictions > 0)
-    || matches.some((m) => m.status === 'finished');
-  const results = coupon && scored ? <LeagueWeekResults coupon={coupon} leagueName={league.name} /> : null;
 
-  // joker only in leagues ranked by the coupon. past weeks: just the badge
-  const jokerOn = coupon?.ranking_mode === 'coupon';
+  // every league has the joker (ADR #014). past weeks: just the badge
   const jokerId = coupon?.my_joker_match_id ?? null;
   const jokerLocked = !coupon?.is_current_week || isJokerLocked(matches.find((m) => m.id === jokerId));
-  const jokerOf = jokerOn
-    ? (m) => ({
-      active: m.id === jokerId,
-      locked: jokerLocked,
-      onSet: () => changeJoker(m.id),
-      onClear: () => changeJoker(null),
-    })
-    : undefined;
+  const jokerOf = (m) => ({
+    active: m.id === jokerId,
+    locked: jokerLocked,
+    onSet: () => changeJoker(m.id),
+    onClear: () => changeJoker(null),
+  });
+
+  // this week: live and upcoming first, played ones folded. a past week shows everything
+  const { upcoming, played } = coupon?.is_current_week
+    ? splitPlayed(matches)
+    : { upcoming: matches, played: [] };
+  const rowProps = { onSaved: handleSaved, onLocked: handleLocked, jokerOf, renderExtra: renderPredictions };
 
   return (
     <>
@@ -150,7 +158,7 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
         aria-labelledby="league-coupon-title"
       >
         {/* header + week switcher */}
-        <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-surface-500/20 bg-gradient-to-br from-brand/10 via-transparent to-transparent">
+        <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-surface-500/35">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <h2 id="league-coupon-title" className="text-lg font-bold text-white">
               Kupon tygodnia
@@ -190,23 +198,24 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
             )}
           </div>
 
+          {coupon?.created_by && matches.length > 0 && (
+            <p className="text-xs text-gray-400 mt-1">{couponSourceLabel(coupon.created_by)}</p>
+          )}
+
           {coupon?.is_current_week && matches.length > 0 && (
             <div className="mt-3">
-              <CouponProgress typed={typed} total={matches.length} nextDeadline={nextOpenDeadline(matches)} />
+              <CouponProgress matches={matches} />
             </div>
           )}
           {coupon && (
             <p className="text-[11px] text-gray-500 mt-2">
-              {coupon.ranking_mode === 'coupon'
-                ? `Do rankingu ligi liczą się tylko mecze kuponu. 🃏 ${JOKER_RULE}.`
-                : 'Kupon to wspólna porcja meczów — ranking ligi liczy wszystkie mecze z jej rozgrywek.'}
-              {coupon.created_by === 'owner' ? ' Kupon ułożył organizator.' : coupon.created_by === 'auto' ? ' Kupon ułożył się sam z hitów tygodnia.' : ''}
+              Do rankingu ligi liczą się tylko mecze kuponu. 🃏 {JOKER_RULE}.
             </p>
           )}
         </div>
 
         {couponQ.loading && (
-          <div className="divide-y divide-surface-500/10" role="status" aria-busy="true" aria-label="Ładuję kupon">
+          <div className="divide-y divide-surface-500/25" role="status" aria-busy="true" aria-label="Ładuję kupon">
             {[...Array(4)].map((_, i) => <SkeletonRow key={i} variant="match" />)}
           </div>
         )}
@@ -223,7 +232,13 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
               <LeagueCouponProgress coupon={coupon} league={league} canRemind={coupon.can_edit} />
             )}
 
-            {!coupon.is_current_week && results}
+            {/* a past week: its table is in the ranking block, which switches to that week */}
+            {!coupon.is_current_week && matches.length > 0 && (
+              <p className="px-4 sm:px-5 py-2.5 border-b border-surface-500/35 text-xs text-gray-400">
+                Wyniki tego tygodnia są w rankingu ligi.{' '}
+                <a href="#ranking" className="font-semibold text-brand hover:underline">Tabela tygodnia ↓</a>
+              </p>
+            )}
 
             {editing ? (
               <LeagueCouponEditor
@@ -251,18 +266,21 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
                 )}
               </div>
             ) : (
-              <CouponDayList
-                matches={matches}
-                onSaved={handleSaved}
-                onLocked={handleLocked}
-                jokerOf={jokerOf}
-                renderExtra={renderPredictions}
-              />
+              <>
+                {upcoming.length > 0 ? (
+                  <CouponDayList matches={upcoming} {...rowProps} />
+                ) : (
+                  <p className="px-4 sm:px-5 py-4 text-sm text-gray-400">Wszystkie mecze kuponu już się rozegrały.</p>
+                )}
+                <PlayedFold count={played.length} inCard>
+                  <CouponDayList matches={played} {...rowProps} />
+                </PlayedFold>
+              </>
             )}
 
             {coupon.can_edit && !editing && matches.length > 0 && (
-              <div className="px-4 sm:px-5 py-3 border-t border-surface-500/20 flex items-center justify-between gap-3 flex-wrap">
-                <p className="text-xs text-gray-500">Jesteś organizatorem — możesz zmienić mecze kuponu.</p>
+              <div className="px-4 sm:px-5 py-3 border-t border-surface-500/35 flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-xs text-gray-500">Jesteś organizatorem — możesz dodać własne mecze albo usunąć niektóre.</p>
                 <button
                   type="button"
                   onClick={() => setEditing(true)}
@@ -272,8 +290,6 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
                 </button>
               </div>
             )}
-
-            {coupon.is_current_week && results}
           </>
         )}
       </section>

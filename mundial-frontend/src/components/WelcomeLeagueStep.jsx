@@ -6,8 +6,9 @@ import { apiErrorMessage } from '../utils/apiError';
 const optionCls = `w-full flex items-center gap-4 p-4 rounded-2xl border text-left transition-colors cursor-pointer
   border-surface-500/30 bg-surface-800/40 hover:border-brand/50`;
 
-// onboarding step 2: "Z kim grasz?" — create a league, join with a code or play solo
-export default function WelcomeLeagueStep({ onBack }) {
+// onboarding: "Z kim grasz?" — create a league, join with a code or play the
+// global coupon alone. the league decides which competitions you play
+export default function WelcomeLeagueStep() {
   const navigate = useNavigate();
   const [showCode, setShowCode] = useState(false);
   const [code, setCode] = useState('');
@@ -34,6 +35,7 @@ export default function WelcomeLeagueStep({ onBack }) {
       <h1 className="text-2xl sm:text-3xl font-extrabold text-white mb-2">Z kim grasz?</h1>
       <p className="text-sm text-gray-400 mb-6">
         Najwięcej frajdy jest w prywatnej lidze ze znajomymi: wspólny kupon co tydzień i własny ranking.
+        Mecze, które widzisz, biorą się z rozgrywek twoich lig.
       </p>
 
       <div className="space-y-3">
@@ -41,7 +43,7 @@ export default function WelcomeLeagueStep({ onBack }) {
           <span className="text-2xl" aria-hidden="true">🏆</span>
           <span>
             <span className="block font-semibold text-gray-100">Załóż ligę</span>
-            <span className="block text-xs text-gray-400 mt-0.5">Wybierzesz rozgrywki i dostaniesz link do wysłania znajomym.</span>
+            <span className="block text-xs text-gray-400 mt-0.5">Kupon z hitów tygodnia i link do wysłania znajomym.</span>
           </span>
         </button>
 
@@ -81,14 +83,8 @@ export default function WelcomeLeagueStep({ onBack }) {
           <span className="text-2xl" aria-hidden="true">⚽</span>
           <span>
             <span className="block font-semibold text-gray-100">Na razie sam</span>
-            <span className="block text-xs text-gray-400 mt-0.5">Typuj mecze od razu, ligę założysz później.</span>
+            <span className="block text-xs text-gray-400 mt-0.5">Typujesz kupon ogólny z hitów tygodnia, ligę założysz później.</span>
           </span>
-        </button>
-      </div>
-
-      <div className="mt-8">
-        <button type="button" onClick={onBack} className="text-sm text-gray-400 hover:text-gray-200 px-2 py-2">
-          ← Wstecz
         </button>
       </div>
     </div>

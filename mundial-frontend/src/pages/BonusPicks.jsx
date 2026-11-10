@@ -120,7 +120,7 @@ export default function BonusPicks() {
                         key={team.id}
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border
                           ${!pick
-                            ? 'bg-surface-700/20 border-surface-500/10 text-gray-500'
+                            ? 'bg-surface-700/20 border-surface-500/25 text-gray-500'
                             : hit
                               ? 'bg-hit-exact/15 border-hit-exact/40 text-hit-exact'
                               : 'bg-brand/10 border-brand/40 text-brand'}`}

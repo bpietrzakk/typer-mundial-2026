@@ -1,142 +1,32 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { addPrediction } from '../api/predictions';
+import { useId, useState } from 'react';
+import AutosaveStatus from './AutosaveStatus';
 import JokerButton from './JokerButton';
 import MatchContextButton from './MatchContextButton';
 import MatchContextPanel from './MatchContextPanel';
 import PointsExplain from './PointsExplain';
 import ProvisionalPoints from './ProvisionalPoints';
+import ScoreBoxes from './ScoreBoxes';
 import TeamCrest from './TeamCrest';
-import { STATUS_META, VOID_STATUSES, competitionLabel, errorMessage, formatTime } from '../utils/matchUi';
+import usePredictionAutosave from '../hooks/usePredictionAutosave';
+import { STATUS_META, VOID_STATUSES, competitionLabel, formatTime } from '../utils/matchUi';
 import { settledHit } from '../utils/scoring';
-
-const SAVE_DELAY = 600;
 
 // rare statuses in the narrow time column (full name in the tooltip)
 const SHORT_STATUS = { postponed: 'przeł.', suspended: 'przerw.', cancelled: 'odw.', awarded: 'wo.' };
 
-const toText = (n) => (n == null ? '' : String(n));
-const sameAsSaved = (saved, home, away) =>
-  saved != null && String(saved.pred_home) === home && String(saved.pred_away) === away;
-
 // one coupon match in one line: time, home, [h]:[a], away, save state.
-// autosave: both boxes filled -> save after a short pause.
-// only one side typed -> the other shows a grey "0" hint and the save
-// happens when the player leaves the row (then the 0 is taken for real).
-// onSaved(matchId, myPrediction), onLocked(matchId) after a 409.
+// typing and autosave live in usePredictionAutosave, the boxes and the save state
+// are the same ScoreBoxes / AutosaveStatus as in the start hero and the match cards.
+// onSaved(matchId, myPrediction), onLocked(matchId, message?) when the match closed,
+// onEditing(matchId, bool) while the player is in the boxes or has unsaved input.
 // leagues = small league tags, children = extra content under the row.
-// joker = { active, locked, onSet, onClear } in a 'coupon' league, undefined = no joker here
-export default function CouponRow({ match, onSaved, onLocked, leagues, joker, showCompetition = false, children }) {
+// joker = { active, locked, onSet, onClear } of a league coupon, undefined = no joker here
+export default function CouponRow({ match, onSaved, onLocked, onEditing, leagues, joker, showCompetition = false, children }) {
   const pred = match.my_prediction;
-  const editable = Boolean(match.can_predict);
-
-  const [home, setHome] = useState(toText(pred?.pred_home));
-  const [away, setAway] = useState(toText(pred?.pred_away));
-  const [saved, setSaved] = useState(pred ?? null);
-  const [state, setState] = useState('idle'); // idle | saving | error
-  const [error, setError] = useState('');
-  const [failedKey, setFailedKey] = useState(null); // values that failed, no auto retry for them
-  const [zeroNote, setZeroNote] = useState(''); // "zapisano 2:0" after the 0 hint was taken
+  const form = usePredictionAutosave(match, { onSaved, onLocked, onEditing });
+  const { editable, saved } = form;
   const [contextOpen, setContextOpen] = useState(false);
   const contextId = useId();
-
-  const awayRef = useRef(null);
-  const noteTimer = useRef(null);
-  const latest = useRef({ home, away, saved, editable });
-  useEffect(() => {
-    latest.current = { home, away, saved, editable };
-  });
-
-  const save = useCallback(async (h, a, { zeroFilled = false } = {}) => {
-    setState('saving');
-    setError('');
-    try {
-      const res = await addPrediction(match.id, Number(h), Number(a));
-      const next = {
-        pred_home: res.pred_home,
-        pred_away: res.pred_away,
-        points_awarded: res.points_awarded ?? null,
-        hit_type: res.hit_type ?? null,
-      };
-      setSaved(next);
-      setFailedKey(null);
-      setState('idle');
-      if (zeroFilled) {
-        setZeroNote(`zapisano ${next.pred_home}:${next.pred_away}`);
-        clearTimeout(noteTimer.current);
-        noteTimer.current = setTimeout(() => setZeroNote(''), 3000);
-      }
-      onSaved?.(match.id, next);
-    } catch (err) {
-      setState('error');
-      setFailedKey(`${h}:${a}`);
-      setError(errorMessage(err, 'Nie zapisano'));
-      // 409 = the match is closed now, the row turns read only
-      if (err.response?.status === 409) onLocked?.(match.id);
-    }
-  }, [match.id, onSaved, onLocked]);
-
-  // autosave a short moment after both boxes are filled
-  useEffect(() => {
-    if (!editable || state === 'saving') return undefined;
-    if (home === '' || away === '') return undefined;
-    if (sameAsSaved(saved, home, away)) return undefined;
-    if (failedKey === `${home}:${away}`) return undefined;
-    const timer = setTimeout(() => save(home, away), SAVE_DELAY);
-    return () => clearTimeout(timer);
-  }, [editable, home, away, saved, state, failedKey, save]);
-
-  // leaving the page before the pause ends still saves the prediction
-  useEffect(() => () => {
-    clearTimeout(noteTimer.current);
-    const { home: h, away: a, saved: s, editable: e } = latest.current;
-    if (e && h !== '' && a !== '' && !sameAsSaved(s, h, a)) {
-      addPrediction(match.id, Number(h), Number(a)).catch(() => {});
-    }
-  }, [match.id]);
-
-  const changeHome = (value) => {
-    setHome(value);
-    setZeroNote('');
-    // a typed digit moves on to the away box
-    if (value !== '' && value !== home) awayRef.current?.focus();
-  };
-
-  const changeAway = (value) => {
-    setAway(value);
-    setZeroNote('');
-  };
-
-  // focus left both boxes -> take the grey 0 hint, or restore a cleared prediction
-  const handleBlur = (e) => {
-    if (e.currentTarget.contains(e.relatedTarget)) return;
-    if (state === 'saving') return;
-    const onlyHome = home !== '' && away === '';
-    const onlyAway = home === '' && away !== '';
-    if (onlyHome || onlyAway) {
-      const h = onlyHome ? home : '0';
-      const a = onlyAway ? away : '0';
-      setHome(h);
-      setAway(a);
-      save(h, a, { zeroFilled: true });
-    } else if (home === '' && away === '' && saved) {
-      setHome(toText(saved.pred_home));
-      setAway(toText(saved.pred_away));
-    } else if (home !== '' && away !== '' && !sameAsSaved(saved, home, away) && failedKey !== `${home}:${away}`) {
-      save(home, away);
-    }
-  };
-
-  const retry = () => {
-    const h = home === '' ? '0' : home;
-    const a = away === '' ? '0' : away;
-    setHome(h);
-    setAway(a);
-    save(h, a);
-  };
-
-  const isDirty = home !== '' && away !== '' && !sameAsSaved(saved, home, away);
-  const hintHome = home === '' && away !== '';
-  const hintAway = away === '' && home !== '';
 
   // --- read only parts ---
   const statusMeta = STATUS_META[match.status];
@@ -147,40 +37,8 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
   const shownHit = settledHit(shownPred, match.home_goals, match.away_goals);
   const tbd = match.kickoff_confirmed === false || match.status === 'postponed' || match.status === 'cancelled';
 
-  const boxCls = (hint) => `w-8 sm:w-9 h-9 text-center text-base font-bold rounded-lg bg-surface-600/50 border
-    text-white focus:outline-none focus:border-brand/60 focus:ring-2 focus:ring-brand/20
-    ${state === 'error' ? 'border-red-500/50' : 'border-surface-500/30'}
-    ${hint ? 'placeholder-gray-500' : 'placeholder-gray-600'}`;
-
   const middle = editable ? (
-    <div className="flex items-center gap-0.5 sm:gap-1" onBlur={handleBlur}>
-      <input
-        type="text"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        maxLength={2}
-        value={home}
-        placeholder={hintHome ? '0' : '–'}
-        aria-label={`Gole: ${match.home_team.name}`}
-        onFocus={(e) => e.target.select()}
-        onChange={(e) => changeHome(e.target.value.replace(/\D/g, '').slice(0, 2))}
-        className={boxCls(hintHome)}
-      />
-      <span className="text-gray-500 font-bold text-sm">:</span>
-      <input
-        ref={awayRef}
-        type="text"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        maxLength={2}
-        value={away}
-        placeholder={hintAway ? '0' : '–'}
-        aria-label={`Gole: ${match.away_team.name}`}
-        onFocus={(e) => e.target.select()}
-        onChange={(e) => changeAway(e.target.value.replace(/\D/g, '').slice(0, 2))}
-        className={boxCls(hintAway)}
-      />
-    </div>
+    <ScoreBoxes form={form} homeName={match.home_team.name} awayName={match.away_team.name} size="row" />
   ) : (
     <div className={`min-w-[70px] text-center score-num font-black text-lg whitespace-nowrap
       ${isLive ? 'text-live' : hasScore ? 'text-white' : 'text-gray-500'}`}
@@ -188,24 +46,6 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
       {hasScore ? `${match.home_goals} : ${match.away_goals}` : '– : –'}
     </div>
   );
-
-  // right column: save state for open matches, nothing for closed ones
-  let stateIcon = null;
-  if (editable) {
-    if (state === 'saving') {
-      stateIcon = <span className="w-3.5 h-3.5 border-2 border-brand/30 border-t-brand rounded-full animate-spin" aria-label="Zapisuję" />;
-    } else if (state === 'error') {
-      stateIcon = (
-        <button type="button" onClick={retry} className="text-red-400 font-black text-sm" aria-label="Ponów zapis" title="Ponów zapis">!</button>
-      );
-    } else if (saved && !isDirty) {
-      stateIcon = (
-        <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3} aria-label="Zapisano">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-        </svg>
-      );
-    }
-  }
 
   // joker chip: my joker here, or a free joker and an open match
   const showJoker = Boolean(joker) && (joker.active || (editable && !joker.locked));
@@ -215,7 +55,7 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
     <div className={`px-3 sm:px-4 py-2.5 ${jokerHere ? 'bg-accent/10 ring-1 ring-inset ring-accent/40' : isLive ? 'bg-live/5' : ''}`}>
       <div className="max-w-2xl mx-auto">
         <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto_minmax(0,1fr)_0.875rem] sm:grid-cols-[3rem_minmax(0,1fr)_auto_minmax(0,1fr)_1.25rem] items-center gap-1 sm:gap-3">
-          {/* time / status + form toggle */}
+          {/* time / status */}
           <div className="flex flex-col items-start gap-0.5 text-[11px] leading-tight tabular-nums">
             {isLive ? (
               <span className="inline-flex items-center gap-1 font-bold text-live">
@@ -232,7 +72,7 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
 
           {/* home */}
           <div className="flex items-center justify-end gap-1 sm:gap-1.5 min-w-0">
-            <span className="text-[13px] sm:text-sm font-medium leading-tight text-gray-100 line-clamp-2 break-words text-right">{match.home_team.name}</span>
+            <span className="text-[13px] sm:text-sm font-medium leading-tight text-gray-100 line-clamp-2 hyphens-auto break-words text-right">{match.home_team.name}</span>
             <TeamCrest team={match.home_team} size="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
 
@@ -241,21 +81,18 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
           {/* away */}
           <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
             <TeamCrest team={match.away_team} size="w-5 h-5 sm:w-6 sm:h-6" />
-            <span className="text-[13px] sm:text-sm font-medium leading-tight text-gray-100 line-clamp-2 break-words">{match.away_team.name}</span>
+            <span className="text-[13px] sm:text-sm font-medium leading-tight text-gray-100 line-clamp-2 hyphens-auto break-words">{match.away_team.name}</span>
           </div>
 
-          <div className="flex items-center justify-center" aria-live="polite">{stateIcon}</div>
+          {/* right column: save state for open matches, nothing for closed ones */}
+          <div className="flex items-center justify-center" aria-live="polite">
+            {editable && <AutosaveStatus form={form} variant="icon" />}
+          </div>
         </div>
 
-        {/* second line: what happened with the prediction + tags + stats button */}
+        {/* second line: what happened with the prediction + tags + stats toggle */}
         <div className="mt-1 pl-[2.5rem] sm:pl-[3.75rem] flex items-center gap-x-2 gap-y-1 flex-wrap text-[11px] leading-4">
-            {state === 'error' && (
-              <span className="text-red-400" role="alert">
-                {error} ·{' '}
-                <button type="button" onClick={retry} className="underline font-semibold">Ponów</button>
-              </span>
-            )}
-            {zeroNote && state !== 'error' && <span className="text-emerald-400 font-semibold">✓ {zeroNote}</span>}
+            <AutosaveStatus form={form} variant="note" />
 
             {!editable && (
               shownPred ? (
@@ -290,14 +127,14 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
                 {l.name}
               </span>
             ))}
-            {/* the time column is too narrow for a text button, so it sits here */}
+
             <MatchContextButton
               open={contextOpen}
               onToggle={() => setContextOpen((o) => !o)}
               controls={contextId}
               className="ml-auto"
             />
-          </div>
+        </div>
 
         {contextOpen && <MatchContextPanel match={match} id={contextId} className="mt-2" />}
 

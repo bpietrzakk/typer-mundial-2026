@@ -22,7 +22,8 @@ SQL_LOCK_MATCH_FOR_UPDATE = """
 # scored_at opens the rescore window (domain/rescore.py)
 SQL_UPDATE_MATCH_RESULT = """
     UPDATE matches
-    SET home_goals = %s, away_goals = %s, status = 'finished', scored_at = NOW()
+    SET home_goals = %s, away_goals = %s, status = 'finished', scored_at = NOW(),
+        locked_at = COALESCE(locked_at, NOW())
     WHERE id = %s
 """
 

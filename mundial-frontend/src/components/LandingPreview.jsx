@@ -7,7 +7,8 @@ const FRIENDS = [
   { nick: 'Ola', pts: 37, move: '▼' },
 ];
 
-// static mock of the app for the landing page — no real data, no images
+// static mock of the app for the landing page — no real data, no images.
+// .panel (raised surface), .glass-card is a bare line now and would vanish here
 export default function LandingPreview() {
   return (
     <div className="relative mx-auto w-full max-w-sm" aria-hidden="true">
@@ -15,7 +16,7 @@ export default function LandingPreview() {
       <div className="absolute -inset-6 rounded-[2rem] bg-brand/10 blur-2xl" />
 
       {/* weekly coupon header */}
-      <div className="relative glass-card px-4 py-3 mb-3 flex items-center justify-between">
+      <div className="relative panel px-4 py-3 mb-3 flex items-center justify-between">
         <div>
           <p className="text-[11px] uppercase tracking-widest text-gray-500">Kupon tygodnia</p>
           <p className="text-sm font-semibold text-gray-100">
@@ -28,7 +29,7 @@ export default function LandingPreview() {
       </div>
 
       {/* match card */}
-      <div className="relative glass-card p-4 mb-3">
+      <div className="relative panel p-4 mb-3">
         <div className="flex items-center justify-between mb-3">
           <CompetitionBadge code="EPL" />
           <span className="text-[11px] text-gray-400">Kolejka 11 · sob 18:30</span>
@@ -55,7 +56,7 @@ export default function LandingPreview() {
       </div>
 
       {/* friends league table */}
-      <div className="relative glass-card p-4">
+      <div className="relative panel p-4">
         <p className="text-[11px] uppercase tracking-widest text-gray-500 mb-2">Ekipa z osiedla</p>
         <ol className="space-y-1.5">
           {FRIENDS.map((f, i) => (

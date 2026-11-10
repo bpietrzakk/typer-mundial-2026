@@ -154,9 +154,10 @@ export default function LeagueList() {
           </div>
           <p className="text-gray-200 font-semibold mb-1">Nie masz jeszcze żadnej ligi</p>
           <p className="text-gray-400 text-sm mb-5">Utwórz własną ligę i zaproś znajomych, albo dołącz do istniejącej kodem zaproszenia.</p>
+          {/* an open form above already has its own button, no second identical one */}
           <div className="flex justify-center gap-3">
-            <button onClick={() => setShowCreate(true)} className="btn-primary text-sm">Utwórz ligę</button>
-            <button onClick={() => setShowJoin(true)} className="btn-secondary text-sm">Dołącz kodem</button>
+            {!showCreate && <button onClick={() => setShowCreate(true)} className="btn-primary text-sm">Utwórz ligę</button>}
+            {!showJoin && <button onClick={() => setShowJoin(true)} className="btn-secondary text-sm">Dołącz kodem</button>}
           </div>
         </div>
       )}
