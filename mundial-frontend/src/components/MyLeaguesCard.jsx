@@ -30,7 +30,8 @@ export default function MyLeaguesCard({ leaguesData, loading, userId, title = 'M
           {leaguesData.items.map(({ league, standings }) => {
             const mine = standings?.find((r) => r.user_id === userId);
             const players = standings ? standings.length : league.member_count;
-            // a rank means nothing until someone has points (everybody would be #1)
+            // a rank means nothing until someone has points (everybody would be #1),
+            // so a fresh league says that instead of "– miejsce · 0 pkt"
             const ranked = standings?.some((r) => r.total_points > 0);
             return (
               <Link
@@ -42,10 +43,13 @@ export default function MyLeaguesCard({ leaguesData, loading, userId, title = 'M
                   <p className="font-semibold text-gray-200 truncate">{league.name}</p>
                   {players != null && <p className="text-xs text-gray-400 mt-0.5">{countOf(players, PLAYERS)}</p>}
                 </div>
-                {mine && (
+                {mine && !ranked && (
+                  <p className="text-xs text-gray-500 shrink-0 text-right">jeszcze bez punktów</p>
+                )}
+                {mine && ranked && (
                   <div className="flex items-center gap-4 shrink-0">
                     <div className="text-center">
-                      <p className={`text-xl font-black tabular-nums ${ranked && mine.rank === 1 ? 'text-accent' : 'text-white'}`}>{ranked ? `#${mine.rank}` : '–'}</p>
+                      <p className={`text-xl font-black tabular-nums ${mine.rank === 1 ? 'text-accent' : 'text-white'}`}>#{mine.rank}</p>
                       <p className="text-[10px] text-gray-500">miejsce</p>
                     </div>
                     <div className="text-center">

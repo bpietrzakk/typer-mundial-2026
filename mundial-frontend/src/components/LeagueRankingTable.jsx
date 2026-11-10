@@ -28,8 +28,9 @@ function PositionChange({ entry }) {
 // league standings with exact / diff hit columns, highlights the logged-in user.
 // live = show the live table (live_rank / live_total from the api) in its order.
 // streaks = optional Map user_id -> current round streak (🔥 from 2 up).
-// showBreakdown = "match points + bonus points" under the total (Mundial archive)
-export default function LeagueRankingTable({ entries, onSelectUser, live = false, streaks, streakUnit, showBreakdown = false }) {
+// showBreakdown = "match points + bonus points" under the total (Mundial archive).
+// caption = name for screen readers (default "Ranking ligi")
+export default function LeagueRankingTable({ entries, onSelectUser, live = false, streaks, streakUnit, showBreakdown = false, caption = 'Ranking ligi' }) {
   const { user } = useAuth();
 
   if (entries.length === 0) {
@@ -44,7 +45,7 @@ export default function LeagueRankingTable({ entries, onSelectUser, live = false
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
-        <caption className="sr-only">{live ? 'Ranking ligi na żywo (nieostateczny)' : 'Ranking ligi'}</caption>
+        <caption className="sr-only">{live ? `${caption} na żywo (nieostateczny)` : caption}</caption>
         <thead>
           <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-surface-500/35">
             <th scope="col" className="pl-4 pr-1 sm:px-5 py-3 w-10 sm:w-16">#</th>

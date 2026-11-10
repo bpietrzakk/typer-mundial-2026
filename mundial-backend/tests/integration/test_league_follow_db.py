@@ -1,8 +1,8 @@
-# league scope -> followed competitions (db/queries/leagues.py) on a real Postgres:
-# joining a league, creating one with a scope and adding competitions to the
-# scope follow them for members. only active ones, nothing is ever unfollowed,
-# an empty scope (= every competition) follows nothing.
-# plus the 012 backfill for leagues that existed before.
+# league scope vs followed competitions on a real Postgres.
+# since docs/decisions.md #014 nothing follows anything: "my competitions" are
+# the scopes of my leagues, user_competitions is neither written nor read
+# (it goes in a later contract migration).
+# the 012 backfill (migration still in the chain) keeps its own test.
 
 import os
 
@@ -74,48 +74,22 @@ def api(world):
     app.dependency_overrides.pop(get_current_user, None)
 
 
-def test_create_with_scope_follows_for_owner_skips_inactive(conn, world, api):
+def test_league_writes_never_touch_followed_competitions(conn, world, api):
+    # following is gone (docs/decisions.md #014): creating, joining and changing
+    # the scope of a league leave user_competitions alone, old rows stay as they were
     c, u = world["comps"], world["users"]
-    # WC (archived Mundial) is inactive -> stays out
-    res = api("ala").post("/leagues", json={"name": "Biuro", "competition_ids": [c["EPL"], c["UCL"], c["WC"]]})
-    assert res.status_code == 201
-    assert _followed(conn, u["ala"]) == {"EPL", "UCL"}
-
-
-def test_join_follows_scope_keeps_own_follows(conn, world, api):
-    c, u = world["comps"], world["users"]
-    code = api("ala").post("/leagues", json={"name": "Biuro", "competition_ids": [c["EPL"]]}).json()["join_code"]
     execute(conn, "INSERT INTO user_competitions (user_id, competition_id) VALUES (%s, %s)", (u["bartek"], c["SA"]))
 
-    assert api("bartek").post("/leagues/join", json={"join_code": code}).status_code == 200
-    assert _followed(conn, u["bartek"]) == {"EPL", "SA"}
-
-
-def test_join_league_without_scope_follows_nothing(conn, world, api):
-    u = world["users"]
-    code = api("ala").post("/leagues", json={"name": "Wszystko"}).json()["join_code"]
-    assert api("bartek").post("/leagues/join", json={"join_code": code}).status_code == 200
-    assert _followed(conn, u["ala"]) == set()
-    assert _followed(conn, u["bartek"]) == set()
-
-
-def test_scope_change_follows_only_added_for_all_members(conn, world, api):
-    c, u = world["comps"], world["users"]
     league = api("ala").post("/leagues", json={"name": "Biuro", "competition_ids": [c["EPL"]]}).json()
-    api("bartek").post("/leagues/join", json={"join_code": league["join_code"]})
-    # bartek drops EPL on purpose — re-saving a scope with EPL must not bring it back
-    execute(conn, "DELETE FROM user_competitions WHERE user_id = %s", (u["bartek"],))
-
+    assert api("bartek").post("/leagues/join", json={"join_code": league["join_code"]}).status_code == 200
     res = api("ala").put(f"/leagues/{league['id']}/competitions", json={"competition_ids": [c["EPL"], c["BL"]]})
     assert res.status_code == 200
-    assert _followed(conn, u["ala"]) == {"EPL", "BL"}
-    assert _followed(conn, u["bartek"]) == {"BL"}
-    # celina is not a member
-    assert _followed(conn, u["celina"]) == set()
 
-    # narrowing / clearing the scope never unfollows anything
-    api("ala").put(f"/leagues/{league['id']}/competitions", json={"competition_ids": []})
-    assert _followed(conn, u["ala"]) == {"EPL", "BL"}
+    assert _followed(conn, u["ala"]) == set()
+    assert _followed(conn, u["bartek"]) == {"SA"}
+    # what counts is the league scope, right away
+    mine = {x["code"] for x in api("bartek").get("/competitions").json() if x["in_my_leagues"]}
+    assert mine == {"EPL", "BL"}
 
 
 def test_backfill_012_follows_existing_scopes(conn, app_pool):

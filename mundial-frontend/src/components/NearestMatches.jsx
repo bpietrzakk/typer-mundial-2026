@@ -11,9 +11,12 @@ import { formatWeekRange } from '../utils/coupon';
 const PAGE = 10;
 
 // "Najbliższe" (default view of the matches page): my weekly coupon first,
-// nearest match on top, then other upcoming matches from my leagues.
-// data comes from useNearestMatches (the page needs hasLive for its title)
-export default function NearestMatches({ nearest }) {
+// nearest match on top, then other upcoming matches from my competitions.
+// data comes from useNearestMatches (the page needs hasLive for its title).
+// fromLeagues = my competitions are the scopes of my leagues (groupCompetitions),
+// false = every active one (no league, or nothing active in my leagues),
+// null = the list is still loading (the coupon source decides meanwhile)
+export default function NearestMatches({ nearest, fromLeagues = null }) {
   const {
     coupon, couponLoading, couponError, reloadCoupon, open, played,
     others, othersLoading, othersError, reloadOthers, handleMatchChange,
@@ -22,6 +25,8 @@ export default function NearestMatches({ nearest }) {
 
   const isGlobal = coupon?.source === 'global';
   const all = coupon?.matches ?? [];
+  // the second list is /me/upcoming-matches: the same pool as the competition list
+  const othersFromLeagues = fromLeagues ?? !isGlobal;
 
   return (
     <div>
@@ -63,7 +68,7 @@ export default function NearestMatches({ nearest }) {
 
       <NearestSection
         id="nearest-leagues"
-        title={isGlobal ? 'Z obserwowanych rozgrywek' : 'Z twoich lig'}
+        title={othersFromLeagues ? 'Z twoich lig' : 'Ze wszystkich rozgrywek'}
         note="Pozostałe mecze najbliższych 7 dni, spoza kuponu"
       >
         {othersError ? (

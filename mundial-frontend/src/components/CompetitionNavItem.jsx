@@ -1,7 +1,7 @@
 // one entry of the matches navigation: a chip on phones, a full row in the
 // desktop sidebar. solid brand when picked (same as the other chip rows).
-// the star / hint are only for phones, the sidebar has group labels
-export default function CompetitionNavItem({ active, onClick, icon, label, hint, followed = false }) {
+// the hint is only for phones, the sidebar has group labels
+export default function CompetitionNavItem({ active, onClick, icon, label, hint }) {
   return (
     <button
       type="button"
@@ -16,9 +16,6 @@ export default function CompetitionNavItem({ active, onClick, icon, label, hint,
       {icon}
       <span className="lg:truncate lg:flex-1">{label}</span>
       {hint && <span className="lg:hidden text-[10px] uppercase tracking-wider opacity-70">{hint}</span>}
-      {followed && (
-        <span className={`lg:hidden ${active ? 'text-surface-900' : 'text-brand'}`} aria-label="obserwowana">★</span>
-      )}
     </button>
   );
 }

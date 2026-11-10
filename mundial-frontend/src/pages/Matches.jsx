@@ -16,7 +16,7 @@ import useAsync from '../hooks/useAsync';
 import useLivePolling from '../hooks/useLivePolling';
 import useNearestMatches from '../hooks/useNearestMatches';
 import useSeasonSelection from '../hooks/useSeasonSelection';
-import { SEASON_STATUS_LABELS, formatDayShort, toId } from '../utils/matchUi';
+import { SEASON_STATUS_LABELS, formatDayShort, groupCompetitions, toId } from '../utils/matchUi';
 
 export default function Matches() {
   // no params in the url = "Najbliższe" (my coupon + upcoming matches of my leagues),
@@ -115,7 +115,10 @@ export default function Matches() {
 
         <div className="min-w-0">
           {isNearest ? (
-            <NearestMatches nearest={nearest} />
+            <NearestMatches
+              nearest={nearest}
+              fromLeagues={sel.competitions.length > 0 ? groupCompetitions(sel.competitions).fromLeagues : null}
+            />
           ) : sel.loading ? (
             <>
               <div className="flex items-end gap-2 mb-6" aria-hidden="true">

@@ -8,8 +8,10 @@
 #   r3     m4     0:2        0:1 tend    1:0 miss   1:2 tend
 #   r3     m5     scheduled  -> r3 is not over yet
 #
-# Biuro (ala owner, bartek, celina) in scope mode, Kupon (ala, bartek) in
-# coupon mode with only m3 on its coupon
+# Kupon (ala, bartek) in coupon mode (every new league since docs/decisions.md
+# #014) with only m3 on its coupon. Biuro (ala owner, bartek, celina) is put back
+# in scope mode like a league before migration 016: rounds as streak units and
+# every match counting is the rule archived seasons (Mundial) still use
 
 import os
 
@@ -73,9 +75,9 @@ def world(conn, app_pool):
     biuro = create_league("Biuro", u["ala"])
     for nick in ("bartek", "celina"):
         join_league(biuro["join_code"], u[nick])
+    execute(conn, "UPDATE private_leagues SET ranking_mode = 'scope' WHERE id = %s", (biuro["id"],))
     kupon = create_league("Kupon", u["ala"])
     join_league(kupon["join_code"], u["bartek"])
-    execute(conn, "UPDATE private_leagues SET ranking_mode = 'coupon' WHERE id = %s", (kupon["id"],))
     with conn:
         with conn.cursor() as cur:
             coupon_id = _one(

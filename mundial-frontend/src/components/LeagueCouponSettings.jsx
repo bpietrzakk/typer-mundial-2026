@@ -2,36 +2,21 @@ import { useState } from 'react';
 import { patchLeagueSettings } from '../api/leagues';
 import { useToast } from '../hooks/useToast';
 import { apiErrorMessage } from '../utils/apiError';
+import { JOKER_RULE } from '../utils/coupon';
 
 const SIZES = Array.from({ length: 11 }, (_, i) => i + 5); // 5..15
 
-const MODES = [
-  {
-    value: 'coupon',
-    label: 'Liczą się tylko mecze kuponu',
-    text: 'Wszyscy typują tę samą porcję meczów tygodnia i tylko one dają punkty w rankingu ligi. Uczciwie i szybko.',
-  },
-  {
-    value: 'scope',
-    label: 'Liczą się wszystkie mecze z rozgrywek ligi',
-    text: 'Każdy wytypowany mecz z rozgrywek ligi daje punkty. Kupon jest wtedy tylko podpowiedzią, co warto wytypować.',
-  },
-];
-
-// how the league counts points + coupon auto (copy of the global coupon) and
-// the fallback size; owner edits, others read
+// how the league counts points: only the weekly coupon (every league, joker x2).
+// the owner has the advanced options: coupon auto (copy of the global coupon)
+// and the fallback size; others only read
 export default function LeagueCouponSettings({ league, isOwner, onChanged }) {
   const { addToast } = useToast();
   const [editing, setEditing] = useState(false);
-  const [mode, setMode] = useState(league.ranking_mode);
   const [size, setSize] = useState(league.coupon_size);
   const [auto, setAuto] = useState(league.coupon_auto);
   const [saving, setSaving] = useState(false);
 
-  const current = MODES.find((m) => m.value === league.ranking_mode) || MODES[1];
-
   const startEditing = () => {
-    setMode(league.ranking_mode);
     setSize(league.coupon_size);
     setAuto(league.coupon_auto);
     setEditing(true);
@@ -40,8 +25,8 @@ export default function LeagueCouponSettings({ league, isOwner, onChanged }) {
   const save = async () => {
     setSaving(true);
     try {
-      await patchLeagueSettings(league.id, { rankingMode: mode, couponSize: size, couponAuto: auto });
-      onChanged({ ranking_mode: mode, coupon_size: size, coupon_auto: auto });
+      await patchLeagueSettings(league.id, { couponSize: size, couponAuto: auto });
+      onChanged({ coupon_size: size, coupon_auto: auto });
       setEditing(false);
       addToast('Ustawienia ligi zapisane');
     } catch (err) {
@@ -56,49 +41,34 @@ export default function LeagueCouponSettings({ league, isOwner, onChanged }) {
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-gray-200 mb-1">Co się liczy w rankingu</h2>
-          <p className="text-sm text-gray-300">{current.label}</p>
+          <p className="text-sm text-gray-300">Tylko mecze kuponu tygodnia — te same dla wszystkich w lidze.</p>
           <p className="text-xs text-gray-400 mt-1">
             {league.coupon_auto
               ? 'Kupon: co tydzień kupon ogólny z hitów tygodnia, organizator może go zmienić'
               : 'Kupon: układa organizator'}
           </p>
+          <p className="text-xs text-gray-400 mt-1"><span aria-hidden="true">🃏 </span>{JOKER_RULE}.</p>
         </div>
         {isOwner && !editing && (
           <button type="button" onClick={startEditing} className="text-xs text-gray-400 hover:text-brand transition-colors">
-            Zmień
+            Zaawansowane
           </button>
         )}
       </div>
 
       {isOwner && editing && (
         <fieldset disabled={saving} className="mt-4 pt-4 border-t border-surface-500/35 animate-fade-in">
-          <legend className="sr-only">Tryb rankingu</legend>
-          <div className="grid gap-2 mb-4">
-            {MODES.map((m) => (
-              <label
-                key={m.value}
-                className={`flex items-start gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors
-                  ${mode === m.value
-                    ? 'border-brand/50 bg-brand/10'
-                    : 'border-surface-500/30 bg-surface-700/30 hover:border-surface-500/60'}`}
-              >
-                <input
-                  type="radio"
-                  name="league-ranking-mode"
-                  value={m.value}
-                  checked={mode === m.value}
-                  onChange={() => setMode(m.value)}
-                  className="accent-brand mt-1"
-                />
-                <span>
-                  <span className={`block text-sm font-semibold ${mode === m.value ? 'text-brand' : 'text-gray-200'}`}>{m.label}</span>
-                  <span className="block text-xs text-gray-400 mt-0.5">{m.text}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-
+          <legend className="sr-only">Zaawansowane ustawienia kuponu</legend>
           <div className="flex items-center gap-4 flex-wrap mb-3">
+            <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={auto}
+                onChange={(e) => setAuto(e.target.checked)}
+                className="accent-brand w-4 h-4"
+              />
+              Co tydzień bierz kupon ogólny
+            </label>
             <label className="flex items-center gap-2 text-sm text-gray-300">
               Meczów, gdy hitów jest za mało
               <select
@@ -109,18 +79,12 @@ export default function LeagueCouponSettings({ league, isOwner, onChanged }) {
                 {SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </label>
-            <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={auto}
-                onChange={(e) => setAuto(e.target.checked)}
-                className="accent-brand w-4 h-4"
-              />
-              Co tydzień bierz kupon ogólny
-            </label>
           </div>
-          {mode !== league.ranking_mode && (
-            <p className="text-xs text-amber-300/90 mb-3">Zmiana trybu od razu przelicza ranking ligi.</p>
+          {/* without the auto copy a week without the owner's coupon gives nobody points */}
+          {!auto && (
+            <p className="text-xs text-amber-300/90 mb-3">
+              Bez kuponu ogólnego kupon układasz sam co tydzień — tydzień bez kuponu nie daje punktów.
+            </p>
           )}
 
           <div className="flex items-center gap-3">

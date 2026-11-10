@@ -67,40 +67,52 @@ def test_competitions_list(world, api):
     assert by_code["LIGA"]["current_season"] is None
     assert by_code["EPL"]["country"] == "Anglia"
     assert by_code["EPL"]["kind"] == "league"
-    assert {c["code"] for c in body if c["is_followed"]} == set()
+    # ala's two leagues count every competition = every active one
+    assert [c["code"] for c in body if c["in_my_leagues"]] == ["UCL", "EPL", "LIGA", "SA", "BL", "L1"]
+    assert all(c["is_followed"] == c["in_my_leagues"] for c in body)
 
 
-def test_competitions_is_followed_is_per_user(world, api):
-    followed = lambda nick: {c["code"] for c in api(nick).get("/competitions").json() if c["is_followed"]}  # noqa: E731
-    assert followed("celina") == {"EPL", "UCL"}
-    assert followed("daniel") == {"UCL"}
-    assert followed("ewa") == {"EKS"}
-    assert followed("ala") == set()
+ACTIVE = {"UCL", "EPL", "LIGA", "SA", "BL", "L1"}
 
 
-def test_follow_and_unfollow_roundtrip(world, api):
-    client = api("ala")
-    epl = world["EPL"]
-    is_followed = lambda: next(  # noqa: E731
-        c["is_followed"] for c in client.get("/competitions").json() if c["code"] == "EPL"
-    )
-    assert client.post(f"/competitions/{epl}/follow").status_code == 204
-    assert is_followed() is True
-    # idempotent
-    assert client.post(f"/competitions/{epl}/follow").status_code == 204
-    assert is_followed() is True
-    assert client.delete(f"/competitions/{epl}/follow").status_code == 204
-    assert is_followed() is False
-    assert client.delete(f"/competitions/{epl}/follow").status_code == 204
-
-    assert client.post("/competitions/999999/follow").status_code == 404
-    assert client.delete("/competitions/999999/follow").status_code == 404
+def _in_my_leagues(api, nick: str) -> set[str]:
+    return {c["code"] for c in api(nick).get("/competitions").json() if c["in_my_leagues"]}
 
 
-def test_follow_does_not_touch_other_users(world, api):
-    api("ala").post(f"/competitions/{world['EPL']}/follow")
-    celina_follows = [c["code"] for c in api("celina").get("/competitions").json() if c["is_followed"]]
-    assert celina_follows == ["UCL", "EPL"]
+def test_competitions_in_my_leagues_is_the_union_of_league_scopes(world, api):
+    # ewa has no league: nothing is "in my leagues", her old follows (EKS) are not read
+    assert _in_my_leagues(api, "ewa") == set()
+    assert _in_my_leagues(api, "daniel") == ACTIVE
+
+    # Rodzina narrows to UCL: daniel (Rodzina only) follows that at once
+    api("daniel").put(f"/leagues/{world['other_league']}/competitions", json={"competition_ids": [world["UCL"]]})
+    assert _in_my_leagues(api, "daniel") == {"UCL"}
+    # Biuro to the inactive EKS: an explicit scope counts even when inactive
+    api("bartek").put(f"/leagues/{world['league']}/competitions", json={"competition_ids": [world["EKS"]]})
+    assert _in_my_leagues(api, "bartek") == {"EKS"}
+    # ala: Biuro (EKS) + Rodzina (UCL)
+    assert _in_my_leagues(api, "ala") == {"EKS", "UCL"}
+    # is_followed is the old name of the same flag
+    body = api("ala").get("/competitions").json()
+    assert {c["code"] for c in body if c["is_followed"]} == {"EKS", "UCL"}
+
+
+def test_follow_endpoints_are_204_no_ops(conn, world, api):
+    def follows() -> int:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM user_competitions")
+            count = cur.fetchone()[0]
+        conn.rollback()
+        return count
+
+    before = follows()
+    client = api("ewa")
+    for method in ("post", "delete"):
+        for competition_id in (world["EPL"], world["EKS"], 999999):
+            assert getattr(client, method)(f"/competitions/{competition_id}/follow").status_code == 204
+    # nothing stored or removed, nothing changes on screen
+    assert follows() == before
+    assert _in_my_leagues(api, "ewa") == set()
 
 
 # --- seasons ---
@@ -298,8 +310,9 @@ def test_season_ranking_counts_only_finished_matches(world, api, conn):
 
 # --- feed ---
 
-def test_feed_without_follows_shows_active_competitions(world, api):
+def test_feed_with_leagues_counting_everything_shows_active_competitions(world, api):
     m = world["matches"]
+    # ala: Biuro + Rodzina, both without a scope = every active competition
     body = api("ala").get("/feed").json()
     # window now-3h .. now+7d + every live match; EKS is inactive, so k1 is hidden
     assert _ids(body) == [m["u4"], m["e5"], m["e6"], m["e7"]]
@@ -309,18 +322,29 @@ def test_feed_without_follows_shows_active_competitions(world, api):
     assert next(x for x in body if x["id"] == m["e6"])["my_prediction"]["pred_home"] == 2
 
 
-def test_feed_respects_followed_competitions(world, api):
+def test_feed_follows_the_scopes_of_my_leagues(world, api):
     m = world["matches"]
-    assert _ids(api("celina").get("/feed").json()) == [m["u4"], m["e5"], m["e6"], m["e7"]]
-    # UCL only: the live match is shown although it started 4 hours ago
+    everything = [m["u4"], m["e5"], m["e6"], m["e7"]]
+    # ewa has no league: every active competition. she still "follows" the
+    # inactive EKS in user_competitions, which is not read any more (no k1)
+    assert _ids(api("ewa").get("/feed").json()) == everything
+    assert _ids(api("daniel").get("/feed").json()) == everything
+
+    # Rodzina plays only UCL: the live match is shown although it started 4 hours ago
+    api("daniel").put(f"/leagues/{world['other_league']}/competitions", json={"competition_ids": [world["UCL"]]})
     assert _ids(api("daniel").get("/feed").json()) == [m["u4"]]
-    # a followed competition shows up even when it is inactive, but following only
-    # switched off ones is not "following something": the active ones come too
-    assert set(_ids(api("ewa").get("/feed").json())) == {m["u4"], m["e5"], m["e6"], m["e7"], m["k1"]}
+    # ala is also in Biuro (all), so nothing changes for her
+    assert _ids(api("ala").get("/feed").json()) == everything
+    # an explicit scope shows a competition even when it is inactive (next to an active one)
+    api("bartek").put(
+        f"/leagues/{world['league']}/competitions", json={"competition_ids": [world["EKS"], world["UCL"]]},
+    )
+    assert _ids(api("celina").get("/feed").json()) == [m["u4"], m["k1"]]
 
 
 def test_feed_days_widen_and_narrow_the_window(world, api):
     m = world["matches"]
+    api("daniel").put(f"/leagues/{world['other_league']}/competitions", json={"competition_ids": [world["UCL"]]})
     assert _ids(api("daniel").get("/feed?days=30").json()) == [m["u4"], m["u3"]]
     # +2d and +3d fall out of a one day window, the live one stays
     assert _ids(api("celina").get("/feed?days=1").json()) == [m["u4"], m["e5"]]
@@ -367,16 +391,53 @@ def test_upcoming_matches_follow_league_scope(conn, world, api):
     assert _ids(api("daniel").get("/me/upcoming-matches?days=30").json()) == [m["u3"]]
     # ala: Biuro (all) + Rodzina (UCL) -> the union
     assert _ids(api("ala").get("/me/upcoming-matches?days=30").json()) == [m["e6"], m["u3"]]
-    # Biuro limited to the inactive EKS: an explicit scope counts even when inactive
-    _set_scope(conn, world["league"], [world["EKS"]])
-    assert _ids(api("bartek").get("/me/upcoming-matches").json()) == [m["k1"]]
+    # Biuro limited to the inactive EKS + UCL: an explicit scope counts even when inactive
+    _set_scope(conn, world["league"], [world["EKS"], world["UCL"]])
+    assert _ids(api("bartek").get("/me/upcoming-matches?days=30").json()) == [m["k1"], m["u3"]]
 
 
-def test_upcoming_matches_without_league_use_followed(world, api):
+def test_upcoming_matches_without_league_use_every_active_competition(world, api):
     m = world["matches"]
-    # ewa has no league and follows the inactive EKS only: its match + the active open ones
-    assert set(_ids(api("ewa").get("/me/upcoming-matches").json())) == {m["k1"], m["e6"]}
+    # ewa has no league: the open matches of every active competition. her old
+    # follow of the inactive EKS is not read any more (no k1)
+    assert _ids(api("ewa").get("/me/upcoming-matches").json()) == [m["e6"]]
     assert api("ewa").get("/me/upcoming-matches?days=0").status_code == 422
+
+
+def _set_active(conn, competition_id: int, active: bool) -> None:
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE competitions SET is_active = %s WHERE id = %s", (active, competition_id))
+
+
+def test_feed_and_upcoming_fall_back_to_every_active_competition(conn, world, api):
+    m = world["matches"]
+    everything = [m["u4"], m["e5"], m["e6"], m["e7"]]
+    # Biuro plays only the inactive EKS: nothing active in celina's / bartek's leagues,
+    # so they get every active competition like a player without a league (no k1),
+    # the same pool the competition list falls back to in the app
+    _set_scope(conn, world["league"], [world["EKS"]])
+    assert _ids(api("celina").get("/feed").json()) == everything
+    assert _ids(api("bartek").get("/me/upcoming-matches").json()) == [m["e6"]]
+    # the flag on the competition list still tells the truth: only EKS is in the scope
+    assert _in_my_leagues(api, "celina") == {"EKS"}
+
+
+def test_feed_falls_back_when_the_admin_switches_off_the_only_competition(conn, world, api):
+    m = world["matches"]
+    _set_scope(conn, world["league"], [world["EPL"]])
+    assert _ids(api("celina").get("/feed").json()) == [m["e5"], m["e6"], m["e7"]]
+    assert _ids(api("bartek").get("/me/upcoming-matches?days=30").json()) == [m["e6"]]
+
+    # EPL switched off: Biuro has nothing active left -> every active competition (UCL here)
+    _set_active(conn, world["EPL"], False)
+    assert _ids(api("celina").get("/feed").json()) == [m["u4"]]
+    assert _ids(api("bartek").get("/me/upcoming-matches?days=30").json()) == [m["u3"]]
+    # ala is also in Rodzina (every active competition): her leagues still have active
+    # ones, so the explicit (now inactive) EPL scope keeps counting for her
+    assert _ids(api("ala").get("/feed").json()) == [m["u4"], m["e5"], m["e6"], m["e7"]]
+    # a player without a league is not affected by any of it
+    assert _ids(api("ewa").get("/feed").json()) == [m["u4"]]
 
 
 # --- predictions ---
@@ -516,9 +577,36 @@ def test_league_scope_is_per_league(world, api):
 
 
 # --- league ranking ---
+# every league ranks by its weekly coupons (docs/decisions.md #014) and this
+# dataset has no coupons. the tests that check the all-matches numbers put the
+# league back in 'scope' mode first, like a league before migration 016: that
+# rule (and its SQL) still ranks every archived season
 
-def test_league_ranking_for_one_season_includes_league_bonus(world, api):
+def _rank_every_match(conn, *league_ids: int) -> None:
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE private_leagues SET ranking_mode = 'scope' WHERE id = ANY(%s)", (list(league_ids),))
+
+
+def test_new_style_league_ranks_by_coupons_and_archived_seasons_by_every_match(world, api):
     league = world["league"]
+    assert api("ala").get(f"/leagues/{league}").json()["ranking_mode"] == "coupon"
+    # active seasons: no coupons yet, so only the league bonus counts (ala 10 EPL, bartek 20 UCL)
+    body = api("ala").get(f"/leagues/{league}/ranking").json()
+    assert [(r["nick"], r["total_points"], r["match_points"]) for r in body] == [
+        ("bartek", 20, 0), ("ala", 10, 0), ("celina", 0, 0),
+    ]
+    # the archived EPL season had no coupons at all: every finished match counts
+    body = api("ala").get(f"/leagues/{league}/ranking?season_id={world['seasons']['epl_old']}").json()
+    assert _ranking(body)[0] == (1, "ala", 5, 1, 0, 1)
+    badges = api("ala").get(f"/leagues/{league}/badges?season_id={world['seasons']['epl_old']}").json()
+    assert badges["unit"] == "round"
+    assert api("ala").get(f"/leagues/{league}/badges").json()["unit"] == "coupon"
+
+
+def test_league_ranking_for_one_season_includes_league_bonus(conn, world, api):
+    league = world["league"]
+    _rank_every_match(conn, league)
     epl = api("ala").get(f"/leagues/{league}/ranking?season_id={world['seasons']['epl']}").json()
     # ala 13 + 10 bonus (Biuro/EPL). Rodzina's 50 point bonus is another league and must not leak in
     assert _ranking(epl) == [
@@ -537,7 +625,8 @@ def test_league_ranking_for_one_season_includes_league_bonus(world, api):
     ]
 
 
-def test_league_ranking_without_season_adds_up_active_seasons(world, api):
+def test_league_ranking_without_season_adds_up_active_seasons(conn, world, api):
+    _rank_every_match(conn, world["league"])
     body = api("celina").get(f"/leagues/{world['league']}/ranking").json()
     # EPL + UCL (+ the empty EKS season); the archived seasons stay out
     assert _ranking(body) == [
@@ -560,8 +649,9 @@ def test_league_ranking_lists_members_with_zero_points_and_shares_rank(world, ap
     assert [(r["rank"], r["total_points"]) for r in body] == [(1, 0), (1, 0), (1, 0)]
 
 
-def test_league_ranking_follows_the_scope(world, api):
+def test_league_ranking_follows_the_scope(conn, world, api):
     league = world["league"]
+    _rank_every_match(conn, league)
     api("bartek").put(f"/leagues/{league}/competitions", json={"competition_ids": [world["EPL"]]})
 
     # only the EPL season is active in scope now
@@ -591,7 +681,8 @@ def test_league_ranking_access(world, api):
     assert api("ala").get("/leagues/999999/ranking").status_code == 404
 
 
-def test_other_league_gets_its_own_bonus(world, api):
+def test_other_league_gets_its_own_bonus(conn, world, api):
+    _rank_every_match(conn, world["other_league"])
     # Rodzina: daniel (owner) and ala. ala has the 50 point bonus there
     body = api("daniel").get(f"/leagues/{world['other_league']}/ranking?season_id={world['seasons']['epl']}").json()
     assert _ranking(body) == [
@@ -625,8 +716,9 @@ def test_huge_ids_in_paths_and_queries_are_404_never_500(world, api):
         f"/leagues/{world['league']}/ranking?season_id={huge}",
     ):
         assert client.get(url).status_code == 404, url
-    assert client.post(f"/competitions/{huge}/follow").status_code == 404
-    assert client.delete(f"/competitions/{huge}/follow").status_code == 404
+    # the deprecated follow endpoints do nothing at all, a huge id included
+    assert client.post(f"/competitions/{huge}/follow").status_code == 204
+    assert client.delete(f"/competitions/{huge}/follow").status_code == 204
     assert client.post("/predictions", json={"match_id": huge, "pred_home": 1, "pred_away": 1}).status_code == 404
 
 

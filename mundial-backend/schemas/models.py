@@ -181,8 +181,9 @@ class RankingEntry(BaseModel):
 
 class CreateLeagueRequest(BaseModel):
     name: str = Field(min_length=2, max_length=64)
-    # weekly coupon (008): left out = database default ('scope', size 10)
+    # deprecated, ignored: every league ranks by its coupons (docs/decisions.md #014)
     ranking_mode: Literal["scope", "coupon"] | None = None
+    # left out = database default (10)
     coupon_size: int | None = Field(default=None, ge=5, le=15)
     # league scope at creation, left out / empty = every competition
     competition_ids: list[Annotated[int, Field(ge=1, le=2**63 - 1)]] | None = Field(default=None, max_length=100)
@@ -225,8 +226,9 @@ class LeagueDetailResponse(BaseModel):
     created_at: datetime
     members: list[LeagueMember]
     prize_pool_per_person: int | None = None
-    # weekly coupon settings (008)
-    ranking_mode: str = "scope"  # scope | coupon
+    # weekly coupon settings (008). ranking_mode is always 'coupon' now
+    # (docs/decisions.md #014), the field stays for old clients
+    ranking_mode: str = "coupon"
     coupon_size: int = 10
     coupon_auto: bool = True
 
@@ -234,6 +236,7 @@ class LeagueDetailResponse(BaseModel):
 class UpdateLeagueSettingsRequest(BaseModel):
     # partial update: only fields sent in the body change
     prize_pool_per_person: int | None = Field(default=None, ge=0, le=10000)
+    # deprecated: only 'coupon' is accepted, 'scope' -> 422 (docs/decisions.md #014)
     ranking_mode: Literal["scope", "coupon"] | None = None
     coupon_size: int | None = Field(default=None, ge=5, le=15)
     coupon_auto: bool | None = None
@@ -411,6 +414,9 @@ class CompetitionListEntry(BaseModel):
     kind: str  # league | cup | national_cup
     logo_url: str | None = None
     is_active: bool
+    # inside the scope of one of my leagues (no scope = every active competition)
+    in_my_leagues: bool
+    # deprecated: old name of in_my_leagues, nobody follows anything any more
     is_followed: bool
     # active season, or the newest one when none is active
     current_season: SeasonRef | None = None
@@ -609,7 +615,8 @@ class AdminCompetitionResponse(BaseModel):
     kind: str
     logo_url: str | None
     is_active: bool
-    is_followed: bool
+    in_my_leagues: bool
+    is_followed: bool   # deprecated, same as in_my_leagues
     current_season: AdminSeasonRef | None
     provider: str | None
     provider_ref: str | None
@@ -714,11 +721,11 @@ class LeagueCouponResponse(BaseModel):
     # global = copy of the global coupon "hity tygodnia", owner = changed by
     # the organizer, auto = the league's own pick (too few hits in its scope)
     created_by: str | None = None
-    ranking_mode: str
+    ranking_mode: str                 # always 'coupon' (docs/decisions.md #014)
     coupon_size: int
     coupon_auto: bool
     can_edit: bool                    # owner / admin and the current week
-    my_joker_match_id: int | None = None   # my joker of that week, only in 'coupon' leagues
+    my_joker_match_id: int | None = None   # my joker of that week
     total: int
     matches: list[CouponMatch]
     members: list[CouponMember]       # ranked by points of the week
@@ -739,7 +746,7 @@ class CouponJokerRequest(BaseModel):
 class CouponLeagueRef(BaseModel):
     id: int
     name: str
-    ranking_mode: str = "scope"
+    ranking_mode: str = "coupon"   # always 'coupon' now, kept for old clients
     is_my_joker: bool = False   # my joker of this league sits on this match
 
 

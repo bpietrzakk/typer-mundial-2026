@@ -216,7 +216,12 @@ def _row(uid, nick, pts, exact=0, diff=0, scored=0):
     }
 
 
-def _stub_ranking(monkeypatch, rows=None, active_seasons=(5,), in_scope=True, season_exists=True, live=()):
+def _stub_ranking(
+    monkeypatch, rows=None, active_seasons=(5,), in_scope=True, season_exists=True, live=(), season_status="active",
+):
+    # both ranking queries are stubbed, seen["query"] says which rule ran:
+    # coupon (every league since docs/decisions.md #014) or all_matches
+    # (archived seasons, leagues left in 'scope' mode)
     seen = {}
     # live league table: live match picks + their season rules
     monkeypatch.setattr(
@@ -228,7 +233,7 @@ def _stub_ranking(monkeypatch, rows=None, active_seasons=(5,), in_scope=True, se
         lambda sids: {5: {"default": {"exact_pts": 5, "diff_pts": 3, "tendency_pts": 2}}},
     )
     monkeypatch.setattr(
-        leagues_module, "get_season", lambda sid: {"id": sid} if season_exists else None,
+        leagues_module, "get_season", lambda sid: {"id": sid, "status": season_status} if season_exists else None,
     )
     monkeypatch.setattr(leagues_module, "is_season_in_league_scope", lambda lid, sid: in_scope)
     monkeypatch.setattr(
@@ -236,8 +241,14 @@ def _stub_ranking(monkeypatch, rows=None, active_seasons=(5,), in_scope=True, se
     )
     monkeypatch.setattr(
         leagues_module, "get_league_season_ranking",
-        lambda lid, sids, bonuses=True: seen.update(league_id=lid, season_ids=sids, bonuses=bonuses)
-        or (rows if rows is not None else []),
+        lambda lid, sids, bonuses=True: seen.update(query="all_matches", league_id=lid, season_ids=sids, bonuses=bonuses)
+        or list(rows or []),
+    )
+    monkeypatch.setattr(
+        leagues_module, "get_league_coupon_ranking",
+        lambda lid, sids, multiplier, bonuses=True: seen.update(
+            query="coupon", league_id=lid, season_ids=sids, bonuses=bonuses, multiplier=multiplier,
+        ) or list(rows or []),
     )
     return seen
 
@@ -246,7 +257,11 @@ def test_ranking_for_a_season(monkeypatch):
     seen = _stub_ranking(monkeypatch, rows=[_row(1, "bartek", 12, 1, 2, 5), _row(2, "daniel", 30, 3, 1, 8)])
     resp = client.get("/leagues/10/ranking?season_id=5", cookies=_cookie(MEMBER))
     assert resp.status_code == 200
-    assert seen == {"league_id": 10, "season_ids": [5], "bonuses": True, "live_coupon_only": False}
+    # the league row has no ranking_mode (older shape) = coupon, joker x2
+    assert seen == {
+        "query": "coupon", "league_id": 10, "season_ids": [5], "bonuses": True, "multiplier": 2,
+        "live_coupon_only": True,
+    }
     # nothing live -> live fields empty
     assert resp.json() == [
         {"rank": 1, "user_id": 2, "nick": "daniel", "total_points": 30,
@@ -282,16 +297,34 @@ def test_live_table_in_a_coupon_league_counts_coupon_matches_and_jokers(monkeypa
     monkeypatch.setattr(
         leagues_module, "get_league_with_owner", lambda lid: {**LEAGUE, "ranking_mode": "coupon"},
     )
-    monkeypatch.setattr(leagues_module, "get_league_coupon_ranking", lambda lid, sids, mult, bonuses=True: [
-        _row(1, "bartek", 12), _row(2, "daniel", 14),
-    ])
-    seen = _stub_ranking(monkeypatch, live=[_live(1, (2, 1), is_joker=True), _live(2, (2, 1))])
+    seen = _stub_ranking(
+        monkeypatch, rows=[_row(1, "bartek", 12), _row(2, "daniel", 14)],
+        live=[_live(1, (2, 1), is_joker=True), _live(2, (2, 1))],
+    )
     resp = client.get("/leagues/10/ranking", cookies=_cookie(MEMBER))
     assert resp.status_code == 200
     assert seen["live_coupon_only"] is True
     # diff 3 each, bartek's joker doubles it -> 12 + 6 = 18 vs 14 + 3 = 17
     by_nick = {e["nick"]: (e["live_points"], e["live_total"], e["live_rank"]) for e in resp.json()}
     assert by_nick == {"bartek": (6, 18, 1), "daniel": (3, 17, 2)}
+
+
+def test_ranking_of_an_archived_season_counts_every_match(monkeypatch):
+    # Mundial 2026 had no coupons: a coupon league ranks it by all its matches, no joker
+    seen = _stub_ranking(monkeypatch, rows=[_row(1, "bartek", 12)], season_status="archived")
+    resp = client.get("/leagues/10/ranking?season_id=5", cookies=_cookie(MEMBER))
+    assert resp.status_code == 200
+    assert (seen["query"], seen["live_coupon_only"]) == ("all_matches", False)
+
+
+def test_ranking_of_a_league_left_in_scope_mode_counts_every_match(monkeypatch):
+    # only after a rollback of migration 016: the old rule still works
+    monkeypatch.setattr(
+        leagues_module, "get_league_with_owner", lambda lid: {**LEAGUE, "ranking_mode": "scope"},
+    )
+    seen = _stub_ranking(monkeypatch, rows=[_row(1, "bartek", 12)])
+    assert client.get("/leagues/10/ranking", cookies=_cookie(MEMBER)).status_code == 200
+    assert (seen["query"], seen["live_coupon_only"]) == ("all_matches", False)
 
 
 def test_ranking_bonuses_false_is_passed_to_the_query(monkeypatch):

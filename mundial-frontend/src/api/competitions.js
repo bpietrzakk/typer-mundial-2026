@@ -2,16 +2,12 @@ import api from './axios';
 
 // competitions, seasons, rounds, matches, feed — shapes in docs/api-contract.md
 
+// every competition with in_my_leagues (in the scope of one of my leagues).
+// there is no following any more: my competitions = my leagues' scopes
 export const getCompetitions = async () => {
   const res = await api.get('/competitions');
   return res.data;
 };
-
-export const followCompetition = async (competitionId) =>
-  api.post(`/competitions/${competitionId}/follow`);
-
-export const unfollowCompetition = async (competitionId) =>
-  api.delete(`/competitions/${competitionId}/follow`);
 
 export const getCompetitionSeasons = async (competitionId) => {
   const res = await api.get(`/competitions/${competitionId}/seasons`);
@@ -47,14 +43,14 @@ export const getSeasonRanking = async (seasonId, { bonuses = true } = {}) => {
   return res.data;
 };
 
-// upcoming + live matches of followed competitions (all active if none followed)
+// upcoming + live matches of my leagues' competitions (all active without a league)
 export const getFeed = async (days = 7) => {
   const res = await api.get('/feed', { params: { days } });
   return res.data;
 };
 
 // "Najbliższe": not started matches of the next `days` days from the scope of my
-// leagues (followed competitions when I have no league), nearest first
+// leagues (every active competition when I have no league), nearest first
 export const getMyUpcomingMatches = async (days = 7) => {
   const res = await api.get('/me/upcoming-matches', { params: { days } });
   return res.data;

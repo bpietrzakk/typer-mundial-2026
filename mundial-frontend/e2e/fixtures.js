@@ -25,14 +25,23 @@ export const USER = {
 const COMPETITION_REF = { id: 2, code: 'PL', name: 'Premier League', logo_url: null };
 const SEASON_REF = { id: 5, label: '2026/27', status: 'active' };
 
+// in_my_leagues = in the scope of one of my leagues (is_followed = deprecated alias, same value)
 export const COMPETITIONS = [{
   ...COMPETITION_REF,
   country: 'Anglia',
   kind: 'league',
   is_active: true,
+  in_my_leagues: true,
   is_followed: true,
   current_season: SEASON_REF,
 }];
+
+// an active competition outside my leagues (only with mockApi({ others: true }))
+export const OTHER_SEASON = { id: 6, label: '2026/27', status: 'active' };
+export const OTHER_COMPETITION = {
+  id: 3, code: 'LIGA', name: 'Primera Division', logo_url: null, country: 'Hiszpania', kind: 'league',
+  is_active: true, in_my_leagues: false, is_followed: false, current_season: OTHER_SEASON,
+};
 
 export const SEASON = {
   ...SEASON_REF,
@@ -148,6 +157,98 @@ export const MY_COUPON_SYNC_LAG = {
   ].map((m) => ({ ...m, leagues: [LEAGUE_REF] })),
 };
 
+// Arsenal is on (1:0 after half an hour, my 2:1 would give +3), Newcastle tomorrow
+// and Liverpool later are still open — the live one takes the start hero
+export const MY_COUPON_LIVE_AND_OPEN = {
+  ...MY_COUPON_FULL,
+  typed: 2,
+  total: 4,
+  matches: [
+    COUPON_LATER,
+    COUPON_PLAYED,
+    {
+      ...MATCH,
+      status: 'live',
+      kickoff_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+      can_predict: false,
+      home_goals: 1,
+      away_goals: 0,
+      my_prediction: myPick(2, 1),
+      provisional_points: 3,
+      provisional_hit_type: 'diff',
+    },
+    { ...MATCH, id: 1203, home_team: team(17, 'Newcastle', 'NEW'), away_team: team(18, 'Leeds', 'LEE') },
+  ].map((m) => ({ ...m, leagues: [LEAGUE_REF] })),
+};
+
+// the same week after the final whistle in Arsenal (1:0, my 2:1 = goal difference)
+export const MY_COUPON_LIVE_ENDED = {
+  ...MY_COUPON_LIVE_AND_OPEN,
+  matches: MY_COUPON_LIVE_AND_OPEN.matches.map((m) => (m.id === MATCH.id ? {
+    ...m,
+    status: 'finished',
+    my_prediction: { pred_home: 2, pred_away: 1, points_awarded: 3, hit_type: 'diff' },
+    provisional_points: null,
+    provisional_hit_type: null,
+  } : m)),
+};
+
+// a sync that never ended Arsenal: 'live' since 5 hours (a match is over in 3),
+// Newcastle tomorrow is open — the stuck one must not take the start hero
+export const MY_COUPON_STUCK_LIVE = {
+  ...MY_COUPON_FULL,
+  typed: 1,
+  total: 2,
+  matches: [
+    {
+      ...MATCH,
+      status: 'live',
+      kickoff_at: new Date(Date.now() - 5 * HOUR_MS).toISOString(),
+      can_predict: false,
+      home_goals: 2,
+      away_goals: 2,
+      my_prediction: myPick(1, 1),
+      provisional_points: 3,
+      provisional_hit_type: 'diff',
+    },
+    { ...MATCH, id: 1203, home_team: team(17, 'Newcastle', 'NEW'), away_team: team(18, 'Leeds', 'LEE') },
+  ].map((m) => ({ ...m, leagues: [LEAGUE_REF] })),
+};
+
+// Arsenal tomorrow is the open hero; Newcastle (an hour earlier) was closed
+// early, then goes live (MY_COUPON_HERO_SWAP_LIVE) and takes the hero
+const SWAP_CLOSED = {
+  ...MATCH,
+  id: 1204,
+  kickoff_at: at(-HOUR_MS),
+  can_predict: false,
+  home_team: team(17, 'Newcastle', 'NEW'),
+  away_team: team(18, 'Leeds', 'LEE'),
+};
+export const MY_COUPON_HERO_SWAP = {
+  ...MY_COUPON_FULL,
+  typed: 0,
+  total: 2,
+  matches: [MATCH, SWAP_CLOSED].map((m) => ({ ...m, leagues: [LEAGUE_REF] })),
+};
+export const MY_COUPON_HERO_SWAP_LIVE = {
+  ...MY_COUPON_HERO_SWAP,
+  matches: [MATCH, { ...SWAP_CLOSED, status: 'live', kickoff_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(), home_goals: 0, away_goals: 0 }]
+    .map((m) => ({ ...m, leagues: [LEAGUE_REF] })),
+};
+// a live match outside the coupon (GET /feed), it keeps the start page polling
+export const FEED_LIVE = {
+  ...MATCH,
+  id: 1400,
+  status: 'live',
+  kickoff_at: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+  can_predict: false,
+  home_goals: 1,
+  away_goals: 1,
+  home_team: team(19, 'Bayern', 'BAY'),
+  away_team: team(20, 'Dortmund', 'BVB'),
+};
+
 // league matches after the coupon ones (+ the coupon match again: the page skips it)
 export const UPCOMING_MATCHES = [
   MATCH,
@@ -196,19 +297,27 @@ const member = (rank, userId, nick, points) => ({
   scored_predictions: 0,
 });
 
+// league ranking row: total = match + bonus points (both always sent).
+// ola's 12 = 9 from matches + 3 from a league bonus question (OLA_LEAGUE_PREDICTIONS)
+const rankRow = (rank, userId, nick, matchPoints, bonusPoints = 0) => ({
+  ...member(rank, userId, nick, matchPoints + bonusPoints),
+  match_points: matchPoints,
+  bonus_points: bonusPoints,
+});
+
 // official ranking: nothing live -> live fields empty
 const official = (row) => ({ ...row, live_points: 0, live_total: null, live_rank: null });
-export const LEAGUE_RANKING = [official(member(1, 3, 'ola', 12)), official(member(2, 1, 'bartek', 7))];
+export const LEAGUE_RANKING = [official(rankRow(1, 3, 'ola', 9, 3)), official(rankRow(2, 1, 'bartek', 7))];
 
 // a match is live: bartek's +7 takes him past ola (12 vs 14)
 export const LEAGUE_RANKING_LIVE = [
-  { ...member(1, 3, 'ola', 12), live_points: 0, live_total: 12, live_rank: 2 },
-  { ...member(2, 1, 'bartek', 7), live_points: 7, live_total: 14, live_rank: 1 },
+  { ...rankRow(1, 3, 'ola', 9, 3), live_points: 0, live_total: 12, live_rank: 2 },
+  { ...rankRow(2, 1, 'bartek', 7), live_points: 7, live_total: 14, live_rank: 1 },
 ];
 
-// season badges: ola is the exact king and has a 3-round streak
+// season badges: ola is the exact king and has a 3-week streak (active season = 'coupon')
 export const LEAGUE_BADGES = {
-  unit: 'round',
+  unit: 'coupon',
   finished_picks: 6,
   badges: [{
     code: 'exact_king',
@@ -245,14 +354,19 @@ export const LEAGUE_COUPON = {
     league_summary: null,
   }],
   members: [
-    { ...member(1, 3, 'ola', 0), typed: 1, total: 1, provisional_points: null },
-    { ...member(2, 1, 'bartek', 0), typed: 0, total: 1, provisional_points: null },
+    { ...member(1, 3, 'ola', 0), typed: 1, total: 1, provisional_points: 0 },
+    { ...member(2, 1, 'bartek', 0), typed: 0, total: 1, provisional_points: 0 },
   ],
 };
 
 // same coupon, but the match kicked off an hour ago and is live 1:0
+// (bartek's 2:1 would give +3 if it ended now, ola's 0:1 nothing)
 export const LEAGUE_COUPON_LIVE = {
   ...LEAGUE_COUPON,
+  members: [
+    { ...member(1, 3, 'ola', 0), typed: 1, total: 1, provisional_points: 0 },
+    { ...member(2, 1, 'bartek', 0), typed: 1, total: 1, provisional_points: 3 },
+  ],
   matches: [{
     ...LEAGUE_COUPON.matches[0],
     status: 'live',
@@ -285,6 +399,11 @@ const settledPick = (userId, nick, home, away, points, hit) => ({
 export const LEAGUE_COUPON_WITH_PLAYED = {
   ...LEAGUE_COUPON,
   total: 2,
+  // week table: bartek's exact 2:0 beats ola's winner pick
+  members: [
+    { ...member(1, 1, 'bartek', 5), exact_hits: 1, scored_predictions: 1, typed: 1, total: 2, provisional_points: 0 },
+    { ...member(2, 3, 'ola', 2), scored_predictions: 1, typed: 2, total: 2, provisional_points: 0 },
+  ],
   matches: [
     {
       ...COUPON_PLAYED,
@@ -295,6 +414,31 @@ export const LEAGUE_COUPON_WITH_PLAYED = {
       league_summary: null,
     },
     LEAGUE_COUPON.matches[0],
+  ],
+};
+
+// last week (GET /leagues/1/coupon?week=…): everything played, ola won it
+const lastWeek = (day) => new Date(Date.parse(`${day}T12:00:00Z`) - 7 * DAY_MS).toISOString().slice(0, 10);
+export const LEAGUE_COUPON_PAST = {
+  ...LEAGUE_COUPON,
+  week_start: lastWeek(WEEK.week_start),
+  week_end: lastWeek(WEEK.week_end),
+  is_current_week: false,
+  can_edit: false,
+  total: 1,
+  matches: [{
+    ...COUPON_PLAYED,
+    id: 1180,
+    kickoff_at: at(-8 * DAY_MS),
+    typed_count: 2,
+    member_count: 2,
+    predictions_visible: true,
+    member_predictions: [settledPick(3, 'ola', 2, 0, 5, 'exact'), settledPick(1, 'bartek', 1, 1, 0, 'miss')],
+    league_summary: null,
+  }],
+  members: [
+    { ...member(1, 3, 'ola', 5), exact_hits: 1, scored_predictions: 1, typed: 1, total: 1, provisional_points: 0 },
+    { ...member(2, 1, 'bartek', 0), scored_predictions: 1, typed: 1, total: 1, provisional_points: 0 },
   ],
 };
 
@@ -323,7 +467,7 @@ export const MY_PREDICTIONS = [{
 const WC_REF = { id: 9, code: 'WC', name: 'Mistrzostwa Świata', logo_url: null };
 export const WC_SEASON = { id: 50, label: '2026', status: 'archived' };
 export const WC_COMPETITION = {
-  ...WC_REF, country: null, kind: 'cup', is_active: true, is_followed: false, current_season: WC_SEASON,
+  ...WC_REF, country: null, kind: 'cup', is_active: true, in_my_leagues: false, is_followed: false, current_season: WC_SEASON,
 };
 const wcRow = (rank, userId, nick, match, bonus, exact) => ({
   rank, user_id: userId, nick, total_points: match + bonus, match_points: match, bonus_points: bonus,
@@ -394,4 +538,15 @@ export const OLA_LEAGUE_PREDICTIONS = {
   predictions: OLA_PREDICTIONS.map((p) => ({
     is_joker: false, ...p, league_points: p.points_awarded == null ? null : p.points_awarded * (p.is_joker ? 2 : 1),
   })),
+};
+
+// my own picks seen from the league Biuro: 7 official points (= my row in
+// LEAGUE_RANKING), the live Arsenal pick has none yet
+export const BARTEK_LEAGUE_PREDICTIONS = {
+  user_id: 1, nick: 'bartek', total_points: 7, match_points: 7, bonus_points: 0,
+  predictions: [
+    { ...olaPick(1301, 'Arsenal', 'Chelsea', [2, 1], [1, 0], 'live', null, null), is_joker: false, league_points: null },
+    { ...olaPick(1302, 'Liverpool', 'Everton', [3, 0], [3, 0], 'finished', 5, 'exact'), is_joker: false, league_points: 5 },
+    { ...olaPick(1303, 'Aston Villa', 'Tottenham', [1, 0], [2, 1], 'finished', 2, 'tendency'), is_joker: false, league_points: 2 },
+  ],
 };

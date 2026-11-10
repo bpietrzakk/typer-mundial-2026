@@ -1,4 +1,5 @@
 # competitions, seasons, rounds, season matches, season teams, feed
+# ("my competitions" = scopes of my leagues, nobody follows anything any more)
 # every query is a module-level constant — easy to grep, easy to audit
 # all parameters use %s, never f-strings with user data (iron rule #6)
 # can_predict and is_current are NOT computed here — routers ask the domain
@@ -10,14 +11,76 @@ from psycopg2.extras import RealDictCursor
 from db.connection import get_conn, release_conn
 from domain.competitions import PENDING_STATUSES
 
+# "in my leagues" for competition c (docs/decisions.md #014, no following any more):
+# the union of the scopes of the viewer's leagues. a league without scope rows
+# counts every active competition, an explicit scope counts even an inactive one.
+# params: viewer id (twice)
+_SQL_IN_MY_LEAGUES = """
+    (
+        c.id IN (
+            SELECT plc.competition_id
+            FROM private_league_members plm
+            JOIN private_league_competitions plc ON plc.private_league_id = plm.private_league_id
+            WHERE plm.user_id = %s
+        )
+        OR (
+            c.is_active
+            AND EXISTS (
+                SELECT 1 FROM private_league_members plm
+                WHERE plm.user_id = %s
+                  AND NOT EXISTS (
+                      SELECT 1 FROM private_league_competitions plc
+                      WHERE plc.private_league_id = plm.private_league_id
+                  )
+            )
+        )
+    )
+"""
+
+# is any ACTIVE competition in the scope of the viewer's leagues? false for a viewer
+# without a league, and for one whose leagues play only switched off competitions.
+# does not depend on the outer row, so Postgres runs it once. params: viewer id
+_SQL_ANY_ACTIVE_IN_MY_LEAGUES = """
+    EXISTS (
+        SELECT 1
+        FROM private_league_members plm
+        JOIN competitions ac ON ac.is_active
+        WHERE plm.user_id = %s
+          AND (
+              NOT EXISTS (
+                  SELECT 1 FROM private_league_competitions plc
+                  WHERE plc.private_league_id = plm.private_league_id
+              )
+              OR EXISTS (
+                  SELECT 1 FROM private_league_competitions plc
+                  WHERE plc.private_league_id = plm.private_league_id
+                    AND plc.competition_id = ac.id
+              )
+          )
+    )
+"""
+
+# "my competitions" for the feed and the upcoming list: in my leagues as long as
+# that holds an active competition, otherwise every active one (no league, or the
+# admin switched off the only competition of a narrow league) — the same pool the
+# global coupon picks from and the app's competition list falls back to.
+# params: viewer id (3 times)
+_SQL_MY_COMPETITIONS = """
+    (
+        CASE WHEN """ + _SQL_ANY_ACTIVE_IN_MY_LEAGUES + """
+             THEN """ + _SQL_IN_MY_LEAGUES + """
+             ELSE c.is_active
+        END
+    )
+"""
+
 # competitions visible in the app: active ones or any that has a season
 # (the archived Mundial is inactive but still has its season)
+# params: viewer id (twice)
 SQL_LIST_COMPETITIONS = """
     SELECT c.id, c.code, c.name, c.country, c.kind, c.logo_url, c.is_active,
-           (uc.user_id IS NOT NULL) AS is_followed
+           """ + _SQL_IN_MY_LEAGUES + """ AS in_my_leagues
     FROM competitions c
-    LEFT JOIN user_competitions uc
-        ON uc.competition_id = c.id AND uc.user_id = %s
     WHERE c.is_active
        OR EXISTS (SELECT 1 FROM seasons s WHERE s.competition_id = c.id)
     ORDER BY c.sort_order ASC, c.id ASC
@@ -32,18 +95,6 @@ SQL_LIST_SEASONS_OF_COMPETITIONS = """
 
 SQL_GET_COMPETITION = """
     SELECT id, code, name FROM competitions WHERE id = %s
-"""
-
-# following is idempotent: a second POST changes nothing
-SQL_FOLLOW_COMPETITION = """
-    INSERT INTO user_competitions (user_id, competition_id)
-    VALUES (%s, %s)
-    ON CONFLICT (user_id, competition_id) DO NOTHING
-"""
-
-SQL_UNFOLLOW_COMPETITION = """
-    DELETE FROM user_competitions
-    WHERE user_id = %s AND competition_id = %s
 """
 
 # newest first: later start date, then higher id; no start date = oldest
@@ -116,62 +167,23 @@ SQL_LIST_SEASON_MATCHES = _SQL_MATCH_SELECT + """
     ORDER BY m.kickoff_at ASC, m.id ASC
 """
 
-# following counts only for active competitions: a viewer whose follows are all
-# switched off gets every active competition, like a viewer following nothing
-_SQL_FOLLOWS_NOTHING_ACTIVE = """
-    NOT EXISTS (
-        SELECT 1 FROM user_competitions uc
-        JOIN competitions fc ON fc.id = uc.competition_id
-        WHERE uc.user_id = %s AND fc.is_active
-    )
-"""
-
-# params: viewer id, window start, window end, viewer id (twice)
-# followed competitions (also switched off ones); following nothing active = every active competition
+# params: viewer id, window start, window end, viewer id (3 times)
+# window + every live match, from my competitions (see _SQL_MY_COMPETITIONS)
 SQL_LIST_FEED_MATCHES = _SQL_MATCH_SELECT + """
     WHERE (m.kickoff_at BETWEEN %s AND %s OR m.status = 'live')
-      AND (
-          c.id IN (SELECT uc.competition_id FROM user_competitions uc WHERE uc.user_id = %s)
-          OR (c.is_active AND """ + _SQL_FOLLOWS_NOTHING_ACTIVE + """)
-      )
+      AND """ + _SQL_MY_COMPETITIONS + """
     ORDER BY m.kickoff_at ASC, m.id ASC
 """
 
-# "upcoming in my leagues": scheduled matches that have not kicked off yet, in the
-# scope of every league of the viewer (a league without scope rows = every active
-# competition). a viewer without a league gets the feed rule: followed
-# competitions, or every active one when following nothing active. archived seasons never show up
-# params: viewer id, window start, window end, viewer id (5 times)
+# "upcoming in my leagues": scheduled matches that have not kicked off yet, from
+# my competitions (scopes of all my leagues, every active one when they hold none).
+# archived seasons never show up
+# params: viewer id, window start, window end, viewer id (3 times)
 SQL_LIST_UPCOMING_LEAGUE_MATCHES = _SQL_MATCH_SELECT + """
     WHERE m.status = 'scheduled'
       AND m.kickoff_at > %s AND m.kickoff_at <= %s
       AND s.status <> 'archived'
-      AND (
-          (
-              c.is_active
-              AND EXISTS (
-                  SELECT 1 FROM private_league_members plm
-                  WHERE plm.user_id = %s
-                    AND NOT EXISTS (
-                        SELECT 1 FROM private_league_competitions plc
-                        WHERE plc.private_league_id = plm.private_league_id
-                    )
-              )
-          )
-          OR c.id IN (
-              SELECT plc.competition_id
-              FROM private_league_members plm
-              JOIN private_league_competitions plc ON plc.private_league_id = plm.private_league_id
-              WHERE plm.user_id = %s
-          )
-          OR (
-              NOT EXISTS (SELECT 1 FROM private_league_members plm WHERE plm.user_id = %s)
-              AND (
-                  c.id IN (SELECT uc.competition_id FROM user_competitions uc WHERE uc.user_id = %s)
-                  OR (c.is_active AND """ + _SQL_FOLLOWS_NOTHING_ACTIVE + """)
-              )
-          )
-      )
+      AND """ + _SQL_MY_COMPETITIONS + """
     ORDER BY m.kickoff_at ASC, m.id ASC
 """
 
@@ -275,12 +287,13 @@ def _fetch_one(query: str, params: tuple) -> dict | None:
 
 def list_competitions(user_id: int) -> list[dict]:
     # every visible competition + all its seasons (key 'seasons'), so the
-    # router can pick the current one with domain.competitions
+    # router can pick the current one with domain.competitions.
+    # in_my_leagues = inside the scope of one of the viewer's leagues
     conn = get_conn()
     try:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(SQL_LIST_COMPETITIONS, (user_id,))
+                cur.execute(SQL_LIST_COMPETITIONS, (user_id, user_id))
                 competitions = [dict(r) for r in cur.fetchall()]
                 cur.execute(
                     SQL_LIST_SEASONS_OF_COMPETITIONS,
@@ -297,26 +310,6 @@ def list_competitions(user_id: int) -> list[dict]:
 
 def get_competition(competition_id: int) -> dict | None:
     return _fetch_one(SQL_GET_COMPETITION, (competition_id,))
-
-
-def follow_competition(user_id: int, competition_id: int) -> None:
-    conn = get_conn()
-    try:
-        with conn:
-            with conn.cursor() as cur:
-                cur.execute(SQL_FOLLOW_COMPETITION, (user_id, competition_id))
-    finally:
-        release_conn(conn)
-
-
-def unfollow_competition(user_id: int, competition_id: int) -> None:
-    conn = get_conn()
-    try:
-        with conn:
-            with conn.cursor() as cur:
-                cur.execute(SQL_UNFOLLOW_COMPETITION, (user_id, competition_id))
-    finally:
-        release_conn(conn)
 
 
 # --- seasons, rounds, teams ---
@@ -358,20 +351,20 @@ def list_season_matches(user_id: int, season_id: int, round_id: int | None = Non
 
 
 def list_feed_matches(user_id: int, window_start: datetime, window_end: datetime) -> list[dict]:
-    # matches in [window_start, window_end] plus every live one, from followed
-    # competitions (or all active ones when the user follows nothing)
+    # matches in [window_start, window_end] plus every live one, from my
+    # competitions (league scopes, all active ones when they hold none)
     rows = _fetch_all(
         SQL_LIST_FEED_MATCHES,
-        (user_id, window_start, window_end, user_id, user_id),
+        (user_id, window_start, window_end, user_id, user_id, user_id),
     )
     return [_row_to_competition_match(r) for r in rows]
 
 
 def list_upcoming_league_matches(user_id: int, window_start: datetime, window_end: datetime) -> list[dict]:
     # not started matches in (window_start, window_end] from the scope of my
-    # leagues (followed competitions when I have no league), nearest first
+    # leagues (all active competitions when it holds none), nearest first
     rows = _fetch_all(
         SQL_LIST_UPCOMING_LEAGUE_MATCHES,
-        (user_id, window_start, window_end, user_id, user_id, user_id, user_id, user_id),
+        (user_id, window_start, window_end, user_id, user_id, user_id),
     )
     return [_row_to_competition_match(r) for r in rows]

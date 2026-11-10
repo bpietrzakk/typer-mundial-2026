@@ -178,8 +178,8 @@ def build_world_cup(conn) -> dict:
     score_all_group_advances("B", [t["BRA"], t["ARG"]])
 
     league = create_league("Biuro", ids["users"]["bartek"])
-    # members inserted directly: today's join_league also follows the league
-    # scope, and user_competitions only exists from 005 on
+    # members inserted directly, the plain insert works on every schema version
+    # (join_league followed the league scope until docs/decisions.md #014)
     from db.queries.leagues import SQL_INSERT_LEAGUE_MEMBER
 
     with conn:

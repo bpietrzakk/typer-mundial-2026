@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useCallback, useId, useState } from 'react';
 import CompetitionBadge from './CompetitionBadge';
 import MatchContextButton from './MatchContextButton';
 import MatchContextPanel from './MatchContextPanel';
@@ -6,10 +6,11 @@ import MatchPredictionStrip from './MatchPredictionStrip';
 import MatchScoreBlock from './MatchScoreBlock';
 import MatchTeamSide from './MatchTeamSide';
 import StakeBadge from './StakeBadge';
+import { useToast } from '../hooks/useToast';
 import { STATUS_META } from '../utils/matchUi';
 import { matchPoints } from '../utils/scoring';
 
-// one match: teams, score / time, status, my prediction (+ inline form).
+// one match: teams, score / time, status, my prediction (autosaved boxes while open).
 // onMatchChange(matchId, patch) lets the parent update its list after a save
 export default function MatchCard({ match, readOnly = false, showCompetition = false, onMatchChange }) {
   const { status, kickoff_confirmed: confirmed, my_prediction: pred } = match;
@@ -18,8 +19,18 @@ export default function MatchCard({ match, readOnly = false, showCompetition = f
   const [contextOpen, setContextOpen] = useState(false);
   const contextId = useId();
 
-  const handleSaved = (saved) => onMatchChange?.(match.id, { my_prediction: saved });
-  const handleLocked = () => onMatchChange?.(match.id, { can_predict: false });
+  const { addToast } = useToast();
+
+  // stable handlers: the autosave timer restarts whenever they change
+  const handleSaved = useCallback((matchId, saved) => {
+    onMatchChange?.(matchId, { my_prediction: saved });
+  }, [onMatchChange]);
+  // 409 (or a pick left unsaved at kickoff): the card turns read only, the
+  // message goes to a toast because the boxes and their error line are gone
+  const handleLocked = useCallback((matchId, message) => {
+    onMatchChange?.(matchId, { can_predict: false });
+    if (message) addToast(message, 'error');
+  }, [onMatchChange, addToast]);
 
   // slightly tint the card of a scored prediction
   const hitBorder = pred?.hit_type === 'exact' ? 'border-hit-exact/40'
@@ -55,7 +66,8 @@ export default function MatchCard({ match, readOnly = false, showCompetition = f
         </div>
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
+      {/* tighter gap in the two-column cards (xl): the room goes to the team names */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4 xl:gap-2">
         <MatchTeamSide team={match.home_team} side="home" />
         <MatchScoreBlock match={match} />
         <MatchTeamSide team={match.away_team} side="away" />

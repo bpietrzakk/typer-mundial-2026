@@ -4,6 +4,9 @@ Every league member can mark one match of a coupon (one week) as the joker.
 Points for that match count double, but only in the league ranking in
 'coupon' mode and in the week results of that league. predictions.points_awarded
 and global rankings never change.
+Since migration 016 every league is in 'coupon' mode (docs/decisions.md #014),
+so the joker works everywhere. the 'scope' checks below only matter after a
+rollback of 016 and for archived seasons (effective mode 'scope', no coupons).
 """
 
 from datetime import datetime

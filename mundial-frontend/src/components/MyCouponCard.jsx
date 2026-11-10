@@ -11,8 +11,9 @@ import { distinctPoints } from '../utils/scoring';
 // counters are counted from the list, so they move right after an autosave
 // jokerOf(match) -> joker props (only matches of exactly one 'coupon' league)
 // hideMatchId = the match already shown in the start hero, left out of the list
-// (still counted in "7 z 10"). live and upcoming first, played ones folded
-export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked, jokerOf, showJokerRule = false, hideMatchId = null }) {
+// (still counted in "7 z 10"). live and upcoming first, played ones folded.
+// onEditing(matchId, bool) tells which row is being typed
+export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked, onEditing, jokerOf, showJokerRule = false, hideMatchId = null }) {
   const { matches, source } = coupon;
   const isGlobal = source === 'global';
   const listed = matches.filter((m) => m.id !== hideMatchId);
@@ -20,6 +21,7 @@ export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked, j
   const rowProps = {
     onSaved,
     onLocked,
+    onEditing,
     leaguesOf: showLeagues ? (m) => m.leagues : undefined,
     jokerOf,
   };

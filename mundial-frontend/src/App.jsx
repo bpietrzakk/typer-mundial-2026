@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -12,7 +12,6 @@ import Ranking from './pages/Ranking';
 import League from './pages/League';
 import Settings from './pages/Settings';
 import Dashboard from './pages/Dashboard';
-import Competitions from './pages/Competitions';
 import JoinByLink from './pages/JoinByLink';
 import NotFound from './pages/NotFound';
 import HomeRoute from './components/HomeRoute';
@@ -32,6 +31,13 @@ const Welcome = lazyPage(() => import('./pages/Welcome'));
 const Rules = lazyPage(() => import('./pages/Rules'));
 const BonusPicks = lazyPage(() => import('./pages/BonusPicks'));
 const Admin = lazyPage(() => import('./pages/Admin'));
+
+// the competitions page (following) is gone — old links open the matches,
+// ?competition=… comes along (same filter on /matches)
+function CompetitionsRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={`/matches${search}`} replace />;
+}
 
 // layout wrapper — navbar + page content for authenticated routes.
 // the navbar stays while a lazy page loads
@@ -99,14 +105,7 @@ export default function App() {
               </ProtectedPage>
             }
           />
-          <Route
-            path="/competitions"
-            element={
-              <ProtectedPage>
-                <AppLayout><Competitions /></AppLayout>
-              </ProtectedPage>
-            }
-          />
+          <Route path="/competitions" element={<CompetitionsRedirect />} />
           <Route
             path="/leagues"
             element={

@@ -1,7 +1,8 @@
 import TeamCrest from './TeamCrest';
 
 // crest + name of one team: stacked on phones, in a row from sm up,
-// stacked again from xl where the cards sit in two columns (too narrow for a row).
+// stacked again from xl where the cards sit in two columns (too narrow for a row),
+// there with the phone font size so "Mönchengladbach" still fits in one piece.
 // long names wrap between words, a word that still doesn't fit gets a hyphen
 export default function MatchTeamSide({ team, side }) {
   const isHome = side === 'home';
@@ -12,7 +13,7 @@ export default function MatchTeamSide({ team, side }) {
         xl:flex-col xl:gap-1.5 xl:text-center`}
     >
       <TeamCrest team={team} size="w-10 h-10 sm:w-9 sm:h-9" />
-      <p className="font-semibold text-gray-100 text-sm sm:text-base leading-tight hyphens-auto break-words min-w-0 max-w-full">
+      <p className="font-semibold text-gray-100 text-sm sm:text-base xl:text-sm leading-tight hyphens-auto break-words min-w-0 max-w-full">
         {team.name}
       </p>
     </div>

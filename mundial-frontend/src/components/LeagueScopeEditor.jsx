@@ -64,7 +64,7 @@ export default function LeagueScopeEditor({ leagueId, isOwner, scope, competitio
           {scope.all ? (
             <p className="text-sm text-gray-300">
               Wszystkie rozgrywki
-              <span className="text-gray-400"> — liczą się mecze każdej aktywnej rozgrywki</span>
+              <span className="text-gray-400"> — kupon ligi bierze mecze z każdej aktywnej rozgrywki</span>
             </p>
           ) : (
             <ul className="flex flex-wrap gap-1.5" aria-label="Rozgrywki w lidze">

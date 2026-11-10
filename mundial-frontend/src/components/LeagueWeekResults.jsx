@@ -5,8 +5,10 @@ import { copyAndShare, shareImage } from '../utils/share';
 import { bestPickOfWeek, renderWeekImage } from '../utils/weekImage';
 import LeagueRankingTable from './LeagueRankingTable';
 
-// winner + table of one coupon week, with a summary to paste on the group chat
-export default function LeagueWeekResults({ coupon, leagueName }) {
+// "Tydzień" view of the league ranking: winner (or leader) of one coupon week,
+// a summary to paste on the group chat and the week table.
+// entries = coupon members with the live fields (weekLiveEntries), live = show the live order
+export default function LeagueWeekResults({ coupon, leagueName, entries, live = false, onSelectUser, streaks, streakUnit }) {
   const { addToast } = useToast();
   const [rendering, setRendering] = useState(false);
   const range = formatWeekRange(coupon.week_start, coupon.week_end);
@@ -52,24 +54,18 @@ export default function LeagueWeekResults({ coupon, leagueName }) {
   };
 
   return (
-    <div className="border-t border-surface-500/35">
-      <div className="px-4 sm:px-5 pt-4 pb-3 flex items-start justify-between gap-3 flex-wrap">
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-gray-200">Wyniki tygodnia</h3>
-          {winners.length > 0 ? (
-            <p className="mt-1 text-sm text-gray-300">
-              <span aria-hidden="true">🏆 </span>
-              {settled ? 'Zwycięzca tygodnia' : 'Na razie prowadzi'}:{' '}
-              <span className="font-bold text-accent">{winners.map((w) => w.nick).join(', ')}</span>
-              <span className="text-gray-400"> · {winners[0].total_points} pkt</span>
-              {anyLiveExtra && liveExtra(winners[0]) > 0 && (
-                <span className="text-live/90 text-xs"> (w tym +{liveExtra(winners[0])} na żywo)</span>
-              )}
-            </p>
-          ) : (
-            <p className="mt-1 text-sm text-gray-400">Nikt jeszcze nie zdobył punktów w tym tygodniu.</p>
+    <>
+      <div className="px-4 sm:px-5 py-3 border-b border-surface-500/35 flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-sm text-gray-300 min-w-0">
+          <span aria-hidden="true">🏆 </span>
+          {settled ? 'Zwycięzca tygodnia' : 'Na razie prowadzi'}
+          <span className="text-gray-400"> ({range})</span>:{' '}
+          <span className="font-bold text-accent">{winners.map((w) => w.nick).join(', ')}</span>
+          <span className="text-gray-400"> · {winners[0]?.total_points ?? 0} pkt</span>
+          {anyLiveExtra && winners[0] && liveExtra(winners[0]) > 0 && (
+            <span className="text-live/90 text-xs"> (w tym +{liveExtra(winners[0])} na żywo)</span>
           )}
-        </div>
+        </p>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -94,7 +90,14 @@ export default function LeagueWeekResults({ coupon, leagueName }) {
           </button>
         </div>
       </div>
-      <LeagueRankingTable entries={coupon.members} />
-    </div>
+      <LeagueRankingTable
+        entries={entries}
+        onSelectUser={onSelectUser}
+        live={live}
+        streaks={streaks}
+        streakUnit={streakUnit}
+        caption={`Tabela tygodnia ${range}`}
+      />
+    </>
   );
 }

@@ -18,7 +18,10 @@
 #   r*    EPL   october, 3 matchdays  finished    with prev + t2 the table is ARS, CHE, MCI, ...
 #
 # leagues: Biuro (bartek owner, ala, celina), Rodzina (daniel owner, ala),
-#          Liga (celina owner, ala) scoped to LIGA only. ewa: no league, follows UCL
+#          Liga (celina owner, ala) scoped to LIGA only. ewa: no league (her old
+#          follow of UCL is not read any more, docs/decisions.md #014).
+# every league is in coupon mode (migration 016 + create). tests of the old
+# 'scope' rule put a league back with _set_mode, like after a rollback of 016
 
 import os
 
@@ -197,11 +200,21 @@ def _one_value(conn, query, params):
             return cur.fetchone()[0]
 
 
-# --- migration 008 ---
+def _set_mode(conn, league_id, mode):
+    execute(conn, "UPDATE private_leagues SET ranking_mode = %s WHERE id = %s", (mode, league_id))
 
-def test_existing_leagues_get_scope_mode_and_defaults(world, conn):
+
+def _assert_coupon_mode(conn, league_id):
+    # every league is in coupon mode since migration 016, nothing to switch on
+    assert scalar(conn, "SELECT ranking_mode FROM private_leagues WHERE id = %s", (league_id,)) == "coupon"
+
+
+# --- migration 008 (+ 016) ---
+
+def test_leagues_get_coupon_mode_and_defaults(world, conn):
+    # 008 added the columns ('scope' default), 016 moved every league to coupon
     assert rows(conn, "SELECT DISTINCT ranking_mode, coupon_size, coupon_auto FROM private_leagues") == [
-        ("scope", 10, True),
+        ("coupon", 10, True),
     ]
 
 
@@ -467,14 +480,15 @@ def _ranking(api, league_id):
 def test_coupon_mode_ranking_counts_only_coupon_matches(world, api, conn):
     m = world["m"]
     _set_coupon(conn, world["biuro"], [m["t2"], m["t4"]])
-    # scope mode: prev (ala 1:0 exact 5, bartek 2:0 tendency 2) + t2 (ala exact 5)
-    assert _ranking(api, world["biuro"]) == {"ala": 10, "bartek": 2, "celina": 0}
-    execute(conn, "UPDATE private_leagues SET ranking_mode = 'coupon' WHERE id = %s", (world["biuro"],))
+    # coupon mode: t2 only (ala exact 5), prev is not on any coupon
     assert _ranking(api, world["biuro"]) == {"ala": 5, "bartek": 0, "celina": 0}
+    # a league left in scope mode: prev (ala 1:0 exact 5, bartek 2:0 tendency 2) + t2 (ala exact 5)
+    _set_mode(conn, world["biuro"], "scope")
+    assert _ranking(api, world["biuro"]) == {"ala": 10, "bartek": 2, "celina": 0}
 
 
 def test_coupon_mode_still_adds_league_bonus(world, api, conn):
-    execute(conn, "UPDATE private_leagues SET ranking_mode = 'coupon' WHERE id = %s", (world["biuro"],))
+    _assert_coupon_mode(conn, world["biuro"])
     execute(
         conn,
         "INSERT INTO league_bonus_questions (private_league_id, season_id, kind, points, deadline_at) "
@@ -514,6 +528,16 @@ def test_patch_settings_validation_and_access(world, api):
     assert api("ala").patch(f"/leagues/{lid}/settings", json={"coupon_size": 8}).status_code == 403
 
 
+def test_patch_settings_cannot_pick_scope_mode(world, api):
+    # docs/decisions.md #014: coupon is the only mode, nothing else in the body is saved either
+    lid = world["biuro"]
+    resp = api("bartek").patch(f"/leagues/{lid}/settings", json={"ranking_mode": "scope", "coupon_size": 7})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Ranking ligi liczy tylko mecze z kuponu tygodnia — innego trybu już nie ma"
+    detail = api("bartek").get(f"/leagues/{lid}").json()
+    assert (detail["ranking_mode"], detail["coupon_size"]) == ("coupon", 10)
+
+
 def test_create_league_with_coupon_mode_and_scope(world, api, conn):
     resp = api("ewa").post("/leagues", json={
         "name": "Nowa", "ranking_mode": "coupon", "coupon_size": 8, "competition_ids": [world["EPL"], world["UCL"]],
@@ -526,8 +550,13 @@ def test_create_league_with_coupon_mode_and_scope(world, api, conn):
 
 
 def test_create_league_defaults_and_unknown_scope(world, api, conn):
-    body = api("ewa").post("/leagues", json={"name": "Stara"}).json()
-    assert body["ranking_mode"] == "scope"
+    body = api("ewa").post("/leagues", json={"name": "Nowa"}).json()
+    assert (body["ranking_mode"], body["coupon_size"], body["coupon_auto"]) == ("coupon", 10, True)
+    # an old client asking for 'scope' still gets a coupon league
+    old = api("ewa").post("/leagues", json={"name": "Stara", "ranking_mode": "scope"})
+    assert old.status_code == 201
+    assert old.json()["ranking_mode"] == "coupon"
+    assert scalar(conn, "SELECT ranking_mode FROM private_leagues WHERE id = %s", (old.json()["id"],)) == "coupon"
     before = scalar(conn, "SELECT COUNT(*) FROM private_leagues")
     resp = api("ewa").post("/leagues", json={"name": "Zła", "competition_ids": [987654]})
     assert resp.status_code == 422
@@ -560,10 +589,6 @@ def test_scheduler_skips_a_week_without_matches(world, conn):
 
 # --- joker (010, domain/joker.py) ---
 
-def _coupon_mode(conn, league_id):
-    execute(conn, "UPDATE private_leagues SET ranking_mode = 'coupon' WHERE id = %s", (league_id,))
-
-
 def _joker(conn, coupon_id, user_id, match_id):
     execute(
         conn,
@@ -572,18 +597,25 @@ def _joker(conn, coupon_id, user_id, match_id):
     )
 
 
-def test_joker_only_in_coupon_mode(world, api, conn):
-    m = world["m"]
-    _set_coupon(conn, world["biuro"], [m["t2"], m["t4"], m["t7"]])
-    resp = api("ala").put(f"/leagues/{world['biuro']}/coupon/joker", json={"match_id": m["t4"]})
+def test_joker_works_in_every_league_but_not_in_one_left_in_scope_mode(world, api, conn):
+    m, lid = world["m"], world["biuro"]
+    _set_coupon(conn, lid, [m["t2"], m["t4"], m["t7"]])
+    url = f"/leagues/{lid}/coupon/joker"
+    # every league ranks by its coupons now, so the joker just works
+    assert api("ala").put(url, json={"match_id": m["t4"]}).json()["my_joker_match_id"] == m["t4"]
+    assert api("ala").delete(url).json()["my_joker_match_id"] is None
+
+    # only a league put back in scope mode (rollback of 016) still says no
+    _set_mode(conn, lid, "scope")
+    resp = api("ala").put(url, json={"match_id": m["t4"]})
     assert resp.status_code == 409
     assert resp.json()["detail"] == "Joker działa tylko w lidze, w której ranking liczy mecze z kuponu"
-    assert api("ala").get(f"/leagues/{world['biuro']}/coupon").json()["my_joker_match_id"] is None
+    assert api("ala").get(f"/leagues/{lid}/coupon").json()["my_joker_match_id"] is None
 
 
 def test_set_move_and_clear_joker(world, api, conn):
     m, lid = world["m"], world["biuro"]
-    _coupon_mode(conn, lid)
+    _assert_coupon_mode(conn, lid)
     _set_coupon(conn, lid, [m["t2"], m["t4"], m["t7"]])
     url = f"/leagues/{lid}/coupon/joker"
 
@@ -609,7 +641,7 @@ def test_set_move_and_clear_joker(world, api, conn):
 
 def test_joker_is_locked_after_kickoff(world, api, conn, clock):
     m, lid = world["m"], world["biuro"]
-    _coupon_mode(conn, lid)
+    _assert_coupon_mode(conn, lid)
     _set_coupon(conn, lid, [m["t2"], m["t4"], m["t7"]])
     url = f"/leagues/{lid}/coupon/joker"
     assert api("ala").put(url, json={"match_id": m["t4"]}).status_code == 200
@@ -630,13 +662,14 @@ def test_joker_doubles_week_results_and_coupon_ranking(world, api, conn):
     # ala: t2 exact (5) with the joker -> 10
     _joker(conn, coupon_id, u["ala"], m["t2"])
 
-    # scope league: the joker is ignored everywhere
+    # a league left in scope mode: the joker is ignored everywhere
+    _set_mode(conn, lid, "scope")
     body = api("celina").get(f"/leagues/{lid}/coupon").json()
     assert {x["nick"]: x["total_points"] for x in body["members"]}["ala"] == 5
     t2 = next(x for x in body["matches"] if x["id"] == m["t2"])
     assert all(p["is_joker"] is False for p in t2["member_predictions"])
 
-    _coupon_mode(conn, lid)
+    _set_mode(conn, lid, "coupon")
     body = api("celina").get(f"/leagues/{lid}/coupon").json()
     assert {x["nick"]: x["total_points"] for x in body["members"]}["ala"] == 10
     t2 = next(x for x in body["matches"] if x["id"] == m["t2"])
@@ -653,7 +686,7 @@ def test_joker_doubles_week_results_and_coupon_ranking(world, api, conn):
 
 def test_other_jokers_stay_hidden_before_kickoff(world, api, conn):
     m, u, lid = world["m"], world["users"], world["biuro"]
-    _coupon_mode(conn, lid)
+    _assert_coupon_mode(conn, lid)
     coupon_id = _set_coupon(conn, lid, [m["t2"], m["t4"]])
     _joker(conn, coupon_id, u["ala"], m["t4"])
     body = api("celina").get(f"/leagues/{lid}/coupon").json()
@@ -663,7 +696,7 @@ def test_other_jokers_stay_hidden_before_kickoff(world, api, conn):
 
 def test_joker_goes_with_a_match_dropped_from_the_coupon(world, api, conn):
     m, u, lid = world["m"], world["users"], world["biuro"]
-    _coupon_mode(conn, lid)
+    _assert_coupon_mode(conn, lid)
     coupon_id = _set_coupon(conn, lid, [m["t2"], m["t4"], m["t7"]])
     _joker(conn, coupon_id, u["ala"], m["t7"])
     execute(conn, "DELETE FROM league_coupon_matches WHERE coupon_id = %s AND match_id = %s", (coupon_id, m["t7"]))
@@ -672,7 +705,6 @@ def test_joker_goes_with_a_match_dropped_from_the_coupon(world, api, conn):
 
 def test_my_coupon_marks_my_joker_per_league(world, api, conn):
     m, u = world["m"], world["users"]
-    _coupon_mode(conn, world["biuro"])
     biuro = _set_coupon(conn, world["biuro"], [m["t4"], m["t7"]])
     _set_coupon(conn, world["rodzina"], [m["t4"]])
     _joker(conn, biuro, u["ala"], m["t4"])
@@ -680,7 +712,8 @@ def test_my_coupon_marks_my_joker_per_league(world, api, conn):
     t4 = next(x for x in body["matches"] if x["id"] == m["t4"])
     refs = {ref["name"]: ref for ref in t4["leagues"]}
     assert refs["Biuro"]["is_my_joker"] is True and refs["Biuro"]["ranking_mode"] == "coupon"
-    assert refs["Rodzina"]["is_my_joker"] is False and refs["Rodzina"]["ranking_mode"] == "scope"
+    # no joker of mine in Rodzina, both leagues are coupon leagues
+    assert refs["Rodzina"]["is_my_joker"] is False and refs["Rodzina"]["ranking_mode"] == "coupon"
 
 
 # --- live league table (GET /leagues/{id}/ranking while a match is live) ---
@@ -704,8 +737,9 @@ def test_live_table_is_empty_without_live_matches(world, api):
     assert all(v[2:] == (0, None, None) for v in table.values())
 
 
-def test_live_table_in_scope_mode_counts_every_live_match(world, api, conn):
+def test_live_table_of_a_league_left_in_scope_mode_counts_every_live_match(world, api, conn):
     m = world["m"]
+    _set_mode(conn, world["biuro"], "scope")
     _go_live(conn, m["t4"], 0, 2)  # ala 0:2 exact +5
     _go_live(conn, m["t7"], 1, 1)  # celina 2:2 diff +3, overtakes bartek
     # official: ala 10, bartek 2, celina 0
@@ -720,7 +754,7 @@ def test_live_table_in_coupon_mode_only_coupon_matches_and_joker_doubles(world, 
     m, u, lid = world["m"], world["users"], world["biuro"]
     coupon_id = _set_coupon(conn, lid, [m["t2"], m["t4"]])
     _joker(conn, coupon_id, u["ala"], m["t4"])
-    _coupon_mode(conn, lid)
+    _assert_coupon_mode(conn, lid)
     _go_live(conn, m["t4"], 0, 2)
     _go_live(conn, m["t7"], 1, 1)  # not on the coupon -> celina gets nothing
     assert _live_table(api, lid) == {
@@ -914,7 +948,7 @@ def test_reset_keeps_started_matches_and_skips_started_global_ones(world, api, c
 def test_joker_and_ranking_work_on_a_copied_coupon(world, api, conn):
     m = world["m"]
     lid = world["biuro"]
-    _coupon_mode(conn, lid)
+    _assert_coupon_mode(conn, lid)
     body = api("ala").get(f"/leagues/{lid}/coupon").json()
     assert body["created_by"] == "global"
     resp = api("ala").put(f"/leagues/{lid}/coupon/joker", json={"match_id": m["t7"]})
@@ -962,7 +996,8 @@ def test_member_picks_add_up_to_the_league_ranking_in_both_modes(world, api, con
     coupon_id = _set_coupon(conn, lid, [m["t2"], m["t4"]])
     _joker(conn, coupon_id, u["ala"], m["t2"])
 
-    # scope league: every finished match of the seasons, the joker means nothing
+    # a league left in scope mode: every finished match of the seasons, the joker means nothing
+    _set_mode(conn, lid, "scope")
     body = _member_picks(api, world, "ala").json()
     assert body["total_points"] == _ranking(api, lid)["ala"] == 10
     assert (body["match_points"], body["bonus_points"]) == (10, 0)
@@ -973,8 +1008,8 @@ def test_member_picks_add_up_to_the_league_ranking_in_both_modes(world, api, con
     # t4 is still open for predictions, so it never shows up
     assert m["t4"] not in {p["match_id"] for p in picks}
 
-    # coupon league: only coupon matches, the joker counts double
-    _coupon_mode(conn, lid)
+    # coupon league (every league now): only coupon matches, the joker counts double
+    _set_mode(conn, lid, "coupon")
     body = _member_picks(api, world, "ala").json()
     assert body["total_points"] == _ranking(api, lid)["ala"] == 10
     assert [(p["match_id"], p["is_joker"], p["points_awarded"], p["league_points"])

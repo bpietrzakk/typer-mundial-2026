@@ -1,29 +1,26 @@
-import { useEffect, useState } from 'react';
+import useMinuteClock from '../hooks/useMinuteClock';
 import { couponProgress, formatDeadline } from '../utils/coupon';
 import { formatTimeLeft } from '../utils/format';
 
-// "███████░░░ 7 z 10" + what is left: "najbliższy zamyka się za 2 h 15 min",
+// "███████░░░ 7 z 10" + what is left: "do wytypowania: 3 · najbliższy zamyka się za 2 h 15 min"
+// (the nearest open match, typed or not — a typed pick can still change until then),
 // or "komplet na teraz" when every open match is typed (still editable)
 export default function CouponProgress({ matches }) {
-  const [now, setNow] = useState(() => Date.now());
-  const { typed, total, open, missed, nextUntyped, nextOpen } = couponProgress(matches, now);
-
   // the countdown ticks once a minute while something is still open
-  useEffect(() => {
-    if (!open) return undefined;
-    const id = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(id);
-  }, [open]);
+  const now = useMinuteClock(matches.some((m) => m.can_predict));
+  const { typed, total, toType, missed, nextOpen } = couponProgress(matches, now);
 
   const pct = total > 0 ? Math.round((typed / total) * 100) : 0;
   const done = total > 0 && typed >= total;
 
   let text;
-  if (nextUntyped) {
+  if (nextOpen && toType > 0) {
     text = (
       <>
+        do wytypowania: <span className="text-gray-200 font-semibold tabular-nums">{toType}</span>
+        <span aria-hidden="true"> · </span>
         najbliższy zamyka się za{' '}
-        <span className="text-gray-200 font-semibold">{formatTimeLeft(new Date(nextUntyped).getTime() - now)}</span>
+        <span className="text-gray-200 font-semibold">{formatTimeLeft(new Date(nextOpen).getTime() - now)}</span>
       </>
     );
   } else if (nextOpen) {

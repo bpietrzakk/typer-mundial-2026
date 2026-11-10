@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
@@ -21,9 +21,9 @@ import useLivePolling from '../hooks/useLivePolling';
 import useCompetitions from '../hooks/useCompetitions';
 import useMyLeagues from '../hooks/useMyLeagues';
 import useMySeasonStandings from '../hooks/useMySeasonStandings';
-import { isJokerLocked, isUnderway, pickHeroMatch } from '../utils/coupon';
+import { holdHero, isJokerLocked, isUnderway, pickHeroMatch } from '../utils/coupon';
 import { settledHit } from '../utils/scoring';
-import { VOID_STATUSES, errorMessage, formatDayShort, isArchiveCompetition } from '../utils/matchUi';
+import { VOID_STATUSES, errorMessage, formatDayShort, groupCompetitions } from '../utils/matchUi';
 
 // live matches only — the coupon replaced the long "upcoming" list
 const fetchFeed = () => getFeed(1);
@@ -43,11 +43,15 @@ export default function Dashboard() {
   const leaguesQ = useMyLeagues({ enabled: !coreLoading });
 
   const competitions = useMemo(() => compsQ.data ?? [], [compsQ.data]);
-  const followed = competitions.filter((c) => c.is_followed && !isArchiveCompetition(c));
+  // competitions of my leagues (every active one without a league)
+  const { mine } = groupCompetitions(competitions);
 
-  // my standing in the current season of each followed competition
-  const seasonKey = followed
-    .filter((c) => c.current_season)
+  // my standing in the current season of my competitions — only the seasons I
+  // typed in (my picks carry season_id), so a league counting every competition
+  // does not fire one ranking request per competition on every visit
+  const typedSeasons = new Set((predsQ.data ?? []).map((p) => p.season_id));
+  const seasonKey = mine
+    .filter((c) => c.current_season && typedSeasons.has(c.current_season.id))
     .map((c) => c.current_season.id)
     .join(',');
   const standingsQ = useMySeasonStandings(seasonKey, user?.id);
@@ -66,11 +70,18 @@ export default function Dashboard() {
     }));
   }, [mutateCoupon]);
   // the hero moves on to the next match right away and its error line goes
-  // with the old form, so a refused pick is announced in a toast instead
+  // with the old form, so a refused / lost pick is announced in a toast instead.
+  // the same for coupon rows: a row whose match kicks off may become the hero
   const handleHeroLocked = useCallback((matchId, message) => {
     handleLocked(matchId);
     if (message) addToast(message, 'error');
   }, [handleLocked, addToast]);
+
+  // the coupon row being typed right now (focus or unsaved input), see holdHero
+  const [editingId, setEditingId] = useState(null);
+  const handleEditing = useCallback((matchId, editing) => {
+    setEditingId((cur) => (editing ? matchId : (cur === matchId ? null : cur)));
+  }, []);
 
   // joker of one league: matchId = put / move it there, null = take it back.
   // the start screen only marks it on the league tags of the matches
@@ -122,10 +133,10 @@ export default function Dashboard() {
   const showLeagues = (leaguesQ.data?.total ?? leagueNames.size) > 1;
 
   // joker button only when the match is on the coupon of exactly one league
-  // and that league plays for coupon points (otherwise: which league?)
+  // (otherwise: which league?). every league has the joker
   const couponMatches = coupon?.matches ?? [];
   const jokerOf = (m) => {
-    if (m.leagues.length !== 1 || m.leagues[0].ranking_mode !== 'coupon') return undefined;
+    if (m.leagues.length !== 1) return undefined;
     const leagueId = m.leagues[0].id;
     const jokerMatch = couponMatches.find((x) => x.leagues.some((l) => l.id === leagueId && l.is_my_joker));
     return {
@@ -135,15 +146,19 @@ export default function Dashboard() {
       onClear: () => changeJoker(leagueId, null),
     };
   };
-  const anyJoker = couponMatches.some((m) => m.leagues.some((l) => l.ranking_mode === 'coupon'));
+  const anyJoker = couponMatches.some((m) => m.leagues.length > 0);
   const leaguesOf = showLeagues ? (m) => m.leagues : undefined;
 
-  // nearest open match on top, the list below skips it
-  const hero = pickHeroMatch(couponMatches);
+  // live match (or the nearest open one) on top, the list below skips only that one.
+  // while a coupon row is typed the hero does not jump onto it (holdHero)
+  const [shownHero, setShownHero] = useState(null); // { kind, id } on screen
+  const hero = holdHero(pickHeroMatch(couponMatches), shownHero, editingId, couponMatches);
+  const heroId = hero.match?.id ?? null;
+  if (shownHero?.kind !== hero.kind || shownHero?.id !== heroId) setShownHero({ kind: hero.kind, id: heroId });
 
   const standings = standingsQ.data ?? [];
   const codeBySeason = Object.fromEntries(
-    followed.filter((c) => c.current_season).map((c) => [c.current_season.id, c]),
+    mine.filter((c) => c.current_season).map((c) => [c.current_season.id, c]),
   );
 
   const recent = (predsQ.data ?? [])
@@ -217,7 +232,8 @@ export default function Dashboard() {
                   coupon={coupon}
                   showLeagues={showLeagues}
                   onSaved={handleSaved}
-                  onLocked={handleLocked}
+                  onLocked={handleHeroLocked}
+                  onEditing={handleEditing}
                   jokerOf={jokerOf}
                   showJokerRule={anyJoker}
                   hideMatchId={hero.match?.id ?? null}
@@ -257,7 +273,7 @@ export default function Dashboard() {
         <div className="space-y-5 min-w-0">
           <MyLeaguesCard leaguesData={leaguesQ.data} loading={leaguesQ.loading} userId={user?.id} />
 
-          {/* points in followed seasons */}
+          {/* points in the seasons of my leagues */}
           {standings.length > 0 && (
             <SectionCard title="Twoje sezony" link="/ranking" linkLabel="Ranking →">
               <div className="p-4 flex flex-wrap gap-2">

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 
-export default function PasswordInput({ id, value, onChange, placeholder, autoComplete }) {
+// password box with an eye that shows / hides what was typed.
+// describedBy = id of a hint under the box (read out by screen readers)
+export default function PasswordInput({ id, value, onChange, placeholder, autoComplete, describedBy }) {
   const [show, setShow] = useState(false);
 
   return (
@@ -12,6 +14,7 @@ export default function PasswordInput({ id, value, onChange, placeholder, autoCo
         onChange={onChange}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        aria-describedby={describedBy}
         className="input-field pr-11"
       />
       {/* out of the tab order so tab + space after the password hits the submit button */}

@@ -160,6 +160,18 @@ def test_rollback_restores_schema_and_data(conn, app_pool):
                 (ids["private_league"], match_id, ids["private_league"]),
             )
             assert cur.rowcount == 1
+    # 016 moved every league to coupon mode, a league from before goes back
+    with conn.cursor() as cur:
+        cur.execute("SELECT ranking_mode FROM private_leagues WHERE id = %s", (ids["private_league"],))
+        assert cur.fetchone()[0] == "coupon"
+    conn.rollback()
+    assert run_rollback(conn, "016") == "016_coupon_ranking_only.down.sql"
+    assert "016_coupon_ranking_only.sql" not in _ledger(conn)
+    with conn.cursor() as cur:
+        cur.execute("SELECT ranking_mode FROM private_leagues WHERE id = %s", (ids["private_league"],))
+        assert cur.fetchone()[0] == "scope"
+    conn.rollback()
+
     # 015 only added users.password_changed_at
     assert run_rollback(conn, "015") == "015_password_changed_at.down.sql"
     assert "015_password_changed_at.sql" not in _ledger(conn)

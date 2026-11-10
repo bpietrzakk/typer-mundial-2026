@@ -1,9 +1,11 @@
 import { useId, useState } from 'react';
+import AutosaveStatus from './AutosaveStatus';
 import JokerButton from './JokerButton';
 import MatchContextButton from './MatchContextButton';
 import MatchContextPanel from './MatchContextPanel';
 import PointsExplain from './PointsExplain';
 import ProvisionalPoints from './ProvisionalPoints';
+import ScoreBoxes from './ScoreBoxes';
 import TeamCrest from './TeamCrest';
 import usePredictionAutosave from '../hooks/usePredictionAutosave';
 import { STATUS_META, VOID_STATUSES, competitionLabel, formatTime } from '../utils/matchUi';
@@ -13,16 +15,16 @@ import { settledHit } from '../utils/scoring';
 const SHORT_STATUS = { postponed: 'przeł.', suspended: 'przerw.', cancelled: 'odw.', awarded: 'wo.' };
 
 // one coupon match in one line: time, home, [h]:[a], away, save state.
-// typing and autosave live in usePredictionAutosave (shared with the start hero).
-// onSaved(matchId, myPrediction), onLocked(matchId, message) after a 409.
+// typing and autosave live in usePredictionAutosave, the boxes and the save state
+// are the same ScoreBoxes / AutosaveStatus as in the start hero and the match cards.
+// onSaved(matchId, myPrediction), onLocked(matchId, message?) when the match closed,
+// onEditing(matchId, bool) while the player is in the boxes or has unsaved input.
 // leagues = small league tags, children = extra content under the row.
-// joker = { active, locked, onSet, onClear } in a 'coupon' league, undefined = no joker here
-export default function CouponRow({ match, onSaved, onLocked, leagues, joker, showCompetition = false, children }) {
+// joker = { active, locked, onSet, onClear } of a league coupon, undefined = no joker here
+export default function CouponRow({ match, onSaved, onLocked, onEditing, leagues, joker, showCompetition = false, children }) {
   const pred = match.my_prediction;
-  const {
-    editable, home, away, saved, state, error, zeroNote, awayRef,
-    changeHome, changeAway, handleBlur, retry, isDirty, hintHome, hintAway,
-  } = usePredictionAutosave(match, { onSaved, onLocked });
+  const form = usePredictionAutosave(match, { onSaved, onLocked, onEditing });
+  const { editable, saved } = form;
   const [contextOpen, setContextOpen] = useState(false);
   const contextId = useId();
 
@@ -35,40 +37,8 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
   const shownHit = settledHit(shownPred, match.home_goals, match.away_goals);
   const tbd = match.kickoff_confirmed === false || match.status === 'postponed' || match.status === 'cancelled';
 
-  const boxCls = (hint) => `w-8 sm:w-9 h-9 text-center text-base font-bold rounded-lg bg-surface-600/50 border
-    text-white focus:outline-none focus:border-brand/60 focus:ring-2 focus:ring-brand/20
-    ${state === 'error' ? 'border-red-500/50' : 'border-surface-500/30'}
-    ${hint ? 'placeholder-gray-500' : 'placeholder-gray-600'}`;
-
   const middle = editable ? (
-    <div className="flex items-center gap-0.5 sm:gap-1" onBlur={handleBlur}>
-      <input
-        type="text"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        maxLength={2}
-        value={home}
-        placeholder={hintHome ? '0' : '–'}
-        aria-label={`Gole: ${match.home_team.name}`}
-        onFocus={(e) => e.target.select()}
-        onChange={(e) => changeHome(e.target.value.replace(/\D/g, '').slice(0, 2))}
-        className={boxCls(hintHome)}
-      />
-      <span className="text-gray-500 font-bold text-sm">:</span>
-      <input
-        ref={awayRef}
-        type="text"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        maxLength={2}
-        value={away}
-        placeholder={hintAway ? '0' : '–'}
-        aria-label={`Gole: ${match.away_team.name}`}
-        onFocus={(e) => e.target.select()}
-        onChange={(e) => changeAway(e.target.value.replace(/\D/g, '').slice(0, 2))}
-        className={boxCls(hintAway)}
-      />
-    </div>
+    <ScoreBoxes form={form} homeName={match.home_team.name} awayName={match.away_team.name} size="row" />
   ) : (
     <div className={`min-w-[70px] text-center score-num font-black text-lg whitespace-nowrap
       ${isLive ? 'text-live' : hasScore ? 'text-white' : 'text-gray-500'}`}
@@ -76,24 +46,6 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
       {hasScore ? `${match.home_goals} : ${match.away_goals}` : '– : –'}
     </div>
   );
-
-  // right column: save state for open matches, nothing for closed ones
-  let stateIcon = null;
-  if (editable) {
-    if (state === 'saving') {
-      stateIcon = <span className="w-3.5 h-3.5 border-2 border-brand/30 border-t-brand rounded-full animate-spin" aria-label="Zapisuję" />;
-    } else if (state === 'error') {
-      stateIcon = (
-        <button type="button" onClick={retry} className="text-red-400 font-black text-sm" aria-label="Ponów zapis" title="Ponów zapis">!</button>
-      );
-    } else if (saved && !isDirty) {
-      stateIcon = (
-        <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3} aria-label="Zapisano">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-        </svg>
-      );
-    }
-  }
 
   // joker chip: my joker here, or a free joker and an open match
   const showJoker = Boolean(joker) && (joker.active || (editable && !joker.locked));
@@ -132,18 +84,15 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
             <span className="text-[13px] sm:text-sm font-medium leading-tight text-gray-100 line-clamp-2 hyphens-auto break-words">{match.away_team.name}</span>
           </div>
 
-          <div className="flex items-center justify-center" aria-live="polite">{stateIcon}</div>
+          {/* right column: save state for open matches, nothing for closed ones */}
+          <div className="flex items-center justify-center" aria-live="polite">
+            {editable && <AutosaveStatus form={form} variant="icon" />}
+          </div>
         </div>
 
         {/* second line: what happened with the prediction + tags + stats toggle */}
         <div className="mt-1 pl-[2.5rem] sm:pl-[3.75rem] flex items-center gap-x-2 gap-y-1 flex-wrap text-[11px] leading-4">
-            {state === 'error' && (
-              <span className="text-red-400" role="alert">
-                {error} ·{' '}
-                <button type="button" onClick={retry} className="underline font-semibold">Ponów</button>
-              </span>
-            )}
-            {zeroNote && state !== 'error' && <span className="text-emerald-400 font-semibold">✓ {zeroNote}</span>}
+            <AutosaveStatus form={form} variant="note" />
 
             {!editable && (
               shownPred ? (

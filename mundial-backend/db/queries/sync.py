@@ -12,6 +12,7 @@ from psycopg2 import errors as pg_errors
 from psycopg2.extras import RealDictCursor, execute_values
 
 from db.connection import get_conn, release_conn
+from db.queries.competitions import _SQL_IN_MY_LEAGUES
 
 
 class SyncBusy(Exception):
@@ -520,13 +521,13 @@ def get_final_match(season_id: int) -> dict | None:
 
 # current season = the active one, otherwise the newest (same rule as GET /competitions)
 # last sync = newest finished run that covered the competition: its own run or an all-competitions run
+# in_my_leagues = same rule as GET /competitions (params: admin id twice)
 _SQL_SELECT_ADMIN_COMPETITIONS = """
     SELECT c.id, c.code, c.name, c.country, c.kind, c.logo_url, c.is_active, c.provider, c.provider_ref,
-           (uc.user_id IS NOT NULL) AS is_followed,
+           """ + _SQL_IN_MY_LEAGUES + """ AS in_my_leagues,
            cs.id AS season_id, cs.label AS season_label, cs.status AS season_status,
            ls.at AS last_sync_at, ls.status AS last_sync_status
     FROM competitions c
-    LEFT JOIN user_competitions uc ON uc.competition_id = c.id AND uc.user_id = %s
     LEFT JOIN LATERAL (
         SELECT s.id, s.label, s.status
         FROM seasons s
@@ -565,18 +566,19 @@ def _admin_competition(row: dict) -> dict:
     return {
         "id": row["id"], "code": row["code"], "name": row["name"], "country": row["country"],
         "kind": row["kind"], "logo_url": row["logo_url"], "is_active": row["is_active"],
-        "is_followed": row["is_followed"], "current_season": current,
+        "in_my_leagues": row["in_my_leagues"], "is_followed": row["in_my_leagues"],
+        "current_season": current,
         "provider": row["provider"], "provider_ref": row["provider_ref"],
         "last_sync_at": row["last_sync_at"], "last_sync_status": row["last_sync_status"],
     }
 
 
 def list_admin_competitions(user_id: int) -> list[dict]:
-    return [_admin_competition(r) for r in _fetch_all(SQL_LIST_ADMIN_COMPETITIONS, (user_id,))]
+    return [_admin_competition(r) for r in _fetch_all(SQL_LIST_ADMIN_COMPETITIONS, (user_id, user_id))]
 
 
 def get_admin_competition(user_id: int, competition_id: int) -> dict | None:
-    rows = _fetch_all(SQL_GET_ADMIN_COMPETITION, (user_id, competition_id))
+    rows = _fetch_all(SQL_GET_ADMIN_COMPETITION, (user_id, user_id, competition_id))
     return _admin_competition(rows[0]) if rows else None
 
 

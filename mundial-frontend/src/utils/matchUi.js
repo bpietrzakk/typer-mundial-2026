@@ -49,13 +49,25 @@ export const competitionLabel = (code, name) => COMP_SHORT_NAMES[code] || name |
 export const isArchiveCompetition = (c) =>
   !c.is_active || c.current_season?.status === 'archived';
 
-// followed first, then active ones, archive last (backend order is kept inside groups)
+// competitions of my leagues first, then other active ones, archive last
+// (backend order is kept inside groups)
 export function sortCompetitions(list) {
-  const rank = (c) => (isArchiveCompetition(c) ? 2 : c.is_followed ? 0 : 1);
+  const rank = (c) => (isArchiveCompetition(c) ? 2 : c.in_my_leagues ? 0 : 1);
   return [...list].sort((a, b) => rank(a) - rank(b));
 }
 
-// default pick: first followed active, else first active, else anything
+// my competitions = the ones in the scope of my leagues (in_my_leagues).
+// none marked (no league yet) = every active one, the same pool as the global
+// coupon. fromLeagues tells which of the two it is. backend order is kept
+export function groupCompetitions(list) {
+  const active = list.filter((c) => !isArchiveCompetition(c));
+  const archive = list.filter(isArchiveCompetition);
+  const marked = active.filter((c) => c.in_my_leagues);
+  if (marked.length === 0) return { mine: active, others: [], archive, fromLeagues: false };
+  return { mine: marked, others: active.filter((c) => !c.in_my_leagues), archive, fromLeagues: true };
+}
+
+// default pick: first active one of my leagues, else first active, else anything
 export function pickDefaultCompetition(list) {
   if (!list || list.length === 0) return null;
   return sortCompetitions(list)[0];

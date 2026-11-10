@@ -100,6 +100,7 @@ def test_create_league_returns_201_with_owner_as_first_member(monkeypatch):
     monkeypatch.setattr(
         leagues_module, "list_league_members", lambda lid: _fake_members(),
     )
+    monkeypatch.setattr(leagues_module, "update_league_coupon_settings", lambda *args: None)
 
     resp = client.post(
         "/leagues", json={"name": "Mundial znajomi"}, cookies=_cookie_for(USER),
@@ -112,6 +113,42 @@ def test_create_league_returns_201_with_owner_as_first_member(monkeypatch):
     assert len(body["join_code"]) == 8
     assert len(body["members"]) == 1
     assert body["members"][0]["is_admin"] is True
+
+
+def test_create_league_is_always_coupon_mode(monkeypatch):
+    # docs/decisions.md #014: an old client may still send 'scope', it is ignored
+    # and the router writes domain.leagues.LEAGUE_RANKING_MODE itself
+    calls = []
+    monkeypatch.setattr(deps_module, "get_user_by_id", lambda uid: USER)
+    monkeypatch.setattr(leagues_module, "create_league", lambda name, owner_id: _fake_league(name=name))
+    monkeypatch.setattr(
+        leagues_module, "update_league_coupon_settings",
+        lambda lid, mode, size, auto: calls.append((lid, mode, size, auto)),
+    )
+    monkeypatch.setattr(
+        leagues_module, "get_league_with_owner", lambda lid: {**_fake_league(), "ranking_mode": "coupon"},
+    )
+    monkeypatch.setattr(leagues_module, "list_league_members", lambda lid: _fake_members())
+
+    for body, expected_calls in [
+        ({"name": "Biuro", "ranking_mode": "scope", "coupon_size": 8}, [(10, "coupon", 8, None)]),
+        ({"name": "Biuro", "ranking_mode": "scope"}, [(10, "coupon", None, None)]),
+        ({"name": "Biuro"}, [(10, "coupon", None, None)]),
+    ]:
+        calls.clear()
+        resp = client.post("/leagues", json=body, cookies=_cookie_for(USER))
+        assert resp.status_code == 201, body
+        assert resp.json()["ranking_mode"] == "coupon"
+        assert calls == expected_calls, body
+
+
+def test_league_response_defaults_to_coupon_mode(monkeypatch):
+    # an older row shape without the column still says coupon
+    monkeypatch.setattr(deps_module, "get_user_by_id", lambda uid: USER)
+    monkeypatch.setattr(leagues_module, "get_league_with_owner", lambda lid: _fake_league())
+    monkeypatch.setattr(leagues_module, "is_league_member", lambda lid, uid: True)
+    monkeypatch.setattr(leagues_module, "list_league_members", lambda lid: _fake_members())
+    assert client.get("/leagues/10", cookies=_cookie_for(USER)).json()["ranking_mode"] == "coupon"
 
 
 def test_create_league_without_auth_returns_401():
@@ -284,3 +321,45 @@ def test_preview_code_ranking_does_not_hit_league_ranking(monkeypatch):
     resp = client.get("/leagues/preview/ranking")
     assert resp.status_code == 404
     assert resp.json()["detail"] == "Nie znaleziono ligi z tym kodem"
+
+
+# --- PATCH /leagues/{id}/settings: only coupon mode (docs/decisions.md #014) ---
+
+def _settings_world(monkeypatch) -> list:
+    calls = []
+    monkeypatch.setattr(deps_module, "get_user_by_id", lambda uid: USER)
+    monkeypatch.setattr(leagues_module, "get_league_with_owner", lambda lid: _fake_league())
+    monkeypatch.setattr(leagues_module, "is_league_member", lambda lid, uid: True)
+    monkeypatch.setattr(
+        leagues_module, "update_league_coupon_settings",
+        lambda lid, mode, size, auto: calls.append((lid, mode, size, auto)),
+    )
+    monkeypatch.setattr(leagues_module, "update_prize_pool", lambda lid, uid, amount: calls.append(("pool", amount)))
+    return calls
+
+
+def test_settings_scope_mode_is_422_and_changes_nothing(monkeypatch):
+    calls = _settings_world(monkeypatch)
+    resp = client.patch(
+        "/leagues/10/settings", json={"ranking_mode": "scope", "coupon_size": 8, "prize_pool_per_person": 5},
+        cookies=_cookie_for(USER),
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Ranking ligi liczy tylko mecze z kuponu tygodnia — innego trybu już nie ma"
+    assert calls == []
+
+
+def test_settings_coupon_mode_is_still_accepted(monkeypatch):
+    calls = _settings_world(monkeypatch)
+    resp = client.patch(
+        "/leagues/10/settings", json={"ranking_mode": "coupon", "coupon_size": 8}, cookies=_cookie_for(USER),
+    )
+    assert resp.status_code == 204
+    assert calls == [(10, "coupon", 8, None)]
+
+
+def test_settings_without_mode_keep_working(monkeypatch):
+    calls = _settings_world(monkeypatch)
+    resp = client.patch("/leagues/10/settings", json={"coupon_auto": False}, cookies=_cookie_for(USER))
+    assert resp.status_code == 204
+    assert calls == [(10, None, None, False)]

@@ -6,7 +6,7 @@ import useAsync from './useAsync';
 import useCompetitions from './useCompetitions';
 
 // competition + season picked in the URL (?competition=&season=), with defaults:
-// first followed competition → its current season.
+// first competition of my leagues → its current season.
 // links that point nowhere (unknown competition, season of another
 // competition, unknown season) fall back to that default selection.
 // extra params (e.g. ?round=) are left to the page via params / setParams.
@@ -37,7 +37,7 @@ export default function useSeasonSelection({ autoPick = true } = {}) {
 
   const candidateId = knownCompetitionId ?? resolvedSeason?.competition?.id ?? null;
   let competition = competitions?.find((c) => c.id === candidateId) ?? null;
-  // nothing (valid) in the link → first followed, unless the page picks nothing
+  // nothing (valid) in the link → first of my leagues, unless the page picks nothing
   const hasParams = Boolean(competitionParam || seasonParam);
   if (!competition && competitions && !resolving && (autoPick || hasParams)) {
     competition = pickDefaultCompetition(competitions);

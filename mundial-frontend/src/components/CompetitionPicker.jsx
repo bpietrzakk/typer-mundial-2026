@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import ChipButton from './ChipButton';
 import { isArchiveCompetition, sortCompetitions } from '../utils/matchUi';
 
-// horizontal chips to pick a competition (followed first, archive last)
+// horizontal chips to pick a competition (my leagues' first with a star, archive last)
 export default function CompetitionPicker({ competitions, selectedId, onSelect }) {
   const sorted = sortCompetitions(competitions);
   const rowRef = useRef(null);
@@ -27,8 +27,8 @@ export default function CompetitionPicker({ competitions, selectedId, onSelect }
         const archive = isArchiveCompetition(c);
         return (
           <ChipButton key={c.id} active={active} onClick={() => onSelect(c.id)}>
-            {c.is_followed && !archive && (
-              <span className={`mr-1.5 ${active ? 'text-surface-900' : 'text-brand'}`} aria-label="obserwowana">★</span>
+            {c.in_my_leagues && !archive && (
+              <span className={`mr-1.5 ${active ? 'text-surface-900' : 'text-brand'}`} aria-label="w twoich ligach">★</span>
             )}
             {c.name}
             {archive && <span className="ml-1.5 text-[10px] uppercase tracking-wider opacity-70">archiwum</span>}

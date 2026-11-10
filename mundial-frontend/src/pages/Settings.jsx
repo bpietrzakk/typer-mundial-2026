@@ -127,9 +127,6 @@ export default function Settings() {
             <Link to="/rules" className="px-3 py-1.5 rounded-lg bg-surface-700/50 text-brand hover:bg-surface-700 transition-colors">
               Zasady punktacji
             </Link>
-            <Link to="/competitions" className="px-3 py-1.5 rounded-lg bg-surface-700/50 text-gray-300 hover:bg-surface-700 transition-colors">
-              Obserwowane rozgrywki
-            </Link>
           </div>
         </div>
 
