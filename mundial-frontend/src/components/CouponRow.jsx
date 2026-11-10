@@ -120,7 +120,7 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
 
           {/* home */}
           <div className="flex items-center justify-end gap-1 sm:gap-1.5 min-w-0">
-            <span className="text-[13px] sm:text-sm font-medium leading-tight text-gray-100 line-clamp-2 break-words text-right">{match.home_team.name}</span>
+            <span className="text-[13px] sm:text-sm font-medium leading-tight text-gray-100 line-clamp-2 hyphens-auto break-words text-right">{match.home_team.name}</span>
             <TeamCrest team={match.home_team} size="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
 
@@ -129,7 +129,7 @@ export default function CouponRow({ match, onSaved, onLocked, leagues, joker, sh
           {/* away */}
           <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
             <TeamCrest team={match.away_team} size="w-5 h-5 sm:w-6 sm:h-6" />
-            <span className="text-[13px] sm:text-sm font-medium leading-tight text-gray-100 line-clamp-2 break-words">{match.away_team.name}</span>
+            <span className="text-[13px] sm:text-sm font-medium leading-tight text-gray-100 line-clamp-2 hyphens-auto break-words">{match.away_team.name}</span>
           </div>
 
           <div className="flex items-center justify-center" aria-live="polite">{stateIcon}</div>

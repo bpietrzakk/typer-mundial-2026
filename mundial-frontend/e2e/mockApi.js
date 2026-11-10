@@ -7,9 +7,13 @@ import * as fx from './fixtures.js';
 // organizer = I run league 1 and changed its coupon (editor + "przywróć kupon ogólny")
 // nearest = a full week for "Najbliższe" on /matches (league coupon + 12 league matches)
 // locked = every POST /predictions answers 409 (the match has just kicked off)
+// typedOpen = my coupon: every open match typed, the played one missed
+// syncLag = my coupon: everything kicked off, one still 'scheduled' (not marked live yet)
+// leaguePlayed = league 1 coupon this week: one match played, one open
 // saved picks are remembered and come back in later match lists, like the real backend
 export async function mockApi(page, {
   loggedIn = false, live = false, mundial = false, organizer = false, nearest = false, locked = false,
+  typedOpen = false, syncLag = false, leaguePlayed = false,
 } = {}) {
   const state = { loggedIn, joined: loggedIn, requests: [], picks: {} };
   const withPicks = (list) => list.map((m) => (state.picks[m.id] ? { ...m, my_prediction: state.picks[m.id] } : m));
@@ -34,7 +38,11 @@ export async function mockApi(page, {
     ['GET', /^\/matches\/1201\/context$/, () => fx.MATCH_CONTEXT],
     ['GET', /^\/seasons\/5\/ranking$/, () => []],
     ['GET', /^\/feed$/, () => []],
-    ['GET', /^\/me\/coupon$/, () => couponWithPicks(nearest ? fx.MY_COUPON_FULL : fx.MY_COUPON)],
+    ['GET', /^\/me\/coupon$/, () => {
+      if (typedOpen) return couponWithPicks(fx.MY_COUPON_TYPED_OPEN);
+      if (syncLag) return couponWithPicks(fx.MY_COUPON_SYNC_LAG);
+      return couponWithPicks(nearest ? fx.MY_COUPON_FULL : fx.MY_COUPON);
+    }],
     // default: only the coupon match again, so /matches keeps one prediction form
     ['GET', /^\/me\/upcoming-matches$/, () => withPicks(nearest ? fx.UPCOMING_MATCHES : [fx.MATCH])],
     ['GET', /^\/predictions\/mine$/, () => fx.MY_PREDICTIONS],
@@ -55,6 +63,7 @@ export async function mockApi(page, {
     ['GET', /^\/leagues\/1\/members\/3\/predictions$/, () => fx.OLA_LEAGUE_PREDICTIONS],
     ['GET', /^\/leagues\/1\/coupon$/, () => {
       if (organizer) return { ...fx.LEAGUE_COUPON, can_edit: true, created_by: 'owner' };
+      if (leaguePlayed) return fx.LEAGUE_COUPON_WITH_PLAYED;
       return live ? fx.LEAGUE_COUPON_LIVE : fx.LEAGUE_COUPON;
     }],
     ['POST', /^\/leagues\/1\/coupon\/reset$/, () => ({ ...fx.LEAGUE_COUPON, can_edit: true, created_by: 'global' })],

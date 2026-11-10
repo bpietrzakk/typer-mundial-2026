@@ -11,6 +11,7 @@ Rows without a score are skipped everywhere.
 import math
 
 from domain.coupon import MIN_PLAYED_FOR_RANK, league_table
+from domain.match_status import as_utc
 
 FORM_LENGTH = 5
 H2H_LENGTH = 3
@@ -280,9 +281,21 @@ def match_hint(home: dict, away: dict, head_to_head_rows: list[dict]) -> str | N
     return best[1] if best else None
 
 
+def _known_before(match: dict, results: list[dict]) -> list[dict]:
+    # what was known before this match: results with an earlier kickoff, never the
+    # match itself. one filter for table, form and stats so their numbers agree
+    kickoff = match.get("kickoff_at")
+    return [
+        r for r in results
+        if r["id"] != match["id"] and (kickoff is None or as_utc(r["kickoff_at"]) < as_utc(kickoff))
+    ]
+
+
 def match_context(match: dict, season_results: list[dict], h2h_results: list[dict]) -> dict:
-    # match = id, home_team_id, away_team_id. season rows = finished matches of its season
+    # match = id, home_team_id, away_team_id (+ kickoff_at). season rows = finished matches of its season
     match_id, home_id, away_id = match["id"], match["home_team_id"], match["away_team_id"]
+    season_results = _known_before(match, season_results)
+    h2h_results = _known_before(match, h2h_results)
 
     def side(team_id: int) -> dict:
         return {

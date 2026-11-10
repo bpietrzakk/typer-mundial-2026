@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { getMyUpcomingMatches } from '../api/competitions';
 import { getMyCoupon } from '../api/coupon';
-import { hasStarted } from '../utils/coupon';
+import { isUnderway, splitPlayed } from '../utils/coupon';
 import useAsync from './useAsync';
 import useLivePolling from './useLivePolling';
 
@@ -27,13 +27,7 @@ export default function useNearestMatches(enabled) {
   const couponMatches = useMemo(() => coupon?.matches ?? [], [coupon]);
 
   // live ones stay on top of the coupon, finished / other started ones fold away
-  const { open, played } = useMemo(() => {
-    const sorted = [...couponMatches].sort(byKickoff);
-    return {
-      open: sorted.filter((m) => m.status === 'live' || !hasStarted(m)),
-      played: sorted.filter((m) => m.status !== 'live' && hasStarted(m)),
-    };
-  }, [couponMatches]);
+  const { upcoming: open, played } = useMemo(() => splitPlayed(couponMatches), [couponMatches]);
 
   // the coupon already shows its matches, the league list skips them
   const others = useMemo(() => {
@@ -42,8 +36,9 @@ export default function useNearestMatches(enabled) {
   }, [couponMatches, upcomingQ.data]);
 
   // live scores — silent refresh every minute while a coupon match is in play
+  // (also one that kicked off but the sync has not marked live yet)
   const hasLive = open.some((m) => m.status === 'live');
-  useLivePolling(hasLive, couponQ.refresh);
+  useLivePolling(open.some((m) => isUnderway(m)), couponQ.refresh);
 
   // a saved prediction or a lock patches the match in both lists
   const mutateCoupon = couponQ.mutate;

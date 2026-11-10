@@ -7,6 +7,12 @@ on:
       - 'mundial-backend/**'
   workflow_dispatch:
 
+# one deploy at a time, in push order: a newer push waits for the running one
+# and replaces any older queued run, so an older image never lands last
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
 jobs:
   # same checks as on PRs — deploy only runs when they pass
   ci:
@@ -38,5 +44,9 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/mundial-backend:latest
             ghcr.io/${{ github.repository_owner }}/mundial-backend:${{ github.sha }}
 
+      # -f fails the job on an http error, --retry covers short render hiccups.
+      # the hook goes through env so the secret is not pasted into the script
       - name: Trigger Render deploy
-        run: curl "${{ secrets.RENDER_DEPLOY_HOOK }}"
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: curl -fsS --retry 3 --retry-delay 5 "$RENDER_DEPLOY_HOOK"

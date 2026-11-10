@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 from domain.coupon import MatchCheck
 from domain.coupon_hits import (
+    open_global_in_scope,
     GLOBAL_MAX_SIZE,
     GLOBAL_MIN_SIZE,
     HitCandidate,
@@ -240,3 +241,28 @@ def test_reset_keeps_started_matches_and_takes_open_global_ones():
 def test_reset_on_an_empty_league_coupon_is_the_open_plan():
     later = NOW + timedelta(hours=8)
     assert reset_to_global({}, [2, 1], {1: check(later), 2: check(later)}, NOW) == [2, 1]
+
+
+# --- mid-week league copy: only open matches, never more than the league size ---
+
+def _check(hours: float, status: str = "scheduled", in_scope: bool = True, **kw) -> MatchCheck:
+    return MatchCheck(kickoff_at=NOW + timedelta(hours=hours), status=status, in_scope=in_scope, **kw)
+
+
+def test_global_copy_keeps_only_matches_still_open():
+    checks = {
+        1: _check(-50, "finished"),
+        2: _check(-1, "live"),
+        3: _check(-0.5),                       # kickoff passed, provider still says scheduled
+        4: _check(5),
+        5: _check(30, in_scope=False),
+        6: _check(48),
+        7: _check(72, locked_at=NOW - timedelta(days=1)),
+        8: _check(80, "postponed"),
+    }
+    assert open_global_in_scope([1, 2, 3, 4, 5, 6, 7, 8, 9], checks, NOW) == [4, 6]
+
+
+def test_league_copy_never_exceeds_the_coupon_size():
+    ids, created_by = follow_global(list(range(1, 13)), league_pick=[], size=10)
+    assert (ids, created_by) == (list(range(1, 11)), "global")

@@ -46,7 +46,7 @@ def _is_locked(coupon: dict[int, MatchCheck], current_id: int | None, now: datet
     if current_id is None or current_id not in coupon:
         return False
     current = coupon[current_id]
-    return has_started(current.status, current.kickoff_at, now)
+    return has_started(current.status, current.kickoff_at, now, current.locked_at)
 
 
 def check_joker_set(
@@ -68,7 +68,9 @@ def check_joker_set(
     if _is_locked(coupon, current_id, now):
         return "locked"
     target = coupon[target_id]
-    if not is_open_for_predictions(target.status, target.kickoff_at, now, season_status=target.season_status):
+    if not is_open_for_predictions(
+        target.status, target.kickoff_at, now, season_status=target.season_status, locked_at=target.locked_at,
+    ):
         return "started"
     return None
 

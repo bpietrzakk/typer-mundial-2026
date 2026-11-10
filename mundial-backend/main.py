@@ -5,11 +5,14 @@ import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
 
 from db.connection import PoolBusy
 from db.queries.health import ping_db
+from domain.auth import jwt_secret_problem
 from domain.sync_plan import is_sync_enabled
 from routers import admin as admin_router
 from routers import admin_bonus as admin_bonus_router
@@ -25,6 +28,7 @@ from routers import leagues as leagues_router
 from routers import matches as matches_router
 from routers import predictions as predictions_router
 from routers import ranking as ranking_router
+from routers.validation import validation_error_handler
 from services.sync import run_scheduler
 
 # without this our info logs (sync runs) never show up, uvicorn only configures its own loggers
@@ -33,6 +37,25 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
+
+
+# fail fast: without a proper secret every login would crash (or be forgeable).
+# runs at import, after db.connection has loaded .env
+_secret_problem = jwt_secret_problem(os.getenv("JWT_SECRET"))
+if _secret_problem:
+    raise RuntimeError(_secret_problem)
+
+
+def api_docs_enabled(raw: str | None) -> bool:
+    # API_DOCS_ENABLED=false hides swagger, redoc and openapi.json (prod)
+    return (raw or "true").strip().lower() != "false"
+
+
+def docs_urls(enabled: bool) -> dict:
+    # FastAPI turns a docs page off when its url is None
+    if enabled:
+        return {}
+    return {"docs_url": None, "redoc_url": None, "openapi_url": None}
 
 
 def _wait_for_db(max_attempts: int = 30) -> None:
@@ -73,9 +96,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Mundial Typer",
+    title="czutka",
     version="0.1.0",
     lifespan=lifespan,
+    **docs_urls(api_docs_enabled(os.getenv("API_DOCS_ENABLED"))),
 )
 
 
@@ -95,15 +119,29 @@ app.add_middleware(
 )
 
 
+# match lists and rankings are big JSON, small answers are not worth compressing
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# 422 with Polish messages, same detail list as FastAPI's
+app.add_exception_handler(RequestValidationError, validation_error_handler)
+
+
 @app.exception_handler(PoolBusy)
 async def pool_busy_handler(_request: Request, _exc: PoolBusy) -> JSONResponse:
     # every db connection stayed busy too long — tell the client to retry
     return JSONResponse(status_code=503, content={"detail": "Serwer jest chwilowo przeciążony, spróbuj ponownie"})
 
 
+@app.api_route("/health/live", methods=["GET", "HEAD"])
+def health_live():
+    # liveness for keep-alive pings and uptime monitors: never touches the db,
+    # so pinging it every few minutes lets Neon suspend between sync runs
+    return {"status": "ok"}
+
+
 @app.get("/health")
 def health():
-    # touch the db too, so keep-alive pings also keep Neon awake
+    # readiness: the db must answer too (keep-alive should ping /health/live instead)
     try:
         ping_db()
     except Exception:

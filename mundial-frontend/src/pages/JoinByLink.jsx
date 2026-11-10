@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getLeague, getMyLeagues, joinLeague } from '../api/leagues';
+import { useToast } from '../hooks/useToast';
 
 // already a member -> which of my leagues has this code (the list has no codes)
 async function findMyLeagueByCode(code) {
@@ -15,7 +16,8 @@ async function findMyLeagueByCode(code) {
 export default function JoinByLink() {
   const { code } = useParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState('joining'); // 'joining' | 'success' | 'error' | 'already'
+  const { addToast } = useToast();
+  const [status, setStatus] = useState('joining'); // 'joining' | 'error' | 'already'
   const [error, setError] = useState('');
 
   const started = useRef(false);
@@ -26,8 +28,9 @@ export default function JoinByLink() {
     started.current = true;
     joinLeague(code)
       .then((league) => {
-        setStatus('success');
-        setTimeout(() => navigate(`/leagues/${league.id}`, { replace: true, state: { joined: true } }), 1500);
+        // straight to the league, it greets a new member itself
+        addToast(`Dołączono do ligi »${league.name}«`);
+        navigate(`/leagues/${league.id}`, { replace: true, state: { joined: true } });
       })
       .catch((err) => {
         const detail = err.response?.data?.detail || '';
@@ -42,7 +45,7 @@ export default function JoinByLink() {
           setError(detail || 'Nieprawidłowy lub wygasły kod zaproszenia');
         }
       });
-  }, [code, navigate]);
+  }, [code, navigate, addToast]);
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">
@@ -52,17 +55,6 @@ export default function JoinByLink() {
             <div className="w-12 h-12 border-2 border-brand/30 border-t-brand rounded-full animate-spin mx-auto mb-4" />
             <p className="text-gray-200 font-semibold">Dołączam do ligi…</p>
             <p className="text-gray-500 text-sm mt-1">Kod: <span className="font-mono text-brand">{code}</span></p>
-          </>
-        )}
-        {status === 'success' && (
-          <>
-            <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-              </svg>
-            </div>
-            <p className="text-gray-200 font-semibold">Dołączono!</p>
-            <p className="text-gray-500 text-sm mt-1">Przekierowuję do ligi…</p>
           </>
         )}
         {status === 'already' && (

@@ -63,3 +63,59 @@ def test_reset_clears_state():
     cleared = reset()
     assert is_locked(cleared, NOW) is False
     assert cleared.attempts == []
+
+
+# --- client ip from X-Forwarded-For, counted from the right ---
+
+from domain.rate_limit import client_ip_from_forwarded, is_stale  # noqa: E402
+
+
+def test_no_forwarded_header_uses_the_socket_peer():
+    assert client_ip_from_forwarded(None, "10.0.0.1") == "10.0.0.1"
+
+
+def test_one_trusted_hop_takes_the_rightmost_entry():
+    # the client can put anything on the left, the proxy appends the real peer
+    assert client_ip_from_forwarded("6.6.6.6, 1.2.3.4", "10.0.0.1", trusted_hops=1) == "1.2.3.4"
+
+
+def test_two_trusted_hops_take_the_second_from_the_right():
+    header = "6.6.6.6, 1.2.3.4, 5.5.5.5"
+    assert client_ip_from_forwarded(header, "10.0.0.1", trusted_hops=2) == "1.2.3.4"
+
+
+def test_more_hops_than_entries_takes_the_leftmost():
+    assert client_ip_from_forwarded("1.2.3.4", "10.0.0.1", trusted_hops=3) == "1.2.3.4"
+
+
+def test_zero_hops_ignores_the_header():
+    assert client_ip_from_forwarded("1.2.3.4", "10.0.0.1", trusted_hops=0) == "10.0.0.1"
+
+
+def test_empty_entries_are_skipped():
+    assert client_ip_from_forwarded(" , 1.2.3.4 ,", "10.0.0.1", trusted_hops=1) == "1.2.3.4"
+
+
+def test_no_header_and_no_peer_is_unknown():
+    assert client_ip_from_forwarded(None, None) == "unknown"
+
+
+# --- pruning: keys nobody used for a while can go ---
+
+def test_state_with_recent_attempt_is_not_stale():
+    state = RateLimitState(attempts=[NOW - timedelta(seconds=30)])
+    assert not is_stale(state, NOW, window_seconds=60)
+
+
+def test_state_with_only_old_attempts_is_stale():
+    state = RateLimitState(attempts=[NOW - timedelta(seconds=120)])
+    assert is_stale(state, NOW, window_seconds=60)
+
+
+def test_locked_state_is_never_stale():
+    state = RateLimitState(attempts=[NOW - timedelta(hours=1)], locked_until=NOW + timedelta(minutes=1))
+    assert not is_stale(state, NOW, window_seconds=60)
+
+
+def test_empty_state_is_stale():
+    assert is_stale(RateLimitState(), NOW, window_seconds=60)

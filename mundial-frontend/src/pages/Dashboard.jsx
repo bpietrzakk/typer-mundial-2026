@@ -21,7 +21,7 @@ import useLivePolling from '../hooks/useLivePolling';
 import useCompetitions from '../hooks/useCompetitions';
 import useMyLeagues from '../hooks/useMyLeagues';
 import useMySeasonStandings from '../hooks/useMySeasonStandings';
-import { isJokerLocked, pickHeroMatch } from '../utils/coupon';
+import { isJokerLocked, isUnderway, pickHeroMatch } from '../utils/coupon';
 import { settledHit } from '../utils/scoring';
 import { VOID_STATUSES, errorMessage, formatDayShort, isArchiveCompetition } from '../utils/matchUi';
 
@@ -101,7 +101,8 @@ export default function Dashboard() {
   const couponIds = new Set((coupon?.matches ?? []).map((m) => m.id));
   // live matches outside the coupon (coupon rows show their own live score)
   const live = (feedQ.data ?? []).filter((m) => m.status === 'live' && !couponIds.has(m.id));
-  const anyLive = live.length > 0 || (coupon?.matches ?? []).some((m) => m.status === 'live');
+  // underway = kicked off, maybe not marked live yet: polling brings the real status
+  const anyLive = live.length > 0 || (coupon?.matches ?? []).some((m) => isUnderway(m));
 
   // live scores — silent refresh while a match is in play
   const refreshCoupon = couponQ.refresh;

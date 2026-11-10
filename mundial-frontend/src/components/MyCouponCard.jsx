@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import CouponDayList from './CouponDayList';
 import CouponProgress from './CouponProgress';
+import PlayedFold from './PlayedFold';
 import ScoringHint from './ScoringHint';
-import { JOKER_RULE, formatWeekRange, nextOpenDeadline } from '../utils/coupon';
+import { JOKER_RULE, formatWeekRange, splitPlayed } from '../utils/coupon';
 import { distinctPoints } from '../utils/scoring';
 
 // start screen coupon: merged coupons of my leagues, or the global coupon
@@ -10,12 +11,18 @@ import { distinctPoints } from '../utils/scoring';
 // counters are counted from the list, so they move right after an autosave
 // jokerOf(match) -> joker props (only matches of exactly one 'coupon' league)
 // hideMatchId = the match already shown in the start hero, left out of the list
-// (still counted in "7 z 10")
+// (still counted in "7 z 10"). live and upcoming first, played ones folded
 export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked, jokerOf, showJokerRule = false, hideMatchId = null }) {
   const { matches, source } = coupon;
   const isGlobal = source === 'global';
-  const typed = matches.filter((m) => m.my_prediction).length;
   const listed = matches.filter((m) => m.id !== hideMatchId);
+  const { upcoming, played } = splitPlayed(listed);
+  const rowProps = {
+    onSaved,
+    onLocked,
+    leaguesOf: showLeagues ? (m) => m.leagues : undefined,
+    jokerOf,
+  };
   const range = formatWeekRange(coupon.week_start, coupon.week_end);
 
   return (
@@ -29,7 +36,7 @@ export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked, j
           {matches.length > 0 && <ScoringHint points={distinctPoints(matches)} className="shrink-0" />}
         </div>
         {matches.length > 0 ? (
-          <CouponProgress typed={typed} total={matches.length} nextDeadline={nextOpenDeadline(matches)} />
+          <CouponProgress matches={matches} />
         ) : null}
         {showJokerRule && matches.length > 0 && (
           <p className="text-xs text-gray-500 mt-2"><span aria-hidden="true">🃏 </span>{JOKER_RULE}.</p>
@@ -50,13 +57,18 @@ export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked, j
       ) : listed.length === 0 ? (
         <p className="px-4 sm:px-5 py-4 text-sm text-gray-400">Innych meczów na tym kuponie nie ma.</p>
       ) : (
-        <CouponDayList
-          matches={listed}
-          onSaved={onSaved}
-          onLocked={onLocked}
-          leaguesOf={showLeagues ? (m) => m.leagues : undefined}
-          jokerOf={jokerOf}
-        />
+        <>
+          {upcoming.length > 0 ? (
+            <CouponDayList matches={upcoming} {...rowProps} />
+          ) : (
+            <p className="px-4 sm:px-5 py-4 text-sm text-gray-400">
+              {hideMatchId ? 'Pozostałe mecze kuponu już się rozegrały.' : 'Wszystkie mecze kuponu już się rozegrały.'}
+            </p>
+          )}
+          <PlayedFold count={played.length} inCard>
+            <CouponDayList matches={played} {...rowProps} />
+          </PlayedFold>
+        </>
       )}
 
       <div className="px-4 sm:px-5 py-3 border-t border-surface-500/35">

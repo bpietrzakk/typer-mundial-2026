@@ -8,26 +8,14 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true); // true until initial /auth/me resolves
 
-  // on mount — check if the user is already logged in (cookie still valid)
+  // on mount — check if the user is already logged in (cookie still valid).
+  // the backend renews a day-old cookie on any request, so no refresh timer here
   useEffect(() => {
     authApi.getMe()
       .then((u) => setUser(u))
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
-
-  // periodic token refresh — every 6 days (cookie lives 7 days)
-  useEffect(() => {
-    if (!user) return;
-    const SIX_DAYS_MS = 6 * 24 * 60 * 60 * 1000;
-    const interval = setInterval(() => {
-      authApi.refresh().catch(() => {
-        // refresh failed — session expired, force re-login
-        setUser(null);
-      });
-    }, SIX_DAYS_MS);
-    return () => clearInterval(interval);
-  }, [user]);
 
   const login = useCallback(async (email, password) => {
     const u = await authApi.login(email, password);

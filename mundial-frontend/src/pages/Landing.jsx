@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import CompetitionBadge from '../components/CompetitionBadge';
 import LandingPreview from '../components/LandingPreview';
+import DataAttribution from '../components/DataAttribution';
 
 const STEPS = [
   {
@@ -141,6 +142,7 @@ export default function Landing() {
 
       <footer className="border-t border-surface-500/20 py-6 text-center text-xs text-gray-600 px-4">
         czutka · typer dla znajomych · tylko dla zabawy, bez zakładów pieniężnych
+        <DataAttribution className="mt-2" />
       </footer>
     </div>
   );

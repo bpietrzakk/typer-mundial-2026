@@ -293,13 +293,14 @@ SQL_LIST_EXISTING_MATCHES = """
 """
 
 # scored_at is set only on INSERT (see sync service) and never changed on update;
-# season_id stays too: a match never moves between seasons
+# season_id stays too: a match never moves between seasons.
+# locked_at: the first stamp wins, a match never opens for predictions again
 SQL_UPSERT_MATCHES = """
     INSERT INTO matches (
         season_id, round_id, provider, external_id, home_team_id, away_team_id,
         kickoff_at, kickoff_confirmed, status,
         home_goals, away_goals, home_goals_et, away_goals_et, home_pens, away_pens, decided_by,
-        scored_at, last_synced_at
+        scored_at, locked_at, last_synced_at
     )
     VALUES %s
     ON CONFLICT (provider, external_id) DO UPDATE
@@ -316,6 +317,7 @@ SQL_UPSERT_MATCHES = """
             home_pens         = EXCLUDED.home_pens,
             away_pens         = EXCLUDED.away_pens,
             decided_by        = EXCLUDED.decided_by,
+            locked_at         = COALESCE(matches.locked_at, EXCLUDED.locked_at),
             last_synced_at    = EXCLUDED.last_synced_at
     RETURNING id, external_id
 """
@@ -323,7 +325,7 @@ MATCH_ROW_TEMPLATE = (
     "(%s::bigint, %s::bigint, %s, %s, %s::bigint, %s::bigint, "
     "%s::timestamptz, %s::boolean, %s, "
     "%s::int, %s::int, %s::int, %s::int, %s::int, %s::int, %s, "
-    "%s::timestamptz, NOW())"
+    "%s::timestamptz, %s::timestamptz, NOW())"
 )
 
 # result unchanged (or a late correction we ignore): only note that we looked

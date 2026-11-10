@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 from db.queries import sync as q
 from db.queries.results import score_match, void_match_predictions
 from domain import sync_plan as plan
+from domain.prediction_lock import locks_predictions
 from domain.rescore import RESCORE_WINDOW_HOURS
 from services.coupons import coupon_tick
 from services.providers import get_provider
@@ -31,6 +32,10 @@ SCHEDULER_START_DELAY_SECONDS = 10
 
 # keep sync_runs.error readable
 MAX_ERROR_LENGTH = 2000
+
+# when the scheduler reads its state from the db next (None = on the next tick).
+# kept in memory so an idle db is not woken up every minute (Neon free tier compute)
+_next_state_check: datetime | None = None
 
 SyncBusy = q.SyncBusy
 
@@ -191,6 +196,7 @@ def apply_matches(cur, season_id: int, provider_name: str, matches: list, now: d
                 m.kickoff_at, m.kickoff_confirmed, m.status,
                 m.home_goals, m.away_goals, m.home_goals_et, m.away_goals_et, m.home_pens, m.away_pens,
                 m.decided_by, scored_at,
+                now if locks_predictions(m.status, m.kickoff_at, now) else None,
             ))
 
     match_ids = q.upsert_matches(cur, rows)
@@ -453,10 +459,22 @@ def run_sync(kind: str, competition_code: str | None = None, now: datetime | Non
         "sync run %s (%s) %s: %d requests, %d written, %d scored",
         run_id, kind, status, meter.total(), counters.upserted, counters.scored,
     )
+    # the history changed (also after an admin run), the scheduler has to read it again
+    reset_scheduler_cache()
     return q.get_run(run_id)
 
 
 # ---------- scheduler ----------
+
+def reset_scheduler_cache() -> None:
+    # next tick reads the db again (after a run, a competition switched on, in tests)
+    global _next_state_check
+    _next_state_check = None
+
+
+def is_state_check_due(now: datetime) -> bool:
+    return plan.is_state_check_due(_next_state_check, now)
+
 
 def load_scheduler_state(now: datetime) -> plan.SchedulerState:
     last = q.get_last_runs()
@@ -465,28 +483,42 @@ def load_scheduler_state(now: datetime) -> plan.SchedulerState:
         row = last.get(kind)
         return plan.LastRun(row["started_at"], row["status"], row["consecutive_errors"]) if row else None
 
+    # look a bit further ahead than "imminent", so we know when the next kickoff makes us busy
+    busy_rows = q.list_busy_match_candidates(
+        now - plan.BUSY_AFTER_KICKOFF, now + plan.STATE_MAX_AGE + plan.IMMINENT_BEFORE_KICKOFF,
+    )
     return plan.SchedulerState(
         now=now,
         last_season=last_of("season"),
         last_window=last_of("window"),
         last_rescore=last_of("rescore"),
-        busy=_is_busy(now),
+        busy=plan.has_live_or_imminent(busy_rows, now),
         competitions_without_season=q.count_competitions_without_season(),
         rescore_candidates=len(q.list_rescore_candidates(None, RESCORE_WINDOW_HOURS)),
+        busy_starts_at=plan.next_busy_start(busy_rows, now),
     )
 
 
 def scheduler_tick(now: datetime | None = None) -> str | None:
-    # decide from the persisted history what is due and run it, returns the kind that ran
+    # decide from the persisted history what is due and run it, returns the kind that ran.
+    # the db is read only when the remembered next check time has come
+    global _next_state_check
     now = now or datetime.now(UTC)
-    kind = plan.decide_next_run(load_scheduler_state(now))
+    if not is_state_check_due(now):
+        return None
+    state = load_scheduler_state(now)
+    kind = plan.decide_next_run(state)
     if kind is None:
+        _next_state_check = plan.next_state_check(state)
         return None
     try:
         run_sync(kind, None, now=now)
     except SyncBusy:
         logger.info("sync %s is due but another run is in progress", kind)
+        # a run in this process clears the cache when it ends, a dead one goes stale in 30 min
+        _next_state_check = now + plan.WINDOW_INTERVAL_BUSY
         return None
+    # run_sync cleared the cache, so the next tick reads the new history
     return kind
 
 
@@ -495,14 +527,18 @@ async def run_scheduler(tick_seconds: int = SCHEDULER_TICK_SECONDS, start_delay:
     logger.info("sync scheduler started")
     await asyncio.sleep(start_delay)
     while True:
+        # the coupon check rides along with the ticks that read the db anyway,
+        # so it never wakes a sleeping db on its own
+        db_awake = is_state_check_due(datetime.now(UTC))
         try:
             # to_thread so blocking http + sql never freezes the event loop
             await asyncio.to_thread(scheduler_tick)
         except Exception:
             logger.exception("sync scheduler tick failed")
-        try:
-            # weekly coupons: hourly check from monday 06:00 (polish time)
-            await asyncio.to_thread(coupon_tick)
-        except Exception:
-            logger.exception("weekly coupon tick failed")
+        if db_awake:
+            try:
+                # weekly coupons: hourly check from monday 06:00 (polish time)
+                await asyncio.to_thread(coupon_tick)
+            except Exception:
+                logger.exception("weekly coupon tick failed")
         await asyncio.sleep(tick_seconds)

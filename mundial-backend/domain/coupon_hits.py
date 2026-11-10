@@ -176,14 +176,26 @@ def global_in_scope(global_ids: list[int], in_scope: set[int]) -> list[int]:
     return [i for i in global_ids if i in in_scope]
 
 
+def open_global_in_scope(global_ids: list[int], checks: dict[int, MatchCheck], now: datetime) -> list[int]:
+    # global matches a new league copy can take: in the scope and still open for
+    # predictions (mid-week the global coupon already has played matches)
+    return [
+        i for i in global_ids
+        if i in checks and checks[i].in_scope and is_open_for_predictions(
+            checks[i].status, checks[i].kickoff_at, now,
+            season_status=checks[i].season_status, locked_at=checks[i].locked_at,
+        )
+    ]
+
+
 def follow_global(mine: list[int], league_pick: list[int], size: int) -> tuple[list[int], str]:
     """match list + created_by of a league coupon made from the global one.
     mine = global matches in the league scope, league_pick = the league's own
     auto pick (only needed when mine is too short).
-    enough global matches -> exactly those ('global'), otherwise topped up
-    from the league pick up to size ('auto')"""
+    enough global matches -> those, at most size of them ('global'), otherwise
+    topped up from the league pick up to size ('auto')"""
     if len(mine) >= MIN_COUPON_SIZE:
-        return list(mine), "global"
+        return list(mine)[:size], "global"
     extra = [i for i in league_pick if i not in mine][: max(size - len(mine), 0)]
     return list(mine) + extra, ("auto" if extra else "global")
 
@@ -197,10 +209,12 @@ def reset_to_global(
     """"przywróć kupon ogólny": started matches of the league coupon stay
     (they can't be removed), open matches become the plan. a started plan
     match that is not on the coupon can't be added any more"""
-    kept = [i for i, m in current.items() if has_started(m.status, m.kickoff_at, now)]
+    kept = [i for i, m in current.items() if has_started(m.status, m.kickoff_at, now, m.locked_at)]
     added = [
         i for i in plan_ids
         if i not in kept and i in plan
-        and is_open_for_predictions(plan[i].status, plan[i].kickoff_at, now, season_status=plan[i].season_status)
+        and is_open_for_predictions(
+            plan[i].status, plan[i].kickoff_at, now, season_status=plan[i].season_status, locked_at=plan[i].locked_at,
+        )
     ]
     return kept + added

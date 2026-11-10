@@ -17,21 +17,32 @@ from db.queries import (
     verify_email_token,
 )
 from domain.auth import (
-    create_access_token,
+    dummy_password_hash,
     generate_token,
     hash_password,
     hash_token,
     verify_password,
 )
 from domain.rate_limit import (
-    RateLimitState,
-    is_locked,
-    record_failure,
-    record_attempt,
-    RESEND_WINDOW_SECONDS,
-    RESEND_MAX_ATTEMPTS,
+    LOCKOUT_SECONDS,
+    LOGIN_EMAIL_LOCKOUT_SECONDS,
+    LOGIN_EMAIL_MAX_ATTEMPTS,
+    LOGIN_EMAIL_WINDOW_SECONDS,
+    MAX_ATTEMPTS,
+    REGISTER_LOCKOUT_SECONDS,
+    REGISTER_MAX_ATTEMPTS,
+    REGISTER_WINDOW_SECONDS,
     RESEND_LOCKOUT_SECONDS,
+    RESEND_MAX_ATTEMPTS,
+    RESEND_WINDOW_SECONDS,
+    WINDOW_SECONDS,
+    RateLimitState,
+    client_ip_from_forwarded,
+    is_locked,
+    is_stale,
+    record_attempt,
 )
+from routers.auth_cookie import clear_auth_cookie, issue_auth_cookie
 from routers.deps import get_current_user, is_admin_email
 from schemas.models import (
     ChangeNickRequest,
@@ -54,13 +65,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-# cookie name kept short and not framework-specific
-# secure=False in dev (HTTP); set COOKIE_SECURE=true in prod (HTTPS only)
-# samesite=none required for cross-origin (vercel + render); lax is fine for same-origin dev
-_COOKIE_NAME = "access_token"
-_COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
-_COOKIE_SAMESITE = "none" if _COOKIE_SECURE else "lax"
-
 # email verification links are valid for 24 hours
 _VERIFICATION_TTL = timedelta(hours=24)
 
@@ -68,42 +72,76 @@ _VERIFICATION_TTL = timedelta(hours=24)
 _RESET_TTL = timedelta(hours=1)
 
 
-# in-memory login rate-limit store, keyed by client IP.
-# good enough for a single-instance deploy (see docs/decisions.md #007);
-# swap for Redis if we ever run multiple workers / instances.
-# tests reset this via _LOGIN_RATE_LIMIT.clear()
-_LOGIN_RATE_LIMIT: dict[str, RateLimitState] = {}
+# in-memory rate-limit stores. good enough for a single-instance deploy
+# (see docs/decisions.md #007); swap for Redis if we ever run multiple
+# workers / instances. tests reset them via reset_rate_limits()
+_LOGIN_RATE_LIMIT: dict[str, RateLimitState] = {}         # failed logins per IP
+_LOGIN_EMAIL_RATE_LIMIT: dict[str, RateLimitState] = {}   # failed logins per email
+_REGISTER_RATE_LIMIT: dict[str, RateLimitState] = {}      # sign-ups per IP
 _RESEND_RATE_LIMIT: dict[str, RateLimitState] = {}
-_FORGOT_PASSWORD_RATE_LIMIT: dict[str, RateLimitState] = {}
+_FORGOT_PASSWORD_RATE_LIMIT: dict[str, RateLimitState] = {}        # per IP
+_FORGOT_PASSWORD_EMAIL_RATE_LIMIT: dict[str, RateLimitState] = {}  # per email
+
+# log the X-Forwarded-For shape once per process, it tells which
+# TRUSTED_PROXY_HOPS value fits the deploy (no addresses in the log)
+_forwarded_shape_logged = False
+
+
+def reset_rate_limits() -> None:
+    # used by tests so attempts don't leak between them
+    for store in (
+        _LOGIN_RATE_LIMIT, _LOGIN_EMAIL_RATE_LIMIT, _REGISTER_RATE_LIMIT,
+        _RESEND_RATE_LIMIT, _FORGOT_PASSWORD_RATE_LIMIT, _FORGOT_PASSWORD_EMAIL_RATE_LIMIT,
+    ):
+        store.clear()
 
 
 def _client_ip(request: Request) -> str:
-    # behind a proxy (Railway) the real client IP is the first entry in
-    # X-Forwarded-For; fall back to the direct socket peer in local dev
+    # every proxy appends the peer it saw to X-Forwarded-For, so we count from
+    # the right: TRUSTED_PROXY_HOPS = how many proxies sit in front of us
+    # (default 1). the left end is whatever the client sent, never trust it
+    global _forwarded_shape_logged
     forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    hops = int(os.getenv("TRUSTED_PROXY_HOPS", "1"))
+    if forwarded and not _forwarded_shape_logged:
+        _forwarded_shape_logged = True
+        entries = len([e for e in forwarded.split(",") if e.strip()])
+        logger.info("x-forwarded-for has %d entries, TRUSTED_PROXY_HOPS=%d", entries, hops)
+    peer = request.client.host if request.client else None
+    return client_ip_from_forwarded(forwarded, peer, hops)
 
 
-def _read_jwt_config() -> tuple[str, int]:
-    # read at request time so tests can monkeypatch env per-test
-    # missing secret blows up with KeyError — better than silently signing with ""
-    secret = os.environ["JWT_SECRET"]
-    days = int(os.getenv("JWT_EXPIRE_DAYS", "7"))
-    return secret, days
+def _count_attempt(
+    store: dict[str, RateLimitState], key: str, now: datetime,
+    window_seconds: int, max_attempts: int, lockout_seconds: int,
+) -> None:
+    # count one attempt for this key, then forget keys nobody used for a while
+    state = store.get(key, RateLimitState())
+    store[key] = record_attempt(state, now, window_seconds, max_attempts, lockout_seconds)
+    for stale_key in [k for k, st in store.items() if is_stale(st, now, window_seconds)]:
+        del store[stale_key]
 
 
-def _set_auth_cookie(response: Response, token: str, expires_days: int) -> None:
-    # httpOnly so JS in the browser cannot read the token (XSS defence)
-    # samesite=lax blocks the cookie on cross-origin POSTs (CSRF defence)
-    response.set_cookie(
-        key=_COOKIE_NAME,
-        value=token,
-        max_age=expires_days * 24 * 3600,
-        httponly=True,
-        secure=_COOKIE_SECURE,
-        samesite=_COOKIE_SAMESITE,
+def _locked_until(stores_and_keys: list[tuple[dict, str]], now: datetime) -> datetime | None:
+    # latest lockout among the given keys, None when none of them is locked
+    until = None
+    for store, key in stores_and_keys:
+        state = store.get(key)
+        if state is not None and is_locked(state, now):
+            until = max(until, state.locked_until) if until else state.locked_until
+    return until
+
+
+def _raise_if_locked(stores_and_keys: list[tuple[dict, str]], now: datetime) -> None:
+    until = _locked_until(stores_and_keys, now)
+    if until is None:
+        return
+    delta = until - now
+    minutes = int(delta.total_seconds() // 60)
+    time_str = f"{minutes} min" if minutes > 0 else f"{int(delta.total_seconds())} s"
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail=f"Zbyt wiele prób, spróbuj ponownie za {time_str}",
     )
 
 
@@ -122,7 +160,7 @@ def _issue_verification(user: dict) -> None:
     try:
         send_verification_email(user["email"], raw_token)
     except Exception as exc:
-        logger.warning("verification email failed for %s: %s", user["email"], exc)
+        logger.warning("verification email failed for user %s: %s", user["id"], exc)
 
 
 @router.post(
@@ -130,8 +168,17 @@ def _issue_verification(user: dict) -> None:
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def register(body: RegisterRequest, response: Response) -> dict:
+def register(body: RegisterRequest, request: Request, response: Response) -> dict:
     # iron rule #5: token in httpOnly cookie, never in response body
+    # every sign-up attempt counts against the IP (stops bulk account creation)
+    ip = _client_ip(request)
+    now = datetime.now(timezone.utc)
+    _raise_if_locked([(_REGISTER_RATE_LIMIT, ip)], now)
+    _count_attempt(
+        _REGISTER_RATE_LIMIT, ip, now,
+        REGISTER_WINDOW_SECONDS, REGISTER_MAX_ATTEMPTS, REGISTER_LOCKOUT_SECONDS,
+    )
+
     pwd_hash = hash_password(body.password)
     try:
         user = create_user(body.nick, body.email, pwd_hash)
@@ -159,9 +206,7 @@ def register(body: RegisterRequest, response: Response) -> dict:
     if _require_verified():
         return user
 
-    secret, days = _read_jwt_config()
-    token = create_access_token(user["id"], user["nick"], secret, days)
-    _set_auth_cookie(response, token, days)
+    issue_auth_cookie(response, user["id"], user["nick"])
     return user
 
 
@@ -169,24 +214,11 @@ def register(body: RegisterRequest, response: Response) -> dict:
 def resend_verification(body: ResendVerificationRequest, request: Request) -> None:
     ip = _client_ip(request)
     now = datetime.now(timezone.utc)
-    state = _RESEND_RATE_LIMIT.get(ip, RateLimitState())
-
-    if is_locked(state, now):
-        delta = state.locked_until - now
-        minutes = int(delta.total_seconds() // 60)
-        time_str = f"{minutes} min" if minutes > 0 else f"{int(delta.total_seconds())} s"
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Zbyt wiele prób, spróbuj ponownie za {time_str}",
-        )
-
+    _raise_if_locked([(_RESEND_RATE_LIMIT, ip)], now)
     # count the attempt before doing work
-    _RESEND_RATE_LIMIT[ip] = record_attempt(
-        state, 
-        now, 
-        window_seconds=RESEND_WINDOW_SECONDS, 
-        max_attempts=RESEND_MAX_ATTEMPTS, 
-        lockout_seconds=RESEND_LOCKOUT_SECONDS
+    _count_attempt(
+        _RESEND_RATE_LIMIT, ip, now,
+        RESEND_WINDOW_SECONDS, RESEND_MAX_ATTEMPTS, RESEND_LOCKOUT_SECONDS,
     )
 
     # always 204 — never reveal whether the email exists or is already verified.
@@ -213,26 +245,19 @@ def verify_email(body: VerifyEmailRequest) -> dict:
 @router.post("/forgot-password", status_code=status.HTTP_204_NO_CONTENT)
 def forgot_password(body: ForgotPasswordRequest, request: Request) -> None:
     ip = _client_ip(request)
+    email_key = body.email.lower()
     now = datetime.now(timezone.utc)
-    state = _FORGOT_PASSWORD_RATE_LIMIT.get(ip, RateLimitState())
-
-    if is_locked(state, now):
-        delta = state.locked_until - now
-        minutes = int(delta.total_seconds() // 60)
-        time_str = f"{minutes} min" if minutes > 0 else f"{int(delta.total_seconds())} s"
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Zbyt wiele prób, spróbuj ponownie za {time_str}",
-        )
-
-    # count the attempt before doing work
-    _FORGOT_PASSWORD_RATE_LIMIT[ip] = record_attempt(
-        state, 
-        now, 
-        window_seconds=RESEND_WINDOW_SECONDS, 
-        max_attempts=RESEND_MAX_ATTEMPTS, 
-        lockout_seconds=RESEND_LOCKOUT_SECONDS
+    # per IP and per email, so nobody can flood one inbox from many IPs.
+    # the lock applies to any address, so it reveals nothing about accounts
+    _raise_if_locked(
+        [(_FORGOT_PASSWORD_RATE_LIMIT, ip), (_FORGOT_PASSWORD_EMAIL_RATE_LIMIT, email_key)], now,
     )
+    # count the attempt before doing work
+    for store, key in ((_FORGOT_PASSWORD_RATE_LIMIT, ip), (_FORGOT_PASSWORD_EMAIL_RATE_LIMIT, email_key)):
+        _count_attempt(
+            store, key, now,
+            RESEND_WINDOW_SECONDS, RESEND_MAX_ATTEMPTS, RESEND_LOCKOUT_SECONDS,
+        )
 
     # always return 204 — never reveal whether the email exists (no enumeration)
     user = get_user_by_email(body.email)
@@ -245,12 +270,13 @@ def forgot_password(body: ForgotPasswordRequest, request: Request) -> None:
     try:
         send_password_reset_email(user["email"], raw_token)
     except Exception as exc:
-        logger.warning("reset email failed for %s: %s", user["email"], exc)
+        logger.warning("reset email failed for user %s: %s", user["id"], exc)
 
 
 @router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
 def reset_password(body: ResetPasswordRequest) -> None:
-    # consumes the token from the email link and sets the new password
+    # consumes the token from the email link and sets the new password.
+    # it also stamps password_changed_at, so every old session is logged out
     now = datetime.now(timezone.utc)
     user = reset_password_with_token(hash_token(body.token), hash_password(body.password), now)
     if user is None:
@@ -262,12 +288,14 @@ def reset_password(body: ResetPasswordRequest) -> None:
 
 @router.post("/login", response_model=UserResponse)
 def login(body: LoginRequest, request: Request, response: Response) -> dict:
-    # rate limiting: 5 failed attempts / min per IP -> 15 min lockout
+    # rate limiting: 5 failed attempts / min per IP -> 15 min lockout,
+    # plus 10 failed attempts / 15 min per email from any IP -> 15 min lockout
     ip = _client_ip(request)
+    email_key = body.email.lower()
     now = datetime.now(timezone.utc)
-    state = _LOGIN_RATE_LIMIT.get(ip, RateLimitState())
-    if is_locked(state, now):
-        delta = state.locked_until - now
+    until = _locked_until([(_LOGIN_RATE_LIMIT, ip), (_LOGIN_EMAIL_RATE_LIMIT, email_key)], now)
+    if until is not None:
+        delta = until - now
         minutes = int(delta.total_seconds() // 60)
         seconds = int(delta.total_seconds() % 60)
         time_str = f"{minutes} min {seconds} s" if minutes > 0 else f"{seconds} s"
@@ -277,17 +305,26 @@ def login(body: LoginRequest, request: Request, response: Response) -> dict:
         )
 
     user = get_user_by_email(body.email)
-    # same message for unknown email and wrong password — no user enumeration
-    if user is None or not verify_password(body.password, user["password_hash"]):
-        # count the failure against this IP (may trigger the lockout)
-        _LOGIN_RATE_LIMIT[ip] = record_failure(state, now)
+    # same message and about the same time for unknown email and wrong
+    # password — an unknown email still runs one argon2 verify (no enumeration)
+    password_ok = verify_password(
+        body.password, user["password_hash"] if user else dummy_password_hash(),
+    )
+    if user is None or not password_ok:
+        # count the failure against this IP and this email (may trigger a lockout)
+        _count_attempt(_LOGIN_RATE_LIMIT, ip, now, WINDOW_SECONDS, MAX_ATTEMPTS, LOCKOUT_SECONDS)
+        _count_attempt(
+            _LOGIN_EMAIL_RATE_LIMIT, email_key, now,
+            LOGIN_EMAIL_WINDOW_SECONDS, LOGIN_EMAIL_MAX_ATTEMPTS, LOGIN_EMAIL_LOCKOUT_SECONDS,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Niepoprawny email lub hasło",
         )
 
-    # successful login clears the counter for this IP
+    # successful login clears the counters for this IP and email
     _LOGIN_RATE_LIMIT.pop(ip, None)
+    _LOGIN_EMAIL_RATE_LIMIT.pop(email_key, None)
 
     # credentials are valid — block unverified accounts when required
     if _require_verified() and not user["email_verified"]:
@@ -297,28 +334,21 @@ def login(body: LoginRequest, request: Request, response: Response) -> dict:
         )
 
     user["is_admin"] = is_admin_email(user["email"])
-    secret, days = _read_jwt_config()
-    token = create_access_token(user["id"], user["nick"], secret, days)
-    _set_auth_cookie(response, token, days)
+    issue_auth_cookie(response, user["id"], user["nick"])
     # password_hash is stripped automatically by UserResponse (it has no such field)
     return user
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(response: Response) -> None:
-    # sends Set-Cookie with empty value + immediate expiry
-    response.delete_cookie(
-        key=_COOKIE_NAME,
-        httponly=True,
-        secure=_COOKIE_SECURE,
-        samesite=_COOKIE_SAMESITE,
-    )
+    clear_auth_cookie(response)
 
 
 @router.get("/me", response_model=UserResponse)
 def me(current_user: dict = Depends(get_current_user)) -> dict:
     # canonical "who am I" endpoint — frontend hits this on app boot
-    # to find out if the user is still logged in (cookie still valid)
+    # to find out if the user is still logged in (cookie still valid).
+    # get_current_user renews a day-old cookie here (sliding session)
     return current_user
 
 
@@ -328,11 +358,10 @@ def refresh(
     current_user: dict = Depends(get_current_user),
 ) -> dict:
     # if get_current_user passed, the old token is still valid
-    # we just sign a fresh one so the user's session does not expire
-    # frontend calls this periodically before the cookie's max-age runs out
-    secret, days = _read_jwt_config()
-    token = create_access_token(current_user["id"], current_user["nick"], secret, days)
-    _set_auth_cookie(response, token, days)
+    # we just sign a fresh one so the user's session does not expire.
+    # get_current_user already renews day-old tokens on any request, this
+    # endpoint stays for explicit refreshes
+    issue_auth_cookie(response, current_user["id"], current_user["nick"])
     return current_user
 
 
@@ -351,15 +380,14 @@ def change_nick(
         )
     updated["is_admin"] = is_admin_email(updated["email"])
     # re-issue cookie so the nick in the JWT matches the new one
-    secret, days = _read_jwt_config()
-    token = create_access_token(updated["id"], updated["nick"], secret, days)
-    _set_auth_cookie(response, token, days)
+    issue_auth_cookie(response, updated["id"], updated["nick"])
     return updated
 
 
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
 def change_password_endpoint(
     body: ChangePasswordRequest,
+    response: Response,
     current_user: dict = Depends(get_current_user),
 ) -> None:
     user_with_hash = get_user_by_email(current_user["email"])
@@ -368,7 +396,10 @@ def change_password_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Obecne hasło jest nieprawidłowe",
         )
-    change_password(current_user["id"], hash_password(body.new_password))
+    # every token signed before now stops working (other devices get logged out),
+    # this device gets a fresh cookie so the user stays logged in here
+    change_password(current_user["id"], hash_password(body.new_password), datetime.now(timezone.utc))
+    issue_auth_cookie(response, current_user["id"], current_user["nick"])
 
 
 @router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
@@ -384,9 +415,4 @@ def delete_account(
             detail="Hasło jest nieprawidłowe",
         )
     delete_user(current_user["id"])
-    response.delete_cookie(
-        key=_COOKIE_NAME,
-        httponly=True,
-        secure=_COOKIE_SECURE,
-        samesite=_COOKIE_SAMESITE,
-    )
+    clear_auth_cookie(response)

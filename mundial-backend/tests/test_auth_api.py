@@ -8,7 +8,9 @@ os.environ.setdefault("JWT_EXPIRE_DAYS", "7")
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from domain.auth import create_access_token  # noqa: E402
+from datetime import datetime, timedelta, timezone  # noqa: E402
+
+from domain.auth import create_access_token, decode_access_token  # noqa: E402
 from main import app  # noqa: E402
 from routers import auth as auth_module  # noqa: E402
 from routers import deps as deps_module  # noqa: E402
@@ -23,8 +25,8 @@ def _clear_cookies():
     # TestClient persists cookies across calls by default — wipe them so each
     # test starts with a clean jar, otherwise tokens leak between tests
     client.cookies.clear()
-    # also wipe the login rate-limit store so attempts don't leak between tests
-    auth_module._LOGIN_RATE_LIMIT.clear()
+    # also wipe the rate-limit stores so attempts don't leak between tests
+    auth_module.reset_rate_limits()
 
 
 FAKE_USER = {
@@ -91,6 +93,52 @@ def test_refresh_issues_new_cookie(monkeypatch):
     assert "access_token=" in set_cookie
     assert "HttpOnly" in set_cookie
     assert "SameSite=lax" in set_cookie
+
+
+# --- sliding session: day-old token gets a fresh cookie on any request ---
+
+def test_me_with_fresh_token_does_not_touch_the_cookie(monkeypatch):
+    monkeypatch.setattr(deps_module, "get_user_by_id", lambda uid: dict(FAKE_USER))
+    token = create_access_token(user_id=1, nick="bartek", secret=SECRET, expires_days=7)
+
+    resp = client.get("/auth/me", cookies={"access_token": token})
+
+    assert resp.status_code == 200
+    assert "set-cookie" not in resp.headers
+
+
+def test_me_with_day_old_token_sets_a_fresh_cookie(monkeypatch):
+    monkeypatch.setattr(deps_module, "get_user_by_id", lambda uid: dict(FAKE_USER))
+    issued = datetime.now(timezone.utc) - timedelta(hours=25)
+    token = create_access_token(user_id=1, nick="bartek", secret=SECRET, expires_days=7, now=issued)
+
+    resp = client.get("/auth/me", cookies={"access_token": token})
+
+    assert resp.status_code == 200
+    set_cookie = resp.headers.get("set-cookie", "")
+    assert "access_token=" in set_cookie
+    new_token = set_cookie.split("access_token=")[1].split(";")[0]
+    assert decode_access_token(new_token, SECRET)["iat"] > int(issued.timestamp())
+
+
+def test_other_protected_routes_also_renew_a_day_old_token(monkeypatch):
+    # the renewal sits in get_current_user, so any protected endpoint does it
+    from fastapi import Depends, FastAPI
+
+    mini = FastAPI()
+
+    @mini.get("/protected")
+    def protected(user: dict = Depends(deps_module.get_current_user)) -> dict:
+        return {"id": user["id"]}
+
+    monkeypatch.setattr(deps_module, "get_user_by_id", lambda uid: dict(FAKE_USER))
+    issued = datetime.now(timezone.utc) - timedelta(days=3)
+    token = create_access_token(user_id=1, nick="bartek", secret=SECRET, expires_days=7, now=issued)
+
+    resp = TestClient(mini).get("/protected", cookies={"access_token": token})
+
+    assert resp.status_code == 200
+    assert "access_token=" in resp.headers.get("set-cookie", "")
 
 
 def test_refresh_without_cookie_returns_401():
@@ -367,3 +415,161 @@ def test_successful_login_resets_attempt_counter(monkeypatch):
         assert client.post(
             "/auth/login", json={"email": "x@example.com", "password": "no"},
         ).status_code == 401
+
+
+# --- password change / reset kills older tokens ---
+
+def test_token_signed_before_password_change_returns_401(monkeypatch):
+    changed = datetime.now(timezone.utc) - timedelta(minutes=5)
+    monkeypatch.setattr(
+        deps_module, "get_user_by_id", lambda uid: {**FAKE_USER, "password_changed_at": changed},
+    )
+    issued = changed - timedelta(hours=1)
+    token = create_access_token(user_id=1, nick="bartek", secret=SECRET, expires_days=7, now=issued)
+
+    resp = client.get("/auth/me", cookies={"access_token": token})
+
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "Sesja wygasła, zaloguj się ponownie"
+
+
+def test_token_signed_after_password_change_still_works(monkeypatch):
+    changed = datetime.now(timezone.utc) - timedelta(minutes=5)
+    monkeypatch.setattr(
+        deps_module, "get_user_by_id", lambda uid: {**FAKE_USER, "password_changed_at": changed},
+    )
+    token = create_access_token(user_id=1, nick="bartek", secret=SECRET, expires_days=7)
+
+    resp = client.get("/auth/me", cookies={"access_token": token})
+
+    assert resp.status_code == 200
+    assert "password_changed_at" not in resp.json()
+
+
+def test_change_password_stamps_the_time_and_hands_out_a_fresh_cookie(monkeypatch):
+    monkeypatch.setattr(deps_module, "get_user_by_id", lambda uid: dict(FAKE_USER))
+    monkeypatch.setattr(
+        auth_module, "get_user_by_email", lambda email: {**FAKE_USER, "password_hash": "h"},
+    )
+    monkeypatch.setattr(auth_module, "verify_password", lambda p, h: True)
+    calls = []
+    monkeypatch.setattr(
+        auth_module, "change_password", lambda uid, new_hash, at: calls.append((uid, at)),
+    )
+    token = create_access_token(user_id=1, nick="bartek", secret=SECRET, expires_days=7)
+
+    resp = client.post(
+        "/auth/change-password",
+        json={"current_password": "old-password", "new_password": "new-password-123"},
+        cookies={"access_token": token},
+    )
+
+    assert resp.status_code == 204
+    assert calls and calls[0][0] == 1
+    changed_at = calls[0][1]
+    # the cookie we got back survives the revocation check
+    new_token = resp.headers["set-cookie"].split("access_token=")[1].split(";")[0]
+    monkeypatch.setattr(
+        deps_module, "get_user_by_id", lambda uid: {**FAKE_USER, "password_changed_at": changed_at},
+    )
+    client.cookies.clear()
+    assert client.get("/auth/me", cookies={"access_token": new_token}).status_code == 200
+
+
+def test_cookie_is_samesite_lax_even_when_secure(monkeypatch):
+    # prod sets COOKIE_SECURE=true, the cookie must stay lax (same-origin front)
+    from routers import auth_cookie
+
+    monkeypatch.setattr(auth_cookie, "COOKIE_SECURE", True)
+    monkeypatch.setattr(deps_module, "get_user_by_id", lambda uid: dict(FAKE_USER))
+    token = create_access_token(user_id=1, nick="bartek", secret=SECRET, expires_days=7)
+
+    set_cookie = client.post("/auth/refresh", cookies={"access_token": token}).headers["set-cookie"]
+
+    assert "SameSite=lax" in set_cookie
+    assert "Secure" in set_cookie
+
+
+# --- rate limiting: real client ip, per email, register, pruning ---
+
+def _fail_login(email="x@example.com", xff=None):
+    headers = {"x-forwarded-for": xff} if xff else {}
+    return client.post("/auth/login", json={"email": email, "password": "no"}, headers=headers)
+
+
+def test_spoofed_left_xff_entries_do_not_dodge_the_ip_limit(monkeypatch):
+    # attacker rotates the left part, the proxy-added right entry stays the same
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: None)
+    for i in range(5):
+        assert _fail_login(email=f"u{i}@example.com", xff=f"9.9.9.{i}, 1.2.3.4").status_code == 401
+    assert _fail_login(email="new@example.com", xff="8.8.8.8, 1.2.3.4").status_code == 429
+
+
+def test_trusted_proxy_hops_picks_the_entry_before_our_proxy(monkeypatch):
+    monkeypatch.setenv("TRUSTED_PROXY_HOPS", "2")
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: None)
+    # same client (1.2.3.4) seen through different last proxies
+    for i in range(5):
+        assert _fail_login(email=f"u{i}@example.com", xff=f"1.2.3.4, 10.0.0.{i}").status_code == 401
+    assert _fail_login(email="new@example.com", xff="1.2.3.4, 10.0.0.99").status_code == 429
+
+
+def test_failed_logins_for_one_email_from_many_ips_lock_that_email(monkeypatch):
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: None)
+    for i in range(10):
+        assert _fail_login(email="Victim@example.com", xff=f"1.1.1.{i}").status_code == 401
+    # a fresh IP is still refused for that email (case does not matter)...
+    assert _fail_login(email="victim@example.com", xff="2.2.2.2").status_code == 429
+    # ...but another email from that IP is fine
+    assert _fail_login(email="other@example.com", xff="2.2.2.2").status_code == 401
+
+
+def test_register_is_limited_per_ip(monkeypatch):
+    monkeypatch.setattr(auth_module, "create_user", lambda n, e, p: dict(FAKE_USER))
+    monkeypatch.setattr(auth_module, "create_email_verification_token", lambda *a: None)
+    monkeypatch.setattr(auth_module, "send_verification_email", lambda *a: None)
+    monkeypatch.setattr(auth_module, "hash_password", lambda p: "hash")
+    body = {"nick": "bartek", "email": "b@example.com", "password": "password-123"}
+    for _ in range(10):
+        assert client.post("/auth/register", json=body).status_code == 201
+    assert client.post("/auth/register", json=body).status_code == 429
+
+
+def test_forgot_password_is_limited_per_email_across_ips(monkeypatch):
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: None)
+    for i in range(3):
+        resp = client.post(
+            "/auth/forgot-password", json={"email": "b@example.com"}, headers={"x-forwarded-for": f"3.3.3.{i}"},
+        )
+        assert resp.status_code == 204
+    resp = client.post(
+        "/auth/forgot-password", json={"email": "b@example.com"}, headers={"x-forwarded-for": "4.4.4.4"},
+    )
+    assert resp.status_code == 429
+
+
+def test_old_rate_limit_keys_are_pruned(monkeypatch):
+    from domain.rate_limit import RateLimitState
+
+    old = datetime.now(timezone.utc) - timedelta(hours=2)
+    auth_module._LOGIN_RATE_LIMIT["5.5.5.5"] = RateLimitState(attempts=[old])
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: None)
+
+    _fail_login(xff="6.6.6.6")
+
+    assert "5.5.5.5" not in auth_module._LOGIN_RATE_LIMIT
+    assert "6.6.6.6" in auth_module._LOGIN_RATE_LIMIT
+
+
+# --- login timing: unknown email still pays for one argon2 verify ---
+
+def test_login_with_unknown_email_still_runs_a_password_verify(monkeypatch):
+    monkeypatch.setattr(auth_module, "get_user_by_email", lambda email: None)
+    hashes = []
+    monkeypatch.setattr(auth_module, "verify_password", lambda p, h: hashes.append(h) or False)
+
+    resp = _fail_login(email="nobody@example.com")
+
+    assert resp.status_code == 401
+    assert len(hashes) == 1
+    assert hashes[0].startswith("$argon2id$")

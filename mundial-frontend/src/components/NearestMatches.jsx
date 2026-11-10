@@ -5,7 +5,7 @@ import ErrorState from './ErrorState';
 import MatchDayList from './MatchDayList';
 import MatchListSkeleton from './MatchListSkeleton';
 import NearestSection from './NearestSection';
-import { formatWeekRange, nextOpenDeadline } from '../utils/coupon';
+import { formatWeekRange } from '../utils/coupon';
 
 // how many league matches show before "Pokaż więcej"
 const PAGE = 10;
@@ -22,7 +22,6 @@ export default function NearestMatches({ nearest }) {
 
   const isGlobal = coupon?.source === 'global';
   const all = coupon?.matches ?? [];
-  const typed = all.filter((m) => m.my_prediction).length;
 
   return (
     <div>
@@ -50,7 +49,7 @@ export default function NearestMatches({ nearest }) {
         ) : (
           <>
             <div className="glass-card px-4 py-3 mb-4">
-              <CouponProgress typed={typed} total={all.length} nextDeadline={nextOpenDeadline(all)} />
+              <CouponProgress matches={all} />
             </div>
             {open.length > 0 ? (
               <MatchDayList matches={open} showCompetition onMatchChange={handleMatchChange} />

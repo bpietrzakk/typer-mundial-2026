@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { mockApi } from './mockApi.js';
-import { INVITE_CODE } from './fixtures.js';
+import { INVITE_CODE, LEAGUE_COUPON, MATCH, MY_COUPON } from './fixtures.js';
 
 // any uncaught error in the page fails the test
 test.beforeEach(({ page }) => {
@@ -12,6 +12,9 @@ test('guest landing page links to register and login', async ({ page }) => {
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: /Masz czutkę\?/ })).toBeVisible();
+  // the app preview next to the hero is a raised card, not a see-through line
+  const preview = page.getByText('Ekipa z osiedla').locator('xpath=..');
+  await expect(preview).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 
   await page.getByRole('link', { name: 'Załóż konto' }).first().click();
   await expect(page).toHaveURL(/\/register$/);
@@ -34,6 +37,9 @@ test('login form logs in and opens the app', async ({ page }) => {
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('navigation').first()).toBeVisible();
   await expect(page.getByText('Arsenal').first()).toBeVisible();
+  // the current page is marked for screen readers
+  await expect(page.getByRole('navigation').first().getByRole('link', { name: 'Start' })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('navigation').first().getByRole('link', { name: 'Mecze' })).not.toHaveAttribute('aria-current', 'page');
 
   const login = api.requests.find((r) => r.method === 'POST' && r.path === '/auth/login');
   expect(login.body).toEqual({ email: 'bartek@example.com', password: 'tajne-haslo' });
@@ -136,6 +142,7 @@ test('"Statystyki" opens the match stats panel', async ({ page }) => {
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(toggle).toHaveText('Ukryj statystyki');
 
   const panel = page.getByRole('region', { name: 'Statystyki meczu' });
   await expect(panel.getByText('Gospodarze wygrali 4 z 5 ostatnich meczów u siebie')).toBeVisible();
@@ -146,6 +153,7 @@ test('"Statystyki" opens the match stats panel', async ({ page }) => {
   await toggle.focus();
   await page.keyboard.press('Enter');
   await expect(panel).toBeHidden();
+  await expect(toggle).toHaveText('Statystyki');
 });
 
 test('settled pick explains its points', async ({ page }) => {
@@ -236,7 +244,7 @@ test('invite link survives the detour through login', async ({ page }) => {
   await page.getByRole('button', { name: 'Zaloguj się' }).click();
 
   // after login the invite joins the league and opens it
-  await expect(page.getByText('Dołączono!')).toBeVisible();
+  await expect(page.getByText('Dołączono do ligi »Biuro«')).toBeVisible();
   await expect(page).toHaveURL(/\/leagues\/1$/);
   await expect(page.getByRole('heading', { name: 'Biuro' })).toBeVisible();
 
@@ -389,8 +397,205 @@ test('start hero: a pick refused at kickoff is announced and not sent again', as
 
   // the hero moves on to the next match, the refusal stays visible as a toast
   await expect(page.getByText('Mecz już się rozpoczął, nie można już typować')).toBeVisible();
+  // toasts sit in a polite live region
+  await expect(page.getByRole('status').filter({ hasText: 'Mecz już się rozpoczął' })).toHaveAttribute('aria-live', 'polite');
   await expect(hero.getByText('Liverpool')).toBeVisible();
   await page.waitForTimeout(800);
   const saves = api.requests.filter((r) => r.method === 'POST' && r.path === '/predictions');
   expect(saves).toHaveLength(1);
+});
+
+test('link preview image is an absolute url to the real file', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/');
+
+  for (const selector of ['meta[property="og:image"]', 'meta[name="twitter:image"]']) {
+    const url = await page.locator(selector).getAttribute('content');
+    expect(url).toBe('https://www.czutka.uk/og-image.png');
+  }
+  // the same file is served by the build
+  const image = await page.request.get('/og-image.png');
+  expect(image.ok()).toBe(true);
+  expect(image.headers()['content-type']).toContain('image/png');
+});
+
+test('coupon with every open match typed says "komplet na teraz", missed matches are not "to type"', async ({ page }) => {
+  await mockApi(page, { loggedIn: true, typedOpen: true });
+  await page.goto('/');
+
+  const coupon = page.getByRole('region', { name: /Twój kupon/ });
+  await expect(coupon.getByText('2 z 3')).toBeVisible();
+  await expect(coupon.getByText(/^Komplet na teraz — możesz zmieniać do gwizdka, najbliższy mecz .+ o \d/)).toBeVisible();
+  await expect(coupon.getByText('· bez typu: 1')).toBeVisible();
+  await expect(page.getByText('w tym tygodniu nie ma już otwartych meczów')).toHaveCount(0);
+
+  // the same on "Najbliższe"
+  await page.goto('/matches');
+  const nearest = page.getByRole('region', { name: /^Kupon tygodnia/ });
+  await expect(nearest.getByText(/^Komplet na teraz — możesz zmieniać do gwizdka/)).toBeVisible();
+});
+
+test('start hero: a match that kicked off before the sync marked it live is on, not "closed"', async ({ page }) => {
+  await mockApi(page, { loggedIn: true, syncLag: true });
+  await page.goto('/');
+
+  const hero = page.getByRole('region', { name: 'Na żywo' });
+  await expect(hero.getByText('Arsenal')).toBeVisible();
+  await expect(hero.getByText('Mecz trwa')).toBeVisible();
+  await expect(page.getByText('Kupon na ten tydzień zamknięty')).toHaveCount(0);
+});
+
+test('start coupon: upcoming matches first, the played one folded', async ({ page }) => {
+  await mockApi(page, { loggedIn: true, nearest: true });
+  await page.goto('/');
+
+  const coupon = page.getByRole('region', { name: /Twój kupon/ });
+  await expect(coupon.getByText('Liverpool')).toBeVisible();
+  await expect(coupon.getByText('Tottenham')).toHaveCount(0);
+  const fold = coupon.getByRole('button', { name: /Rozegrane w tym tygodniu \(1\)/ });
+  await expect(fold).toHaveAttribute('aria-expanded', 'false');
+  // the fold sits under the open matches
+  expect((await coupon.getByText('Liverpool').boundingBox()).y).toBeLessThan((await fold.boundingBox()).y);
+
+  await fold.click();
+  await expect(fold).toHaveAttribute('aria-expanded', 'true');
+  await expect(coupon.getByText('Tottenham')).toBeVisible();
+});
+
+test('league coupon: open match on top, the played one folded with the league picks', async ({ page }) => {
+  await mockApi(page, { loggedIn: true, leaguePlayed: true });
+  await page.goto('/leagues/1');
+
+  const coupon = page.getByRole('region', { name: 'Kupon tygodnia' });
+  await expect(coupon.getByText('Arsenal').first()).toBeVisible();
+  await expect(coupon.getByText('Tottenham')).toHaveCount(0);
+
+  await coupon.getByRole('button', { name: /Rozegrane w tym tygodniu \(1\)/ }).click();
+  await expect(coupon.getByText('Tottenham').first()).toBeVisible();
+  // the league picks of the played match are still there, inside the fold
+  await expect(coupon.getByRole('button', { name: /Typy ligi \(2\)/ })).toBeVisible();
+});
+
+test('long team names wrap between words in the two-column match cards', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await mockApi(page, { loggedIn: true });
+  const long = {
+    ...MATCH,
+    home_team: { ...MATCH.home_team, name: 'Borussia Dortmund' },
+    away_team: { ...MATCH.away_team, name: 'Wolverhampton' },
+  };
+  // registered after mockApi, so this one answers
+  await page.route((url) => url.pathname === '/api/me/coupon', (route) => route.fulfill({
+    json: { ...MY_COUPON, matches: [{ ...long, leagues: [] }] },
+  }));
+  await page.goto('/matches');
+  await expect(page.getByText('Borussia Dortmund')).toBeVisible();
+
+  // every word of the name stays on one line (the bug was "Dortmun|d")
+  const splitWords = await page.getByText('Borussia Dortmund').evaluate((el) => {
+    const text = el.firstChild;
+    let at = 0;
+    return el.textContent.split(' ').filter((word) => {
+      const range = document.createRange();
+      range.setStart(text, at);
+      range.setEnd(text, at + word.length);
+      at += word.length + 1;
+      return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size > 1;
+    });
+  });
+  expect(splitWords).toEqual([]);
+  await expect(page.getByText('Wolverhampton')).toBeVisible();
+});
+
+test('a page that crashes while rendering shows "Coś poszło nie tak" with a reload button', async ({ page }) => {
+  await mockApi(page, { loggedIn: true });
+  // broken data from the backend: the league coupon without its members list
+  let broken = true;
+  await page.route((url) => url.pathname === '/api/leagues/1/coupon', (route) => (broken
+    ? route.fulfill({ json: { ...LEAGUE_COUPON, members: null } })
+    : route.fallback()));
+  // React logs the caught error, nothing else may go wrong
+  const errors = [];
+  page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+
+  await page.goto('/leagues/1');
+  const alert = page.getByRole('alert');
+  await expect(alert.getByRole('heading', { name: 'Coś poszło nie tak' })).toBeVisible();
+  expect(errors.some((text) => text.includes('czutka: render error'))).toBe(true);
+
+  // fixed on the server -> "Odśwież" brings the page back
+  broken = false;
+  await alert.getByRole('button', { name: 'Odśwież' }).click();
+  await expect(page.getByRole('heading', { name: 'Biuro' })).toBeVisible();
+});
+
+test('a lazy page whose chunk vanished after a deploy reloads once and opens', async ({ page }) => {
+  await mockApi(page, { loggedIn: true });
+  // first request for the Rules chunk fails like an old build on a new deploy
+  let chunkRequests = 0;
+  await page.route(/\/assets\/Rules-[^/]+\.js$/, (route) => {
+    chunkRequests += 1;
+    return chunkRequests === 1 ? route.fulfill({ status: 404, body: 'gone' }) : route.fallback();
+  });
+
+  await page.goto('/rules');
+  await expect(page.getByRole('heading', { name: 'Zasady punktacji' })).toBeVisible();
+  expect(chunkRequests).toBe(2);
+});
+
+test('a slow /auth/me shows "Budzę serwer…" after 3 seconds', async ({ page }) => {
+  await mockApi(page, { loggedIn: true });
+  // the sleeping free backend answers only after a while
+  let release;
+  const wait = new Promise((resolve) => { release = resolve; });
+  await page.route((url) => url.pathname === '/api/auth/me', async (route) => {
+    await wait;
+    await route.fallback();
+  });
+
+  await page.goto('/matches');
+  await expect(page.getByText('Budzę serwer… to może potrwać do minuty')).toBeHidden();
+  await expect(page.getByText('Budzę serwer… to może potrwać do minuty')).toBeVisible({ timeout: 6000 });
+
+  release();
+  await expect(page.getByText('Arsenal').first()).toBeVisible();
+});
+
+test('an expired session sends to login and back to the same page, never to another site', async ({ page }) => {
+  const api = await mockApi(page, { loggedIn: true });
+  // the session expires while the league page loads
+  let expired = true;
+  await page.route((url) => url.pathname === '/api/leagues/1', (route) => {
+    if (!expired) return route.fallback();
+    api.loggedIn = false;
+    return route.fulfill({ status: 401, json: { detail: 'Nie zalogowano' } });
+  });
+
+  await page.goto('/leagues/1#kupon');
+  await expect(page).toHaveURL(/\/login\?next=%2Fleagues%2F1%23kupon$/);
+  expired = false;
+  await page.getByLabel('Email').fill('bartek@example.com');
+  await page.getByLabel('Hasło', { exact: true }).fill('tajne-haslo');
+  await page.getByRole('button', { name: 'Zaloguj się' }).click();
+  await expect(page).toHaveURL(/\/leagues\/1#kupon$/);
+  await expect(page.getByRole('heading', { name: 'Biuro' })).toBeVisible();
+
+  // a next pointing outside the site is ignored
+  await page.getByRole('button', { name: 'Wyloguj' }).click();
+  await page.goto('/login?next=%2F%2Fevil.example%2F');
+  await page.getByLabel('Email').fill('bartek@example.com');
+  await page.getByLabel('Hasło', { exact: true }).fill('tajne-haslo');
+  await page.getByRole('button', { name: 'Zaloguj się' }).click();
+  await expect(page).toHaveURL('http://localhost:4173/');
+});
+
+test('match data is credited to football-data.org on the landing page and in the rules', async ({ page }) => {
+  await mockApi(page, { loggedIn: false });
+  await page.goto('/');
+  const credit = page.getByRole('contentinfo').getByRole('link', { name: 'football-data.org' });
+  await expect(credit).toHaveAttribute('href', 'https://www.football-data.org/');
+
+  await mockApi(page, { loggedIn: true });
+  await page.goto('/rules');
+  await expect(page.getByText(/Football data provided by the Football-Data\.org API/)).toBeVisible();
 });

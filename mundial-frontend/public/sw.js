@@ -1,105 +1,85 @@
 // czutka — Service Worker
-// cache-first for static assets, network-first for API calls
+// goal: every deploy reaches the players, nothing old sticks in the cache
+//   - page navigations: network-first, cached copy only when offline
+//   - hashed /assets/*: cache-first (their name changes with every build)
+//   - /api/*, other origins and everything else: not touched, plain network
 
-// new name after the rebrand — the activate step drops the old Mundial caches
-const CACHE_NAME = 'czutka-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-];
+// replaced with the build id by the sw-build-id plugin in vite.config.js,
+// so every deploy is a byte-different sw.js and the browser installs it
+const BUILD_ID = '__BUILD_ID__';
+const CACHE_NAME = `czutka-${BUILD_ID}`;
+// one copy of the app shell, used only when the network is down
+const SHELL_KEY = '/index.html';
 
-// install — pre-cache essential static assets
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    })
-  );
-  // activate immediately without waiting for old SW to die
+// install — no precache, take over right away instead of waiting for old tabs
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
-// activate — clean up old caches
+// activate — drop every cache of older builds (also the old czutka-v1),
+// then control the open tabs; the page reloads itself on controllerchange
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      );
-    })
+    caches.keys()
+      .then((keys) => Promise.all(
+        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)),
+      ))
+      .then(() => self.clients.claim()),
   );
-  // take control of all clients immediately
-  self.clients.claim();
 });
 
-// fetch — different strategies for API vs static
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-
-  // page navigations — network-first, so a deploy never leaves a stale
-  // index.html. the app shell is the same for every route, keep one copy
-  // under /index.html and use it only when the network is down
-  if (event.request.mode === 'navigate' && url.origin === self.location.origin) {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          // only cache real HTML pages (not e.g. a JSON api url opened by hand)
-          const isHtml = (response.headers.get('content-type') || '').includes('text/html');
-          if (response.ok && isHtml) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone));
-          }
-          return response;
-        })
-        .catch(() => caches.match('/index.html').then((cached) => cached || caches.match('/')))
-    );
-    return;
+// the page asks which build this worker is, to skip a reload it doesn't need
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'GET_VERSION' && event.ports[0]) {
+    event.ports[0].postMessage({ version: BUILD_ID });
   }
+});
 
-  // crest images from our cache endpoint — leave them to the browser,
-  // its HTTP cache honours the week-long immutable header (no-store would not)
-  if (url.pathname.endsWith('/img/crest')) return;
-
-  // API calls — network-only (always fresh data, no HTTP cache)
-  // cross-origin requests (to the backend) are always network-only
-  const isApiCall =
-    url.origin !== self.location.origin ||
-    url.pathname.startsWith('/api/') ||
-    url.pathname.startsWith('/auth') ||
-    url.pathname.startsWith('/matches') ||
-    url.pathname.startsWith('/predictions') ||
-    url.pathname.startsWith('/ranking') ||
-    url.pathname.startsWith('/leagues') ||
-    url.pathname.startsWith('/bonus') ||
-    url.pathname.startsWith('/health');
-
-  if (isApiCall) {
-    event.respondWith(
-      fetch(event.request, { cache: 'no-store' }).catch(() => {
-        // Only return from cache if network is completely down
-        return caches.match(event.request);
-      })
-    );
-    return;
-  }
-
-  // static assets — cache-first (fast loads)
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        // only cache successful GET requests
-        if (response.ok && event.request.method === 'GET') {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, clone);
-          });
-        }
-        return response;
-      });
+// network-first for pages: a deploy never leaves a stale index.html
+function handleNavigation(request) {
+  return fetch(request)
+    .then((response) => {
+      // only keep real HTML pages (not e.g. a JSON url opened by hand)
+      const isHtml = (response.headers.get('content-type') || '').includes('text/html');
+      if (response.ok && isHtml) {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(SHELL_KEY, copy));
+      }
+      return response;
     })
-  );
+    .catch(() => caches.match(SHELL_KEY).then((cached) => cached || Response.error()));
+}
+
+// cache-first for hashed build files: same name = same content
+function handleAsset(request) {
+  return caches.match(request).then((cached) => {
+    if (cached) return cached;
+    return fetch(request).then((response) => {
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+      }
+      return response;
+    });
+  });
+}
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  // other origins (backend, fonts, images) — leave them to the browser
+  if (url.origin !== self.location.origin) return;
+  // api calls are never cached, not even as an offline fallback
+  if (url.pathname.startsWith('/api/')) return;
+
+  if (request.mode === 'navigate') {
+    event.respondWith(handleNavigation(request));
+    return;
+  }
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(handleAsset(request));
+  }
+  // anything else (icons, manifest, og image) goes straight to the network
 });

@@ -123,6 +123,31 @@ export const MY_COUPON_FULL = {
   matches: [COUPON_LATER, COUPON_PLAYED, MATCH].map((m) => ({ ...m, leagues: [LEAGUE_REF] })),
 };
 
+const myPick = (home, away) => ({ pred_home: home, pred_away: away, points_awarded: null, hit_type: null });
+
+// the same week with every open match typed, but the played one missed (no pick)
+export const MY_COUPON_TYPED_OPEN = {
+  ...MY_COUPON_FULL,
+  typed: 2,
+  matches: [
+    { ...COUPON_LATER, my_prediction: myPick(1, 1) },
+    { ...COUPON_PLAYED, my_prediction: null },
+    { ...MATCH, my_prediction: myPick(2, 1) },
+  ].map((m) => ({ ...m, leagues: [LEAGUE_REF] })),
+};
+
+// everything kicked off: Arsenal 10 minutes ago, the sync has not marked it live yet
+export const MY_COUPON_SYNC_LAG = {
+  ...MY_COUPON_FULL,
+  typed: 2,
+  total: 2,
+  next_deadline: null,
+  matches: [
+    COUPON_PLAYED,
+    { ...MATCH, kickoff_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(), can_predict: false, my_prediction: myPick(2, 1) },
+  ].map((m) => ({ ...m, leagues: [LEAGUE_REF] })),
+};
+
 // league matches after the coupon ones (+ the coupon match again: the page skips it)
 export const UPCOMING_MATCHES = [
   MATCH,
@@ -250,6 +275,27 @@ export const LEAGUE_COUPON_LIVE = {
       home_pct: 50, draw_pct: 0, away_pct: 50, top_scores: [], top_count: 1,
     },
   }],
+};
+
+// this week's league coupon with one match already played (2:0, both typed)
+const settledPick = (userId, nick, home, away, points, hit) => ({
+  user_id: userId, nick, pred_home: home, pred_away: away, points_awarded: points, hit_type: hit,
+  provisional_points: null, provisional_hit_type: null, is_joker: false, reactions: {}, my_reaction: null,
+});
+export const LEAGUE_COUPON_WITH_PLAYED = {
+  ...LEAGUE_COUPON,
+  total: 2,
+  matches: [
+    {
+      ...COUPON_PLAYED,
+      typed_count: 2,
+      member_count: 2,
+      predictions_visible: true,
+      member_predictions: [settledPick(3, 'ola', 1, 0, 2, 'tendency'), settledPick(1, 'bartek', 2, 0, 5, 'exact')],
+      league_summary: null,
+    },
+    LEAGUE_COUPON.matches[0],
+  ],
 };
 
 // one settled pick from last week, hit_type missing on purpose (old row):

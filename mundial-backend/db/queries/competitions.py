@@ -92,7 +92,7 @@ _SQL_MATCH_SELECT = """
     SELECT
         m.id, m.season_id, s.status AS season_status, m.kickoff_at, m.kickoff_confirmed, m.status,
         m.home_goals, m.away_goals, m.home_goals_et, m.away_goals_et,
-        m.home_pens, m.away_pens, m.decided_by,
+        m.home_pens, m.away_pens, m.decided_by, m.locked_at,
         c.id AS competition_id, c.code AS competition_code, c.name AS competition_name,
         c.logo_url AS competition_logo_url,
         r.id AS round_id, r.phase AS round_phase, r.matchday AS round_matchday,
@@ -116,16 +116,23 @@ SQL_LIST_SEASON_MATCHES = _SQL_MATCH_SELECT + """
     ORDER BY m.kickoff_at ASC, m.id ASC
 """
 
+# following counts only for active competitions: a viewer whose follows are all
+# switched off gets every active competition, like a viewer following nothing
+_SQL_FOLLOWS_NOTHING_ACTIVE = """
+    NOT EXISTS (
+        SELECT 1 FROM user_competitions uc
+        JOIN competitions fc ON fc.id = uc.competition_id
+        WHERE uc.user_id = %s AND fc.is_active
+    )
+"""
+
 # params: viewer id, window start, window end, viewer id (twice)
-# followed competitions only; following nothing = every active competition
+# followed competitions (also switched off ones); following nothing active = every active competition
 SQL_LIST_FEED_MATCHES = _SQL_MATCH_SELECT + """
     WHERE (m.kickoff_at BETWEEN %s AND %s OR m.status = 'live')
       AND (
           c.id IN (SELECT uc.competition_id FROM user_competitions uc WHERE uc.user_id = %s)
-          OR (
-              c.is_active
-              AND NOT EXISTS (SELECT 1 FROM user_competitions uc WHERE uc.user_id = %s)
-          )
+          OR (c.is_active AND """ + _SQL_FOLLOWS_NOTHING_ACTIVE + """)
       )
     ORDER BY m.kickoff_at ASC, m.id ASC
 """
@@ -133,7 +140,7 @@ SQL_LIST_FEED_MATCHES = _SQL_MATCH_SELECT + """
 # "upcoming in my leagues": scheduled matches that have not kicked off yet, in the
 # scope of every league of the viewer (a league without scope rows = every active
 # competition). a viewer without a league gets the feed rule: followed
-# competitions, or every active one when following nothing. archived seasons never show up
+# competitions, or every active one when following nothing active. archived seasons never show up
 # params: viewer id, window start, window end, viewer id (5 times)
 SQL_LIST_UPCOMING_LEAGUE_MATCHES = _SQL_MATCH_SELECT + """
     WHERE m.status = 'scheduled'
@@ -161,10 +168,7 @@ SQL_LIST_UPCOMING_LEAGUE_MATCHES = _SQL_MATCH_SELECT + """
               NOT EXISTS (SELECT 1 FROM private_league_members plm WHERE plm.user_id = %s)
               AND (
                   c.id IN (SELECT uc.competition_id FROM user_competitions uc WHERE uc.user_id = %s)
-                  OR (
-                      c.is_active
-                      AND NOT EXISTS (SELECT 1 FROM user_competitions uc WHERE uc.user_id = %s)
-                  )
+                  OR (c.is_active AND """ + _SQL_FOLLOWS_NOTHING_ACTIVE + """)
               )
           )
       )
@@ -220,8 +224,9 @@ def _row_to_competition_match(r: dict) -> dict:
             "logo_url": r.get("competition_logo_url"),
         },
         "season_id": r["season_id"],
-        # only for the can_predict rule, the response model drops it
+        # only for the can_predict rule, the response model drops them
         "season_status": r["season_status"],
+        "locked_at": r.get("locked_at"),
         "round": {
             "id": r["round_id"],
             "phase": r["round_phase"],

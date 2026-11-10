@@ -314,8 +314,9 @@ def test_feed_respects_followed_competitions(world, api):
     assert _ids(api("celina").get("/feed").json()) == [m["u4"], m["e5"], m["e6"], m["e7"]]
     # UCL only: the live match is shown although it started 4 hours ago
     assert _ids(api("daniel").get("/feed").json()) == [m["u4"]]
-    # a followed competition shows up even when it is inactive
-    assert _ids(api("ewa").get("/feed").json()) == [m["k1"]]
+    # a followed competition shows up even when it is inactive, but following only
+    # switched off ones is not "following something": the active ones come too
+    assert set(_ids(api("ewa").get("/feed").json())) == {m["u4"], m["e5"], m["e6"], m["e7"], m["k1"]}
 
 
 def test_feed_days_widen_and_narrow_the_window(world, api):
@@ -373,8 +374,8 @@ def test_upcoming_matches_follow_league_scope(conn, world, api):
 
 def test_upcoming_matches_without_league_use_followed(world, api):
     m = world["matches"]
-    # ewa has no league and follows EKS only
-    assert _ids(api("ewa").get("/me/upcoming-matches").json()) == [m["k1"]]
+    # ewa has no league and follows the inactive EKS only: its match + the active open ones
+    assert set(_ids(api("ewa").get("/me/upcoming-matches").json())) == {m["k1"], m["e6"]}
     assert api("ewa").get("/me/upcoming-matches?days=0").status_code == 422
 
 

@@ -7,7 +7,7 @@ from db.connection import get_conn, release_conn
 from db.queries.competitions import _utc
 
 SQL_GET_MATCH_TEAMS = """
-    SELECT m.id, m.season_id, m.home_team_id, m.away_team_id
+    SELECT m.id, m.season_id, m.home_team_id, m.away_team_id, m.kickoff_at
     FROM matches m
     WHERE m.id = %s
 """

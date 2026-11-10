@@ -5,14 +5,21 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
+from dataclasses import replace
+
 from domain.sync_plan import (
+    STATE_MAX_AGE,
     ExistingMatch,
     IncomingMatch,
     LastRun,
     SchedulerState,
     decide_next_run,
+    due_at,
     has_live_or_imminent,
     is_due,
+    is_state_check_due,
+    next_busy_start,
+    next_state_check,
     is_sync_enabled,
     match_winner_side,
     pick_champion,
@@ -493,6 +500,109 @@ def test_season_beats_window_beats_rescore():
     assert decide_next_run(s) == "season"
     s = state(last_window=stale, last_rescore=stale, rescore_candidates=2)
     assert decide_next_run(s) == "window"
+
+
+# ---------- scheduler: when to read the db again ----------
+# between runs the scheduler keeps the next check time in memory, so Neon can sleep
+
+def test_due_at_is_now_when_never_run():
+    assert due_at(None, NOW, timedelta(hours=1), timedelta(minutes=15)) == NOW
+
+
+def test_due_at_after_ok_failed_and_running_runs():
+    hour, retry = timedelta(hours=1), timedelta(minutes=15)
+    assert due_at(LastRun(NOW - timedelta(minutes=10), "ok"), NOW, hour, retry) == NOW + timedelta(minutes=50)
+    assert due_at(LastRun(NOW - timedelta(minutes=10), "error", 1), NOW, hour, retry) == NOW + timedelta(minutes=5)
+    assert due_at(LastRun(NOW - timedelta(minutes=10), "running"), NOW, hour, retry) == NOW + timedelta(minutes=20)
+
+
+def test_due_at_never_lies_in_the_past():
+    last = LastRun(NOW - timedelta(hours=5), "ok")
+    assert due_at(last, NOW, timedelta(hours=1), timedelta(minutes=15)) == NOW
+
+
+def test_next_busy_start_is_15_minutes_before_the_next_kickoff():
+    rows = [("scheduled", NOW + timedelta(hours=2)), ("scheduled", NOW + timedelta(minutes=40))]
+    assert next_busy_start(rows, NOW) == NOW + timedelta(minutes=25)
+
+
+def test_next_busy_start_ignores_matches_that_already_made_us_busy_or_cannot_be_played():
+    rows = [
+        ("scheduled", NOW + timedelta(minutes=10)),   # imminent already
+        ("live", NOW - timedelta(minutes=30)),
+        ("finished", NOW + timedelta(minutes=40)),
+        ("postponed", NOW + timedelta(minutes=40)),
+        ("scheduled", None),
+    ]
+    assert next_busy_start(rows, NOW) is None
+
+
+def test_state_check_is_due_without_a_cache_or_once_its_time_came():
+    assert is_state_check_due(None, NOW) is True
+    assert is_state_check_due(NOW, NOW) is True
+    assert is_state_check_due(NOW + timedelta(minutes=1), NOW) is False
+
+
+def test_idle_scheduler_next_reads_the_db_for_the_hourly_window_run():
+    # window ran 2 minutes ago, nothing else is coming
+    assert next_state_check(state()) == NOW + timedelta(minutes=58)
+
+
+def test_next_check_is_never_later_than_the_max_age():
+    s = state(last_window=LastRun(NOW - timedelta(minutes=2), "error", 40))
+    assert next_state_check(s) <= NOW + STATE_MAX_AGE
+
+
+def test_next_check_is_now_when_something_is_due():
+    assert next_state_check(state(last_season=None, last_window=None, last_rescore=None)) == NOW
+
+
+def test_coming_kickoff_wakes_the_scheduler_when_it_turns_busy():
+    s = state(busy_starts_at=NOW + timedelta(minutes=20))
+    assert next_state_check(s) == NOW + timedelta(minutes=20)
+
+
+def test_busy_scheduler_checks_again_for_the_5_minute_window_run():
+    s = state(busy=True, busy_starts_at=NOW + timedelta(minutes=20))
+    assert next_state_check(s) == NOW + timedelta(minutes=3)
+
+
+def test_daily_season_sync_sets_the_next_check():
+    s = state(last_season=LastRun(NOW - timedelta(hours=23, minutes=50), "ok"))
+    assert next_state_check(s) == NOW + timedelta(minutes=10)
+
+
+def test_rescore_counts_only_with_candidates():
+    last = LastRun(NOW - timedelta(minutes=50), "ok")
+    assert next_state_check(state(last_rescore=last, rescore_candidates=2)) == NOW + timedelta(minutes=10)
+    assert next_state_check(state(last_rescore=last, rescore_candidates=0)) == NOW + timedelta(minutes=58)
+
+
+def test_missing_season_retry_sets_the_next_check():
+    s = state(competitions_without_season=1, last_season=LastRun(NOW - timedelta(minutes=5), "ok"))
+    assert next_state_check(s) == NOW + timedelta(minutes=10)
+
+
+def test_failing_window_backoff_sets_the_next_check():
+    s = state(busy=True, last_window=LastRun(NOW - timedelta(minutes=19), "error", 3))
+    assert next_state_check(s) == NOW + timedelta(minutes=1)
+
+
+@pytest.mark.parametrize("s", [
+    state(),
+    state(busy=True),
+    state(rescore_candidates=1, last_rescore=LastRun(NOW - timedelta(minutes=30), "ok")),
+    state(competitions_without_season=2, last_season=LastRun(NOW - timedelta(minutes=3), "error", 2)),
+    state(last_season=LastRun(NOW - timedelta(hours=23, minutes=30), "ok")),
+    state(last_window=LastRun(NOW - timedelta(minutes=10), "running")),
+])
+def test_nothing_becomes_due_before_the_next_check(s):
+    # the in-memory wait must never skip a run that decide_next_run would start
+    check = next_state_check(s)
+    t = NOW
+    while t < check:
+        assert decide_next_run(replace(s, now=t)) is None, t
+        t += timedelta(minutes=1)
 
 
 @pytest.mark.parametrize("flag, key, expected", [

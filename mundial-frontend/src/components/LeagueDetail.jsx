@@ -120,7 +120,7 @@ export default function LeagueDetail({ leagueId }) {
       <Link
         to="/leagues"
         aria-label="Wróć do lig"
-        className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-300 transition-colors mb-4 -ml-0.5"
+        className="inline-flex items-center gap-1.5 min-h-[40px] pr-2 text-sm text-gray-400 hover:text-gray-300 transition-colors mb-2 -mt-2 -ml-0.5"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />

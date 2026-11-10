@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import useAsync from '../hooks/useAsync';
 import useLivePolling from '../hooks/useLivePolling';
-import { JOKER_RULE, couponSourceLabel, formatWeekRange, isJokerLocked, nextOpenDeadline, shiftDay } from '../utils/coupon';
+import { JOKER_RULE, couponSourceLabel, formatWeekRange, isJokerLocked, shiftDay, splitPlayed } from '../utils/coupon';
 import { errorMessage } from '../utils/matchUi';
 import { distinctPoints } from '../utils/scoring';
 import CouponDayList from './CouponDayList';
@@ -14,6 +14,7 @@ import LeagueCouponEditor from './LeagueCouponEditor';
 import LeagueCouponProgress from './LeagueCouponProgress';
 import LeagueMatchPredictions from './LeagueMatchPredictions';
 import LeagueWeekResults from './LeagueWeekResults';
+import PlayedFold from './PlayedFold';
 import ScoringHint from './ScoringHint';
 import SkeletonRow from './SkeletonRow';
 
@@ -131,6 +132,12 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
     })
     : undefined;
 
+  // this week: live and upcoming first, played ones folded. a past week shows everything
+  const { upcoming, played } = coupon?.is_current_week
+    ? splitPlayed(matches)
+    : { upcoming: matches, played: [] };
+  const rowProps = { onSaved: handleSaved, onLocked: handleLocked, jokerOf, renderExtra: renderPredictions };
+
   return (
     <>
       {welcome && coupon?.is_current_week && matches.some((m) => m.can_predict) && (
@@ -196,7 +203,7 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
 
           {coupon?.is_current_week && matches.length > 0 && (
             <div className="mt-3">
-              <CouponProgress typed={typed} total={matches.length} nextDeadline={nextOpenDeadline(matches)} />
+              <CouponProgress matches={matches} />
             </div>
           )}
           {coupon && (
@@ -254,13 +261,16 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
                 )}
               </div>
             ) : (
-              <CouponDayList
-                matches={matches}
-                onSaved={handleSaved}
-                onLocked={handleLocked}
-                jokerOf={jokerOf}
-                renderExtra={renderPredictions}
-              />
+              <>
+                {upcoming.length > 0 ? (
+                  <CouponDayList matches={upcoming} {...rowProps} />
+                ) : (
+                  <p className="px-4 sm:px-5 py-4 text-sm text-gray-400">Wszystkie mecze kuponu już się rozegrały.</p>
+                )}
+                <PlayedFold count={played.length} inCard>
+                  <CouponDayList matches={played} {...rowProps} />
+                </PlayedFold>
+              </>
             )}
 
             {coupon.can_edit && !editing && matches.length > 0 && (

@@ -3,6 +3,7 @@ import BulletList from '../components/BulletList';
 import HitBadge from '../components/HitBadge';
 import InfoCard from '../components/InfoCard';
 import PointsTable from '../components/PointsTable';
+import DataAttribution from '../components/DataAttribution';
 
 // points per phase: [exact, diff, tendency]
 const LEAGUE_ROWS = [
@@ -140,6 +141,8 @@ export default function Rules() {
           <Link to="/bonus" className="text-brand hover:underline">Zobacz swoje bonusy z Mundialu →</Link>
         </p>
       </div>
+
+      <DataAttribution className="mt-6" />
     </div>
   );
 }

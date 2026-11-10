@@ -425,3 +425,14 @@ def test_regenerate_never_duplicates_a_kept_match():
     current = {1: check(PAST, status="live")}
     cands = [cand(1), cand(2)]
     assert regenerated_coupon(current, cands, size=5, now=NOW) == [1, 2]
+
+
+def test_locked_match_counts_as_started_even_when_rescheduled():
+    future = NOW + timedelta(days=3)
+    assert has_started("scheduled", future, NOW, locked_at=NOW - timedelta(days=1)) is True
+    assert has_started("scheduled", future, NOW) is False
+
+
+def test_regenerate_keeps_a_reopened_match_on_the_coupon():
+    reopened = MatchCheck(kickoff_at=NOW + timedelta(days=3), status="scheduled", locked_at=NOW - timedelta(days=1))
+    assert regenerated_coupon({7: reopened}, [], size=10, now=NOW) == [7]

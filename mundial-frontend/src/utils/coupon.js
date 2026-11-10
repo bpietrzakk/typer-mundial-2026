@@ -1,5 +1,5 @@
 // helpers for the weekly coupon (week = monday-sunday, polish time)
-import { formatTime, relativeDayLabel } from './matchUi';
+import { VOID_STATUSES, formatTime, relativeDayLabel } from './matchUi';
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -47,12 +47,28 @@ export function formatDeadline(iso) {
   return `w ${day} o ${formatTime(iso)}`;
 }
 
-// earliest kickoff of a match still open without my prediction
-export function nextOpenDeadline(matches) {
-  const open = matches
-    .filter((m) => m.can_predict && !m.my_prediction)
-    .map((m) => new Date(m.kickoff_at).getTime());
-  return open.length ? new Date(Math.min(...open)).toISOString() : null;
+const kickoffMs = (m) => new Date(m.kickoff_at).getTime();
+const earliestKickoff = (list) => (list.length
+  ? new Date(Math.min(...list.map(kickoffMs))).toISOString()
+  : null);
+
+// counters under the coupon bar. open = can still be typed or changed,
+// missed = kicked off without my pick (never "do wytypowania" any more,
+// cancelled / awarded don't count, postponed hasn't started)
+export function couponProgress(matches, now = Date.now()) {
+  const typed = matches.filter((m) => m.my_prediction).length;
+  const open = matches.filter((m) => m.can_predict && kickoffMs(m) > now);
+  const openUntyped = open.filter((m) => !m.my_prediction);
+  const missed = matches.filter((m) => !m.my_prediction && !VOID_STATUSES.includes(m.status) && hasStarted(m)).length;
+  return {
+    typed,
+    total: matches.length,
+    open: open.length,
+    missed,
+    // the next box that closes without my pick / the next pick I can still change
+    nextUntyped: earliestKickoff(openUntyped),
+    nextOpen: earliestKickoff(open),
+  };
 }
 
 // best players of the week: most points, then most exact hits (several on a full tie)
@@ -96,8 +112,30 @@ export function isJokerLocked(jokerMatch) {
 
 const byKickoff = (a, b) => new Date(a.kickoff_at) - new Date(b.kickoff_at);
 
+// a match lasts about 2 h, with extra time and penalties under 3 h
+const UNDERWAY_MS = 3 * 60 * 60 * 1000;
+
+// live, or kicked off while the sync has not marked it live yet
+export function isUnderway(match, now = Date.now()) {
+  if (match.status === 'live') return true;
+  if (match.status !== 'scheduled') return false;
+  const sinceKickoff = now - kickoffMs(match);
+  return sinceKickoff >= 0 && sinceKickoff < UNDERWAY_MS;
+}
+
+// coupon lists: live and upcoming on top, the ones already over folded below
+export function splitPlayed(matches, now = Date.now()) {
+  const sorted = [...matches].sort(byKickoff);
+  const isPlayed = (m) => hasStarted(m) && !isUnderway(m, now);
+  return {
+    upcoming: sorted.filter((m) => !isPlayed(m)),
+    played: sorted.filter(isPlayed),
+  };
+}
+
 // what the top block of the start screen shows:
-// open = nearest match I can still type, live = everything started and one is on,
+// open = nearest match I can still type, live = everything started and one is on
+// (also a kicked off one the sync has not marked live yet),
 // closed = every match started, empty = no coupon matches this week
 export function pickHeroMatch(matches) {
   if (!matches?.length) return { kind: 'empty', match: null };
@@ -105,5 +143,7 @@ export function pickHeroMatch(matches) {
   if (open.length) return { kind: 'open', match: open[0] };
   const live = matches.filter((m) => m.status === 'live').sort(byKickoff);
   if (live.length) return { kind: 'live', match: live[0] };
+  const underway = matches.filter((m) => isUnderway(m)).sort(byKickoff);
+  if (underway.length) return { kind: 'live', match: underway[0] };
   return { kind: 'closed', match: null };
 }

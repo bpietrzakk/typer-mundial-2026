@@ -7,9 +7,19 @@ from psycopg2.extras import RealDictCursor
 from db.connection import get_conn, release_conn
 from db.queries.competitions import _utc
 
+# writes only while the match is open (same rule as domain/prediction_lock.py),
+# checked in the same statement, so a pick can't slip in right after kickoff.
+# no row back = closed. params: user, home, away, match
 SQL_UPSERT_PREDICTION = """
     INSERT INTO predictions (user_id, match_id, pred_home, pred_away)
-    VALUES (%s, %s, %s, %s)
+    SELECT %s, m.id, %s, %s
+    FROM matches m
+    LEFT JOIN seasons s ON s.id = m.season_id
+    WHERE m.id = %s
+      AND m.status = 'scheduled'
+      AND m.kickoff_at > NOW()
+      AND m.locked_at IS NULL
+      AND (s.status IS NULL OR s.status <> 'archived')
     ON CONFLICT (user_id, match_id) DO UPDATE
         SET pred_home = EXCLUDED.pred_home,
             pred_away = EXCLUDED.pred_away
@@ -113,18 +123,20 @@ def _with_utc_kickoff(rows) -> list[dict]:
 
 def upsert_prediction(
     user_id: int, match_id: int, pred_home: int, pred_away: int
-) -> dict:
+) -> dict | None:
     # ON CONFLICT (user_id, match_id) DO UPDATE — one prediction per user per match
-    # user can change their guess until kickoff; router enforces the time check
+    # user can change their guess until kickoff. None = the match is closed
+    # (the router checks first for a nice message, the SQL is the final word)
     conn = get_conn()
     try:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
                     SQL_UPSERT_PREDICTION,
-                    (user_id, match_id, pred_home, pred_away),
+                    (user_id, pred_home, pred_away, match_id),
                 )
-                return dict(cur.fetchone())
+                row = cur.fetchone()
+                return dict(row) if row else None
     finally:
         release_conn(conn)
 

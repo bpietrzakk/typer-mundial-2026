@@ -220,6 +220,10 @@ RESCORE_RETRY_CAP = timedelta(hours=6)
 IMMINENT_BEFORE_KICKOFF = timedelta(minutes=15)
 BUSY_AFTER_KICKOFF = timedelta(hours=3)
 
+# the scheduler reads its state from the db at least this often, even when nothing is due.
+# in between it waits in memory, so Neon can suspend (it does after 5 idle minutes)
+STATE_MAX_AGE = timedelta(minutes=60)
+
 # matches that can still be played
 _PLAYABLE = ("scheduled", "live", "suspended")
 
@@ -239,6 +243,7 @@ class SchedulerState:
     busy: bool                          # live or about to start
     competitions_without_season: int    # active competitions that never got any season
     rescore_candidates: int             # matches scored in the last 24 h
+    busy_starts_at: datetime | None = None  # when the next kickoff makes us busy (None = none in sight)
 
 
 def has_live_or_imminent(rows, now: datetime) -> bool:
@@ -255,6 +260,17 @@ def has_live_or_imminent(rows, now: datetime) -> bool:
     return False
 
 
+def next_busy_start(rows, now: datetime) -> datetime | None:
+    # rows like in has_live_or_imminent; the first future moment a kickoff makes us busy
+    now = as_utc(now)
+    starts = [
+        as_utc(kickoff_at) - IMMINENT_BEFORE_KICKOFF
+        for status, kickoff_at in rows
+        if status in _PLAYABLE and kickoff_at is not None
+    ]
+    return min((t for t in starts if t > now), default=None)
+
+
 def window_dates(now: datetime, busy: bool) -> tuple[date, date]:
     # UTC days, yesterday catches matches that ended after midnight
     today = as_utc(now).astimezone(UTC).date()
@@ -268,6 +284,28 @@ def retry_delay(base: timedelta, errors: int, cap: timedelta) -> timedelta:
     return min(doubled, max(cap, base))
 
 
+def due_at(
+    last: LastRun | None,
+    now: datetime,
+    interval: timedelta,
+    retry: timedelta,
+    retry_cap: timedelta | None = None,
+) -> datetime:
+    # the moment this kind of run becomes due, now when it already is
+    now = as_utc(now)
+    if last is None:
+        return now
+    if last.status == "running":
+        # someone else is running it right now, unless that run is long dead
+        wait = timedelta(minutes=STALE_RUN_MINUTES)
+    elif last.status == "error":
+        # a failed run is retried sooner than the normal interval, then slower and slower
+        wait = retry_delay(retry, last.errors, retry_cap if retry_cap is not None else retry)
+    else:
+        wait = interval
+    return max(now, as_utc(last.started_at) + wait)
+
+
 def is_due(
     last: LastRun | None,
     now: datetime,
@@ -275,16 +313,7 @@ def is_due(
     retry: timedelta,
     retry_cap: timedelta | None = None,
 ) -> bool:
-    if last is None:
-        return True
-    elapsed = as_utc(now) - as_utc(last.started_at)
-    # someone else is running it right now, unless that run is long dead
-    if last.status == "running":
-        return elapsed >= timedelta(minutes=STALE_RUN_MINUTES)
-    # a failed run is retried sooner than the normal interval, then slower and slower
-    if last.status == "error":
-        return elapsed >= retry_delay(retry, last.errors, retry_cap if retry_cap is not None else retry)
-    return elapsed >= interval
+    return as_utc(now) >= due_at(last, now, interval, retry, retry_cap)
 
 
 def decide_next_run(state: SchedulerState) -> str | None:
@@ -308,6 +337,31 @@ def decide_next_run(state: SchedulerState) -> str | None:
         return "rescore"
 
     return None
+
+
+def next_state_check(state: SchedulerState) -> datetime:
+    # when the scheduler should read the db again: the first moment decide_next_run
+    # could start something (same rules as above), never later than STATE_MAX_AGE
+    now = as_utc(state.now)
+    times = [now + STATE_MAX_AGE]
+    times.append(due_at(state.last_season, now, SEASON_INTERVAL, SEASON_RETRY, SEASON_RETRY_CAP))
+    if state.competitions_without_season > 0:
+        times.append(due_at(state.last_season, now, SEASON_RETRY, SEASON_RETRY, SEASON_RETRY_CAP))
+
+    window_interval = WINDOW_INTERVAL_BUSY if state.busy else WINDOW_INTERVAL_IDLE
+    times.append(due_at(state.last_window, now, window_interval, window_interval, WINDOW_RETRY_CAP))
+    if not state.busy and state.busy_starts_at is not None:
+        # a kickoff is coming: look again when it switches the window run to every 5 minutes
+        times.append(max(now, as_utc(state.busy_starts_at)))
+
+    if state.rescore_candidates > 0:
+        times.append(due_at(state.last_rescore, now, RESCORE_INTERVAL, RESCORE_INTERVAL, RESCORE_RETRY_CAP))
+    return min(times)
+
+
+def is_state_check_due(next_check: datetime | None, now: datetime) -> bool:
+    # no remembered time (fresh process, after a run) means read the db now
+    return next_check is None or as_utc(now) >= as_utc(next_check)
 
 
 def is_sync_enabled(flag: str | None, api_key: str | None) -> bool:

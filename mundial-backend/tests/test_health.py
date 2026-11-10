@@ -1,4 +1,4 @@
-# /health also pings the db so keep-alive keeps Neon awake
+# /health pings the db (readiness), /health/live never does (keep-alive, lets Neon sleep)
 
 import main as main_module
 from fastapi.testclient import TestClient
@@ -47,3 +47,17 @@ def test_ping_does_not_retry_when_pool_busy(monkeypatch):
     except PoolBusy:
         pass
     assert len(calls) == 1
+
+
+def test_health_live_never_touches_the_db(monkeypatch):
+    def boom():
+        raise AssertionError("liveness must not ping the db")
+    monkeypatch.setattr(main_module, "ping_db", boom)
+    monkeypatch.setattr(health_queries, "_ping_once", boom)
+    resp = client.get("/health/live")
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}
+
+
+def test_health_live_answers_head_for_uptime_monitors():
+    assert client.head("/health/live").status_code == 200

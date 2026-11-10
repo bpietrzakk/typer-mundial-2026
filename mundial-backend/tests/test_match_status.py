@@ -54,3 +54,9 @@ def test_archived_season_is_never_open():
     assert is_open_for_predictions("scheduled", future, NOW, season_status="archived") is False
     assert is_open_for_predictions("scheduled", future, NOW, season_status="active") is True
     assert is_open_for_predictions("scheduled", future, NOW) is True
+
+
+def test_locked_match_is_never_open_again():
+    future = NOW + timedelta(days=3)
+    assert is_open_for_predictions("scheduled", future, NOW, locked_at=NOW - timedelta(days=1)) is False
+    assert is_open_for_predictions("scheduled", future, NOW, locked_at=None) is True

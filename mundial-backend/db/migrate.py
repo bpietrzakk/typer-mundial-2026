@@ -44,6 +44,10 @@ SQL_IS_APPLIED = "SELECT 1 FROM schema_migrations WHERE filename = %s"
 # behind a transaction pooler (Neon -pooler endpoint / pgbouncer)
 SQL_LOCK = "SELECT pg_advisory_xact_lock(%s)"
 
+# pooled connections cap statements at 15 s (db/connection.py), a migration or
+# waiting for another runner's lock may take longer. LOCAL = this transaction only
+SQL_NO_TIMEOUT = "SET LOCAL statement_timeout = 0"
+
 SQL_RESET_SCHEMA = "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 
 
@@ -60,6 +64,7 @@ def _prefix(path: Path) -> str:
 def applied_migrations(conn) -> set[str]:
     with conn:
         with conn.cursor() as cur:
+            cur.execute(SQL_NO_TIMEOUT)
             cur.execute(SQL_LOCK, (_ADVISORY_LOCK_KEY,))
             cur.execute(SQL_CREATE_LEDGER)
             cur.execute(SQL_LIST_APPLIED)
@@ -72,6 +77,7 @@ def apply_sql_file(conn, path: Path, record_as: str | None = None) -> bool:
     sql_text = path.read_text()
     with conn:
         with conn.cursor() as cur:
+            cur.execute(SQL_NO_TIMEOUT)
             cur.execute(SQL_LOCK, (_ADVISORY_LOCK_KEY,))
             if record_as:
                 cur.execute(SQL_IS_APPLIED, (record_as,))

@@ -74,6 +74,7 @@ export default function Navbar() {
                     <Link
                       key={to}
                       to={to}
+                      aria-current={active ? 'page' : undefined}
                       className={`relative px-3 py-2 text-sm font-medium transition-colors duration-200
                         ${active
                           ? 'text-brand after:absolute after:left-3 after:right-3 after:-bottom-[13px] after:h-0.5 after:bg-brand'
@@ -103,6 +104,7 @@ export default function Navbar() {
                   <Link
                     to="/settings"
                     aria-label="Profil i ustawienia"
+                    aria-current={location.pathname.startsWith('/settings') ? 'page' : undefined}
                     title="Profil i ustawienia"
                     className={`flex items-center gap-2 rounded-full pl-0.5 sm:pr-3 py-0.5 transition-colors hover:bg-surface-700/40
                       ${location.pathname.startsWith('/settings') ? 'bg-surface-700/60' : ''}`}
@@ -150,6 +152,7 @@ export default function Navbar() {
                 <Link
                   key={to}
                   to={to}
+                  aria-current={active ? 'page' : undefined}
                   className={`relative flex-1 flex flex-col items-center justify-center gap-1 py-2.5 transition-colors min-h-[56px]
                     ${active ? 'text-brand' : 'text-gray-500 active:text-gray-300'}`}
                 >

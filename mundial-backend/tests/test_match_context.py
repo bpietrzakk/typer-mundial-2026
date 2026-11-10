@@ -311,3 +311,30 @@ def test_averages_round_half_up():
     assert stats["goals_for_avg"] == 1.3        # 5 / 4 = 1.25
     assert team_season_stats(20, results)["goals_against_avg"] == 1.3
     assert stats["btts_pct"] == 25
+
+
+def test_every_number_counts_only_matches_before_this_kickoff():
+    # looking at round 3 later: the table must not know rounds 3 and 4 yet,
+    # same as the form and stats ("played 4" next to 3 results was the bug)
+    match = {"id": 50, "home_team_id": 10, "away_team_id": 20, "kickoff_at": BASE + timedelta(days=5)}
+    season = [
+        _r(1, 1, 10, 30, 2, 0),
+        _r(2, 3, 20, 10, 1, 1),
+        _r(50, 5, 10, 20, 3, 0),     # the match itself, already finished
+        _r(4, 7, 10, 30, 0, 1),      # played after it
+    ]
+    ctx = match_context(match, season, season)
+    assert ctx["home"]["played"] == 2
+    assert ctx["home"]["points"] == 4
+    assert ctx["home"]["form"] == ["R", "W"]
+    assert ctx["stats"]["home"]["played"] == 2
+    assert [m["match_id"] for m in ctx["head_to_head"]] == [2]
+    assert ctx["head_to_head_summary"]["played"] == 1
+
+
+def test_match_without_kickoff_only_leaves_itself_out():
+    match = {"id": 50, "home_team_id": 10, "away_team_id": 20}
+    season = [_r(1, 1, 10, 30, 2, 0), _r(50, 5, 10, 20, 3, 0), _r(4, 7, 10, 30, 0, 1)]
+    ctx = match_context(match, season, season)
+    assert ctx["home"]["form"] == ["P", "W"]
+    assert ctx["home"]["played"] == ctx["stats"]["home"]["played"] == 2

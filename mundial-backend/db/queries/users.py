@@ -18,8 +18,10 @@ SQL_GET_USER_BY_EMAIL = """
     WHERE email = %s
 """
 
+# password_changed_at is only for the auth dependency (token revocation),
+# get_current_user pops it before the dict goes anywhere else
 SQL_GET_USER_BY_ID = """
-    SELECT id, nick, email, email_verified, created_at
+    SELECT id, nick, email, email_verified, created_at, password_changed_at
     FROM users
     WHERE id = %s
 """
@@ -58,9 +60,10 @@ SQL_CONSUME_PASSWORD_RESET_TOKEN = """
     RETURNING user_id
 """
 
+# password_changed_at comes from the app clock (same clock that signs tokens)
 SQL_UPDATE_PASSWORD = """
     UPDATE users
-    SET password_hash = %s
+    SET password_hash = %s, password_changed_at = %s
     WHERE id = %s
     RETURNING id, nick, email, email_verified, created_at
 """
@@ -71,10 +74,39 @@ SQL_UPDATE_NICK = """
 """
 
 SQL_CHANGE_PASSWORD = """
-    UPDATE users SET password_hash = %s WHERE id = %s
+    UPDATE users SET password_hash = %s, password_changed_at = %s WHERE id = %s
 """
 
 # delete user and all their data in the correct FK order
+# leagues of a user who deletes the account (private_leagues.owner_user_id has no ON DELETE).
+# lock them first, so nobody joins a league that is about to be deleted
+SQL_LOCK_OWNED_LEAGUES = "SELECT id FROM private_leagues WHERE owner_user_id = %s FOR UPDATE"
+
+# the longest-standing other member takes the league over and becomes its admin
+SQL_TRANSFER_OWNED_LEAGUES = """
+    WITH heir AS (
+        SELECT DISTINCT ON (m.private_league_id) m.private_league_id, m.user_id
+        FROM private_league_members m
+        JOIN private_leagues l ON l.id = m.private_league_id
+        WHERE l.owner_user_id = %s AND m.user_id <> %s
+        ORDER BY m.private_league_id, m.joined_at, m.user_id
+    ), moved AS (
+        UPDATE private_leagues l
+        SET owner_user_id = heir.user_id
+        FROM heir
+        WHERE l.id = heir.private_league_id
+        RETURNING l.id, l.owner_user_id
+    )
+    UPDATE private_league_members m
+    SET is_admin = TRUE
+    FROM moved
+    WHERE m.private_league_id = moved.id AND m.user_id = moved.owner_user_id
+"""
+
+# what is still owned has nobody else in it: members, scope, coupons and
+# bonus questions go with it (ON DELETE CASCADE)
+SQL_DELETE_OWNED_LEAGUES = "DELETE FROM private_leagues WHERE owner_user_id = %s"
+
 SQL_DELETE_USER_PREDICTIONS = "DELETE FROM predictions WHERE user_id = %s"
 SQL_DELETE_USER_BONUS_PREDICTIONS = "DELETE FROM bonus_predictions WHERE user_id = %s"
 SQL_DELETE_USER_GROUP_ADVANCES = "DELETE FROM group_advance_predictions WHERE user_id = %s"
@@ -191,7 +223,7 @@ def reset_password_with_token(token_hash: str, new_password_hash: str, now) -> d
                 row = cur.fetchone()
                 if row is None:
                     return None
-                cur.execute(SQL_UPDATE_PASSWORD, (new_password_hash, row["user_id"]))
+                cur.execute(SQL_UPDATE_PASSWORD, (new_password_hash, now, row["user_id"]))
                 return dict(cur.fetchone())
     finally:
         release_conn(conn)
@@ -208,12 +240,13 @@ def update_nick(user_id: int, nick: str) -> dict:
         release_conn(conn)
 
 
-def change_password(user_id: int, new_hash: str) -> None:
+def change_password(user_id: int, new_hash: str, changed_at) -> None:
+    # changed_at also revokes every token signed before it
     conn = get_conn()
     try:
         with conn:
             with conn.cursor() as cur:
-                cur.execute(SQL_CHANGE_PASSWORD, (new_hash, user_id))
+                cur.execute(SQL_CHANGE_PASSWORD, (new_hash, changed_at, user_id))
     finally:
         release_conn(conn)
 
@@ -224,6 +257,9 @@ def delete_user(user_id: int) -> None:
     try:
         with conn:
             with conn.cursor() as cur:
+                cur.execute(SQL_LOCK_OWNED_LEAGUES, (user_id,))
+                cur.execute(SQL_TRANSFER_OWNED_LEAGUES, (user_id, user_id))
+                cur.execute(SQL_DELETE_OWNED_LEAGUES, (user_id,))
                 cur.execute(SQL_DELETE_USER_PREDICTIONS, (user_id,))
                 cur.execute(SQL_DELETE_USER_BONUS_PREDICTIONS, (user_id,))
                 cur.execute(SQL_DELETE_USER_GROUP_ADVANCES, (user_id,))

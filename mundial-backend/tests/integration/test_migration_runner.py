@@ -160,6 +160,14 @@ def test_rollback_restores_schema_and_data(conn, app_pool):
                 (ids["private_league"], match_id, ids["private_league"]),
             )
             assert cur.rowcount == 1
+    # 015 only added users.password_changed_at
+    assert run_rollback(conn, "015") == "015_password_changed_at.down.sql"
+    assert "015_password_changed_at.sql" not in _ledger(conn)
+
+    # 014 only added matches.locked_at
+    assert run_rollback(conn, "014") == "014_match_locked_at.down.sql"
+    assert "014_match_locked_at.sql" not in _ledger(conn)
+
     # a global weekly coupon (013) + a league coupon copied from it
     with conn:
         with conn.cursor() as cur:
@@ -213,3 +221,12 @@ def test_rollback_restores_schema_and_data(conn, app_pool):
 
     # and it can go forward again
     assert migrate_to(conn) == _after_004()
+
+
+def test_migrations_are_not_cut_by_the_pool_statement_timeout(conn, tmp_path):
+    # pooled connections run with a 15 s statement_timeout, a migration must not inherit it
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("SET statement_timeout = '50ms'")
+    (tmp_path / "001_slow.sql").write_text("SELECT pg_sleep(0.2);")
+    assert run_migrations(conn, migrations_dir=tmp_path) == ["001_slow.sql"]

@@ -17,7 +17,8 @@ export default function MatchDayList({ matches, readOnly, showCompetition, onMat
               )}
               <span className="text-gray-500">{formatDayLong(group.iso)}</span>
             </h3>
-            <div className={`grid gap-3 ${singleColumn ? '' : 'lg:grid-cols-2'}`}>
+            {/* two columns only from xl: next to the competitions list a lg card is too narrow */}
+            <div className={`grid gap-3 ${singleColumn ? '' : 'xl:grid-cols-2'}`}>
               {group.matches.map((m) => (
                 <MatchCard
                   key={m.id}

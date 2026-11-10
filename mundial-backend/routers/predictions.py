@@ -83,7 +83,7 @@ def submit_prediction(
     # finished or cancelled — not only by the clock
     reason = prediction_block_reason(
         match["status"], match["kickoff_at"], datetime.now(timezone.utc),
-        season_status=match.get("season_status"),
+        season_status=match.get("season_status"), locked_at=match.get("locked_at"),
     )
     if reason is not None:
         raise HTTPException(
@@ -91,6 +91,13 @@ def submit_prediction(
             detail=_BLOCK_MESSAGES[reason],
         )
 
-    return upsert_prediction(
+    saved = upsert_prediction(
         current_user["id"], body.match_id, body.pred_home, body.pred_away,
     )
+    if saved is None:
+        # closed between the check above and the write (kickoff, sync)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=_BLOCK_MESSAGES["started"],
+        )
+    return saved
