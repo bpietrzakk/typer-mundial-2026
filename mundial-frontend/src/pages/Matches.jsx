@@ -9,6 +9,7 @@ import MatchesTitle from '../components/MatchesTitle';
 import MatchListSkeleton from '../components/MatchListSkeleton';
 import NearestMatches from '../components/NearestMatches';
 import RoundSelector from '../components/RoundSelector';
+import ScoringHint from '../components/ScoringHint';
 import SelectField from '../components/SelectField';
 import SkeletonChips from '../components/SkeletonChips';
 import SkeletonLine from '../components/SkeletonLine';
@@ -17,6 +18,7 @@ import useLivePolling from '../hooks/useLivePolling';
 import useNearestMatches from '../hooks/useNearestMatches';
 import useSeasonSelection from '../hooks/useSeasonSelection';
 import { SEASON_STATUS_LABELS, formatDayShort, groupCompetitions, toId } from '../utils/matchUi';
+import { distinctPoints } from '../utils/scoring';
 
 export default function Matches() {
   // no params in the url = "Najbliższe" (my coupon + upcoming matches of my leagues),
@@ -133,7 +135,7 @@ export default function Matches() {
           ) : (
             <>
               {/* season + round pickers */}
-              <div className="glass-card p-4 mb-4 grid gap-3 sm:grid-cols-[minmax(0,180px)_1fr] sm:items-end">
+              <div className="glass-card p-3 sm:p-4 mb-4 grid gap-2 sm:gap-3 grid-cols-[minmax(0,6.25rem)_1fr] sm:grid-cols-[minmax(0,180px)_1fr] items-end">
                 <SelectField
                   label="Sezon"
                   value={seasonId}
@@ -169,6 +171,14 @@ export default function Matches() {
                     {round.first_kickoff && <> · {formatDayShort(round.first_kickoff)}
                       {formatDayShort(round.last_kickoff) !== formatDayShort(round.first_kickoff) && <>–{formatDayShort(round.last_kickoff)}</>}
                     </>}
+                  </span>
+                )}
+                {/* the per-row hints moved here: one line for the whole round */}
+                {matches.some((m) => m.can_predict) && !isArchive && (
+                  <span className="flex items-center gap-1.5">
+                    <ScoringHint points={distinctPoints(matches)} />
+                    <span aria-hidden="true">·</span>
+                    <span>typy zapisują się same</span>
                   </span>
                 )}
               </div>

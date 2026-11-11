@@ -129,7 +129,7 @@ export default function LeagueList() {
               {joinLoading ? '...' : 'Dołącz'}
             </button>
           </div>
-          {joinError && <p className="text-red-400 text-sm mt-2">{joinError}</p>}
+          {joinError && <p className="text-miss text-sm mt-2">{joinError}</p>}
         </form>
       )}
 

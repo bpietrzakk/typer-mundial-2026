@@ -114,7 +114,7 @@ export default function LeagueCreateForm({ onCancel }) {
         )}
       </fieldset>
 
-      {error && <p className="text-red-400 text-sm mb-3" role="alert">{error}</p>}
+      {error && <p className="text-miss text-sm mb-3" role="alert">{error}</p>}
 
       <div className="flex items-center gap-3 mt-4">
         <button type="submit" disabled={loading} className="btn-primary text-sm !py-2.5">

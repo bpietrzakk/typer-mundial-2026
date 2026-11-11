@@ -82,7 +82,7 @@ export default function LeagueCouponSettings({ league, isOwner, onChanged }) {
           </div>
           {/* without the auto copy a week without the owner's coupon gives nobody points */}
           {!auto && (
-            <p className="text-xs text-amber-300/90 mb-3">
+            <p className="text-xs text-warn/90 mb-3">
               Bez kuponu ogólnego kupon układasz sam co tydzień — tydzień bez kuponu nie daje punktów.
             </p>
           )}

@@ -25,15 +25,15 @@ export default function LeagueCountdown({ deadlineAt, onExpire }) {
   }, [expired]);
 
   if (expired) {
-    return <span className="text-amber-400 font-semibold">termin mija…</span>;
+    return <span className="text-warn font-semibold">termin mija…</span>;
   }
 
   // closer deadline = warmer colour
   const tone = left < 5 * 60 * 1000
-    ? 'text-red-400'
+    ? 'text-miss'
     : left < 60 * 60 * 1000
-      ? 'text-amber-400'
-      : 'text-emerald-400';
+      ? 'text-warn'
+      : 'text-hit-exact';
 
   return (
     <span className={`font-semibold tabular-nums ${tone}`}>

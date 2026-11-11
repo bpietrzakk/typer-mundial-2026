@@ -73,7 +73,7 @@ export default function AdminCompetitionsList({
               </button>
             </div>
 
-            {error && <p className="md:col-span-3 text-xs text-red-400" role="alert">{error}</p>}
+            {error && <p className="md:col-span-3 text-xs text-miss" role="alert">{error}</p>}
           </li>
         );
       })}

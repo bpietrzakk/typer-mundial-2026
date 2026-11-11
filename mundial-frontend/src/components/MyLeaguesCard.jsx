@@ -7,7 +7,7 @@ import { PLAYERS, countOf } from '../utils/plural';
 export default function MyLeaguesCard({ leaguesData, loading, userId, title = 'Moje ligi' }) {
   return (
     <div className="glass-card overflow-hidden">
-      <div className="px-5 py-3 border-b border-surface-500/35 flex items-center justify-between">
+      <div className="px-5 py-3 border-b border-surface-500/30 bg-surface-700/30 flex items-center justify-between">
         <h2 className="font-semibold text-gray-200">{title}</h2>
         <Link to="/leagues" className="text-xs text-brand hover:text-brand/80 transition-colors">
           Wszystkie →

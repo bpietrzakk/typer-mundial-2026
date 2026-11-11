@@ -5,21 +5,21 @@ const SIZES = {
   row: {
     gap: 'gap-0.5 sm:gap-1',
     colon: 'text-sm',
-    box: 'w-8 sm:w-9 h-9 text-base font-bold bg-surface-600/50 focus:border-brand/60 focus:ring-brand/20',
-    border: 'border-surface-500/30',
+    box: 'w-8 sm:w-9 h-9 text-base font-bold bg-surface-700/80 hover:border-brand/40 focus:border-brand/70 focus:ring-brand/25',
+    border: 'border-surface-500/50',
     hint: 'placeholder-gray-500',
   },
   card: {
     gap: 'gap-1.5',
     colon: 'text-base',
-    box: 'w-11 h-11 text-lg font-bold bg-surface-600/50 focus:border-brand/60 focus:ring-brand/20',
-    border: 'border-surface-500/40',
+    box: 'w-11 h-11 text-lg font-bold bg-surface-700/80 hover:border-brand/40 focus:border-brand/70 focus:ring-brand/25',
+    border: 'border-surface-500/50',
     hint: 'placeholder-gray-400',
   },
   hero: {
     gap: 'gap-1.5 sm:gap-2',
     colon: 'text-xl',
-    box: 'w-14 h-14 sm:w-16 sm:h-16 text-2xl sm:text-3xl font-black score-num bg-surface-700 focus:border-brand focus:ring-brand/25',
+    box: 'w-14 h-14 sm:w-16 sm:h-16 text-2xl sm:text-3xl font-black score-num bg-surface-700 hover:border-brand/50 focus:border-brand focus:ring-brand/25',
     border: 'border-surface-500/70',
     hint: 'placeholder-gray-400',
   },
@@ -31,7 +31,8 @@ export default function ScoreBoxes({ form, homeName, awayName, size = 'row' }) {
   const { home, away, state, awayRef, changeHome, changeAway, handleFocus, handleBlur, hintHome, hintAway } = form;
   const s = SIZES[size];
 
-  const boxCls = (hint) => `${s.box} text-center rounded-lg border text-white focus:outline-none focus:ring-2
+  const boxCls = (hint) => `${s.box} text-center rounded-lg border text-white score-num
+    transition-colors duration-150 focus:outline-none focus:ring-2
     ${state === 'error' ? 'border-miss/60' : s.border}
     ${hint ? s.hint : 'placeholder-gray-600'}`;
 

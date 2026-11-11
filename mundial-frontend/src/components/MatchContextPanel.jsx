@@ -35,7 +35,7 @@ export default function MatchContextPanel({ match, id, className = '' }) {
     );
   } else if (error) {
     body = (
-      <p className="text-[11px] text-red-300">
+      <p className="text-[11px] text-miss">
         Nie udało się pobrać statystyk ·{' '}
         <button type="button" onClick={reload} className="underline font-semibold">Ponów</button>
       </p>

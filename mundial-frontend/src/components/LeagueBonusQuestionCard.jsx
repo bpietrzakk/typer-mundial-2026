@@ -145,7 +145,7 @@ export default function LeagueBonusQuestionCard({
                     <span key={t.id} className="flex items-center gap-2">
                       <LeagueTeamLabel team={t} className="text-gray-100 font-medium" />
                       {resolvedTeams.length > 0 && (
-                        <span className={resolvedIds.has(t.id) ? 'text-emerald-400 text-xs font-bold' : 'text-gray-500 text-xs'}>
+                        <span className={resolvedIds.has(t.id) ? 'text-hit-exact text-xs font-bold' : 'text-gray-500 text-xs'}>
                           {resolvedIds.has(t.id) ? '✓' : '✗'}
                         </span>
                       )}
@@ -187,14 +187,14 @@ export default function LeagueBonusQuestionCard({
         <div className="mt-4 pt-4 border-t border-surface-500/35">
           {confirmingDelete ? (
             <div className="flex items-center gap-3 flex-wrap" role="alert">
-              <p className="text-sm text-red-300 flex-1 min-w-[12rem]">
+              <p className="text-sm text-miss flex-1 min-w-[12rem]">
                 Usunąć to pytanie? Odpowiedzi graczy też znikną.
               </p>
               <button
                 type="button"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="text-sm px-3 py-1.5 rounded-lg bg-red-500/20 border border-red-500/40 text-red-300 hover:bg-red-500/30 transition-colors disabled:opacity-50"
+                className="text-sm px-3 py-1.5 rounded-lg bg-miss/20 border border-miss/40 text-miss hover:bg-miss/30 transition-colors disabled:opacity-50"
               >
                 {deleting ? 'Usuwam…' : 'Tak, usuń'}
               </button>
@@ -211,7 +211,7 @@ export default function LeagueBonusQuestionCard({
             <button
               type="button"
               onClick={() => setConfirmingDelete(true)}
-              className="text-sm text-gray-400 hover:text-red-400 transition-colors"
+              className="text-sm text-gray-400 hover:text-miss transition-colors"
             >
               Usuń pytanie
             </button>

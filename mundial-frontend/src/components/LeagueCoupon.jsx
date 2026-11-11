@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import EmptyStateArt from './EmptyStateArt';
 import { clearCouponJoker, clearPickReaction, getLeagueCoupon, setCouponJoker, setPickReaction } from '../api/coupon';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
@@ -250,7 +251,7 @@ export default function LeagueCoupon({ league, scope, competitions, welcome = fa
               />
             ) : matches.length === 0 ? (
               <div className="px-5 py-10 text-center">
-                <p className="text-3xl mb-2" aria-hidden="true">☕</p>
+                <EmptyStateArt art="pitch" />
                 <p className="text-gray-200 font-semibold mb-1">
                   {coupon.is_current_week ? 'W tym tygodniu kupon jest pusty' : 'W tym tygodniu liga nie miała kuponu'}
                 </p>

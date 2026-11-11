@@ -67,7 +67,7 @@ export default function WelcomeLeagueStep() {
                 {joining ? 'Dołączam…' : 'Dołącz'}
               </button>
             </div>
-            {error && <p className="text-red-400 text-xs mt-2" role="alert">{error}</p>}
+            {error && <p className="text-miss text-xs mt-2" role="alert">{error}</p>}
           </form>
         ) : (
           <button type="button" onClick={() => setShowCode(true)} className={optionCls}>

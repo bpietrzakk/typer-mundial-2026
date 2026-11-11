@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import CouponDayList from './CouponDayList';
+import EmptyStateArt from './EmptyStateArt';
 import CouponProgress from './CouponProgress';
 import PlayedFold from './PlayedFold';
 import ScoringHint from './ScoringHint';
@@ -50,7 +51,7 @@ export default function MyCouponCard({ coupon, showLeagues, onSaved, onLocked, o
 
       {matches.length === 0 ? (
         <div className="px-5 py-10 text-center">
-          <p className="text-3xl mb-2" aria-hidden="true">☕</p>
+          <EmptyStateArt art="pitch" />
           <p className="text-gray-200 font-semibold mb-1">W tym tygodniu kupon jest pusty</p>
           <p className="text-sm text-gray-400 max-w-sm mx-auto">
             Pewnie przerwa na mecze reprezentacji. Kupon wróci, gdy znowu ruszą ligi.

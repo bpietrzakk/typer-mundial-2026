@@ -26,8 +26,8 @@ export default function AdminRunResult({ running, externalRun, lastRun, runError
     return (
       <div
         className={`rounded-xl border px-4 py-3 text-sm ${busy
-          ? 'border-amber-500/30 bg-amber-500/5 text-amber-300'
-          : 'border-red-500/30 bg-red-500/5 text-red-300'}`}
+          ? 'border-warn/30 bg-warn/5 text-warn'
+          : 'border-miss/30 bg-miss/5 text-miss'}`}
         role="alert"
       >
         <p className="font-semibold">{busy ? 'Inny przebieg już trwa' : 'Synchronizacja nie powiodła się'}</p>
@@ -41,7 +41,7 @@ export default function AdminRunResult({ running, externalRun, lastRun, runError
   const failed = lastRun.status === 'error';
   return (
     <div
-      className={`rounded-xl border px-4 py-3 ${failed ? 'border-red-500/30 bg-red-500/5' : 'border-emerald-500/25 bg-emerald-500/5'}`}
+      className={`rounded-xl border px-4 py-3 ${failed ? 'border-miss/30 bg-miss/5' : 'border-hit-exact/25 bg-hit-exact/5'}`}
       role="status"
     >
       <div className="flex items-center gap-x-4 gap-y-1 flex-wrap text-sm">
@@ -54,7 +54,7 @@ export default function AdminRunResult({ running, externalRun, lastRun, runError
         <span className="text-gray-400">rozliczonych: <b className="text-gray-200 tabular-nums">{lastRun.matches_scored}</b></span>
         <span className="text-gray-400">czas: <b className="text-gray-200 tabular-nums">{formatRunDuration(lastRun.started_at, lastRun.finished_at)}</b></span>
       </div>
-      {lastRun.error && <p className="text-sm text-red-300 mt-2 break-words">{lastRun.error}</p>}
+      {lastRun.error && <p className="text-sm text-miss mt-2 break-words">{lastRun.error}</p>}
     </div>
   );
 }

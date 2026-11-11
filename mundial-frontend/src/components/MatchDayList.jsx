@@ -1,24 +1,23 @@
 import MatchCard from './MatchCard';
 import { formatDayLong, groupMatchesByDay, relativeDayLabel } from '../utils/matchUi';
 
-// matches grouped by local day with a heading per day
-export default function MatchDayList({ matches, readOnly, showCompetition, onMatchChange, singleColumn = false }) {
+// matches grouped by local day: one card per day, matches as compact rows
+export default function MatchDayList({ matches, readOnly, showCompetition, onMatchChange }) {
   const groups = groupMatchesByDay(matches);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {groups.map((group) => {
         const relative = relativeDayLabel(group.iso);
         return (
-          <section key={group.key}>
-            <h3 className="flex items-baseline gap-2 mb-3 text-xs font-semibold uppercase tracking-widest">
+          <section key={group.key} className="glass-card overflow-hidden animate-fade-in">
+            <h3 className="flex items-baseline gap-2 px-3 sm:px-4 py-2.5 border-b border-surface-500/30 bg-surface-700/30">
               {relative && (
-                <span className="text-brand">{relative}</span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand">{relative}</span>
               )}
-              <span className="text-gray-500">{formatDayLong(group.iso)}</span>
+              <span className="kicker">{formatDayLong(group.iso)}</span>
             </h3>
-            {/* two columns only from xl: next to the competitions list a lg card is too narrow */}
-            <div className={`grid gap-3 ${singleColumn ? '' : 'xl:grid-cols-2'}`}>
+            <div className="divide-y divide-surface-500/20">
               {group.matches.map((m) => (
                 <MatchCard
                   key={m.id}

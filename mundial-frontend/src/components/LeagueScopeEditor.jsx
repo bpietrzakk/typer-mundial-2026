@@ -50,7 +50,7 @@ export default function LeagueScopeEditor({ leagueId, isOwner, scope, competitio
   if (!scope) {
     return (
       <div className="glass-card p-5 mb-6 flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-sm text-red-400">Nie udało się pobrać zakresu ligi</p>
+        <p className="text-sm text-miss">Nie udało się pobrać zakresu ligi</p>
         <button type="button" onClick={onRetry} className="btn-secondary text-sm !py-2">Spróbuj ponownie</button>
       </div>
     );
@@ -157,7 +157,7 @@ export default function LeagueScopeEditor({ leagueId, isOwner, scope, competitio
             nie liczą się do punktów.
           </p>
 
-          {error && <p className="text-red-400 text-sm mt-3" role="alert">{error}</p>}
+          {error && <p className="text-miss text-sm mt-3" role="alert">{error}</p>}
 
           <div className="flex items-center gap-3 mt-4">
             <button type="button" onClick={handleSave} disabled={saving} className="btn-primary text-sm !py-2">

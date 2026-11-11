@@ -1,4 +1,5 @@
 import { useAuth } from '../hooks/useAuth';
+import EmptyStateArt from './EmptyStateArt';
 import { formatDeadline, nextCouponKickoff } from '../utils/coupon';
 
 // when the first (next) points come, for a running week
@@ -26,7 +27,7 @@ export default function LeagueRankingEmpty({ title, coupon }) {
 
   return (
     <div className="px-5 py-8 text-center">
-      <p className="text-3xl mb-2" aria-hidden="true">🏁</p>
+      <EmptyStateArt art="podium" />
       <p className="text-gray-200 font-semibold mb-1">{title}</p>
       {when && <p className="text-sm text-gray-400 max-w-sm mx-auto">{when}</p>}
       {members.length > 0 && (
@@ -39,7 +40,7 @@ export default function LeagueRankingEmpty({ title, coupon }) {
                 {i > 0 && <span aria-hidden="true"> · </span>}
                 <span className={m.user_id === user?.id ? 'font-bold text-gray-200' : 'text-gray-300'}>{m.nick}</span>{' '}
                 {done
-                  ? <span className="text-emerald-400 font-bold" aria-label="komplet">✓</span>
+                  ? <span className="text-hit-exact font-bold" aria-label="komplet">✓</span>
                   : <span className="tabular-nums">{m.typed}/{m.total}</span>}
               </span>
             );

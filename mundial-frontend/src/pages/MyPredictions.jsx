@@ -221,7 +221,7 @@ export default function MyPredictions() {
                 </div>
               </div>
               {streak >= 2 && (
-                <span className={`text-sm font-bold ${streak >= 5 ? 'text-accent' : 'text-emerald-400'}`}>
+                <span className={`text-sm font-bold ${streak >= 5 ? 'text-accent' : 'text-hit-exact'}`}>
                   Ale masz czutkę! {streak} z rzędu!
                 </span>
               )}

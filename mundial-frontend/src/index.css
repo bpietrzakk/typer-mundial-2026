@@ -3,12 +3,12 @@
 @tailwind utilities;
 
 /* --- theme variables (rgb channels, used by tailwind.config.js) ---
-   turquoise / navy colours, small radii, sections separated by lines
-   instead of boxes (a tile shows up only on hover) */
+   deep navy surfaces with a turquoise brand. content lives on elevated
+   cards (.glass-card), floating things on .panel */
 :root {
   --c-brand: 0 180 216;
   --c-brand-light: 72 202 228;
-  --c-brand-ink: 11 14 20;
+  --c-brand-ink: 6 10 18;
   --c-accent: 212 175 55;
   --c-hit-exact: 52 211 153;
   --c-hit-diff: 111 191 151;
@@ -16,11 +16,11 @@
   --c-miss: 248 113 113;
   --c-live: 239 68 68;
   --c-warn: 251 191 36;
-  --c-surface-900: 11 14 20;
-  --c-surface-800: 17 24 39;
-  --c-surface-700: 30 37 54;
-  --c-surface-600: 42 51 71;
-  --c-surface-500: 59 71 99;
+  --c-surface-900: 7 10 18;
+  --c-surface-800: 14 19 31;
+  --c-surface-700: 23 30 46;
+  --c-surface-600: 36 45 66;
+  --c-surface-500: 56 68 95;
   /* white label behind competition logos, so dark logos stay visible */
   --c-label: 242 244 247;
   --c-label-ink: 11 14 20;
@@ -28,23 +28,23 @@
   --c-gray-100: 243 244 246;
   --c-gray-200: 229 231 235;
   --c-gray-300: 209 213 219;
-  --c-gray-400: 156 163 175;
+  --c-gray-400: 158 167 184;
   /* small helper text: lighter than tailwind's gray so it keeps 4.5:1 on the dark bg */
-  --c-gray-500: 132 140 154;
-  --c-gray-600: 124 132 146;
+  --c-gray-500: 134 143 160;
+  --c-gray-600: 122 131 148;
   --c-gray-700: 55 65 81;
   --c-gray-800: 31 41 55;
   --c-gray-900: 17 24 39;
-  --r-sm: 2px;
-  --r: 3px;
-  --r-md: 4px;
-  --r-lg: 4px;
-  --r-xl: 4px;
-  --r-2xl: 6px;
-  --r-3xl: 8px;
-  --shadow-card: 0 12px 32px rgb(0 0 0 / 0.35);
-  --shadow-card-hover: 0 16px 40px rgb(0 0 0 / 0.45);
-  --glow-strength: 0.07;
+  --r-sm: 6px;
+  --r: 8px;
+  --r-md: 10px;
+  --r-lg: 12px;
+  --r-xl: 14px;
+  --r-2xl: 18px;
+  --r-3xl: 22px;
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px rgb(0 0 0 / 0.35);
+  --shadow-card-hover: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 12px 32px rgb(0 0 0 / 0.5);
+  --glow-strength: 0.08;
 }
 
 @layer base {
@@ -68,6 +68,7 @@
     caret-color: auto;
   }
 
+  /* quiet brand glow at the top, the page fades into plain navy below */
   body::before {
     content: '';
     position: fixed;
@@ -75,8 +76,9 @@
     pointer-events: none;
     z-index: 0;
     background:
-      radial-gradient(ellipse at 5% 15%,  rgb(var(--c-brand) / var(--glow-strength)) 0%, transparent 45%),
-      radial-gradient(ellipse at 95% 85%, rgb(var(--c-brand) / 0.03) 0%, transparent 45%);
+      radial-gradient(ellipse 80% 50% at 15% -10%, rgb(var(--c-brand) / var(--glow-strength)) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 95% 0%,  rgb(99 102 241 / 0.05) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 50% at 85% 110%, rgb(var(--c-brand) / 0.04) 0%, transparent 55%);
   }
 
   #root {
@@ -94,23 +96,36 @@
 }
 
 @layer components {
-  /* content block: no filled box, just a hairline on top (rows and sections
-     separated by lines). clickable ones get a tile on hover */
+  /* content card: raised surface with a soft border. the border-* overrides
+     some callers pass (border-live/70, border-brand/40) tint the whole frame */
   .glass-card {
-    @apply bg-transparent border-0 border-t border-surface-500/50 rounded-none shadow-none
-           transition-colors duration-200;
+    @apply border border-surface-500/30 rounded-2xl shadow-card
+           transition-all duration-200;
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 0.025) 0%, rgb(255 255 255 / 0) 55%),
+      rgb(var(--c-surface-800) / 0.75);
   }
   a.glass-card, button.glass-card {
-    @apply hover:bg-surface-800/40;
+    @apply hover:border-brand/30 hover:shadow-card-hover hover:-translate-y-0.5;
   }
 
-  /* things that float or stand alone (modals, popovers, auth forms):
-     a subtle raised surface with a small radius */
+  /* the start hero: a panel with a quiet brand glow at the top */
+  .panel-hero {
+    @apply border border-brand/25 rounded-2xl shadow-card;
+    background:
+      radial-gradient(ellipse 90% 70% at 50% -20%, rgb(var(--c-brand) / 0.12) 0%, transparent 60%),
+      linear-gradient(180deg, rgb(255 255 255 / 0.03) 0%, rgb(255 255 255 / 0) 50%),
+      rgb(var(--c-surface-800));
+  }
+
+  /* things that float above the page (modals, popovers, auth forms) */
   .panel {
-    @apply bg-surface-800 border border-surface-500/40 rounded-2xl shadow-card;
+    @apply border border-surface-500/40 rounded-2xl shadow-card;
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 0.03) 0%, rgb(255 255 255 / 0) 50%),
+      rgb(var(--c-surface-800));
   }
 
-  /* section header with a hairline under it */
   /* bigger touch area (40px tall) for small chips and links, the look stays the same */
   .tap-target {
     @apply relative;
@@ -121,7 +136,12 @@
   }
 
   .section-head {
-    @apply flex items-center justify-between gap-3 pb-2 mb-3 border-b border-surface-500/50;
+    @apply flex items-center justify-between gap-3 pb-2 mb-3 border-b border-surface-500/40;
+  }
+
+  /* tiny uppercase label above titles and table sections */
+  .kicker {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500;
   }
 
   /* logo wordmark — heavy geometric lowercase, teal → red as in the logo */
@@ -140,37 +160,43 @@
     @apply inline-flex items-center justify-center rounded-full bg-label shrink-0 overflow-hidden;
   }
 
-  /* primary button */
+  /* primary button: teal gradient with a soft glow on hover */
   .btn-primary {
-    @apply relative px-6 py-3 rounded-lg font-semibold text-brand-ink
-           bg-brand hover:bg-brand-light
-           transition-colors duration-200 ease-out
+    @apply relative px-6 py-3 rounded-xl font-semibold text-brand-ink
+           transition-all duration-200 ease-out
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-900
            active:scale-[0.98] cursor-pointer
-           disabled:opacity-50 disabled:cursor-not-allowed;
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none;
+    background-image: linear-gradient(135deg, rgb(var(--c-brand)) 0%, rgb(var(--c-brand-light)) 100%);
+    box-shadow: 0 2px 12px rgb(var(--c-brand) / 0.25);
+  }
+  .btn-primary:hover:not(:disabled) {
+    box-shadow: 0 4px 20px rgb(var(--c-brand) / 0.4);
+    filter: brightness(1.06);
   }
 
   /* secondary / outline button */
   .btn-secondary {
-    @apply px-6 py-3 rounded-lg font-semibold
-           border border-surface-500/70 text-gray-200
-           hover:border-brand/60 hover:text-brand
-           bg-transparent
-           transition-colors duration-200
+    @apply px-6 py-3 rounded-xl font-semibold
+           border border-surface-500/60 text-gray-200 bg-surface-700/40
+           hover:border-brand/50 hover:text-brand hover:bg-surface-700/70
+           transition-all duration-200
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-900
            active:scale-[0.98] cursor-pointer;
   }
 
   /* form input */
   .input-field {
-    @apply w-full px-4 py-3 rounded-lg
-           bg-surface-800 border border-surface-500/60
+    @apply w-full px-4 py-3 rounded-xl
+           bg-surface-700/50 border border-surface-500/50
            text-gray-100 placeholder-gray-500
-           focus:outline-none focus:border-brand/70 focus:ring-2 focus:ring-brand/20
+           hover:border-surface-500/80
+           focus:outline-none focus:border-brand/70 focus:ring-2 focus:ring-brand/20 focus:bg-surface-700/80
            transition-colors duration-200;
   }
 
   /* small pill */
-  .badge { @apply inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold uppercase tracking-wider; }
+  .badge { @apply inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wider; }
 
   /* status dot */
   .status-dot { @apply inline-block w-2 h-2 rounded-full mr-2; }
@@ -180,13 +206,13 @@
 
   /* layout */
   .page-container {
-    @apply max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-28 md:pb-8;
+    @apply max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-28 md:pb-12;
   }
   .page-title {
-    @apply text-3xl sm:text-4xl font-bold tracking-tight text-white mb-8;
+    @apply text-2xl sm:text-3xl font-bold tracking-tight text-white mb-6;
   }
   .score-num { @apply tabular-nums tracking-tight; }
-  .skeleton  { @apply bg-surface-700 rounded animate-pulse motion-reduce:animate-none; }
+  .skeleton  { @apply bg-surface-700 rounded-lg animate-pulse motion-reduce:animate-none; }
 
   .scrollbar-hide {
     scrollbar-width: none;
@@ -207,8 +233,8 @@
   top: -50%; left: -50%;
   width: 200%; height: 200%;
   background:
-    radial-gradient(circle at 25% 50%, rgb(var(--c-brand) / 0.07) 0%, transparent 45%),
-    radial-gradient(circle at 75% 50%, rgb(var(--c-brand) / 0.03) 0%, transparent 45%);
+    radial-gradient(circle at 25% 50%, rgb(var(--c-brand) / 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 75% 50%, rgb(230 29 37 / 0.04) 0%, transparent 45%);
   animation: auth-glow 8s ease-in-out infinite alternate;
 }
 @keyframes auth-glow {

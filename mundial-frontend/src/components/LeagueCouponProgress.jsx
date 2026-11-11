@@ -47,11 +47,11 @@ export default function LeagueCouponProgress({ coupon, league, canRemind }) {
             <li
               key={m.user_id}
               className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs
-                ${done ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200' : 'border-surface-500/30 bg-surface-700/40 text-gray-300'}`}
+                ${done ? 'border-hit-exact/30 bg-hit-exact/10 text-hit-exact' : 'border-surface-500/30 bg-surface-700/40 text-gray-300'}`}
             >
               <span className={`truncate max-w-[8rem] ${isMe ? 'font-bold' : 'font-medium'}`}>{m.nick}</span>
               {done ? (
-                <span className="text-emerald-400 font-black" aria-label="komplet">✓</span>
+                <span className="text-hit-exact font-black" aria-label="komplet">✓</span>
               ) : (
                 <span className="tabular-nums text-gray-400">{m.typed}/{m.total}</span>
               )}

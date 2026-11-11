@@ -27,7 +27,7 @@ export default function AdminSyncRuns({ runs, error, refreshing, onRefresh }) {
       </div>
 
       {error && (
-        <p className="px-5 py-3 text-sm text-red-400" role="alert">{error}</p>
+        <p className="px-5 py-3 text-sm text-miss" role="alert">{error}</p>
       )}
 
       {runs === null && !error && (

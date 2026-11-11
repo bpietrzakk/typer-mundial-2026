@@ -76,7 +76,7 @@ export default function LeagueInviteCard({ league, memberCount, isOwner, onCodeR
               <button
                 type="button"
                 onClick={() => setConfirmingReset(true)}
-                className="px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-400 hover:text-red-400 text-sm transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-surface-600/30 text-gray-400 hover:text-miss text-sm transition-colors"
                 title="Wygeneruj nowy kod — stary przestanie działać"
               >
                 Resetuj
@@ -92,12 +92,12 @@ export default function LeagueInviteCard({ league, memberCount, isOwner, onCodeR
 
       {isOwner && confirmingReset && (
         <div className="mt-4 pt-4 border-t border-surface-500/35 flex items-center gap-3 flex-wrap" role="alert">
-          <p className="text-sm text-red-300 flex-1 min-w-[12rem]">Zresetować kod? Stary kod przestanie działać.</p>
+          <p className="text-sm text-miss flex-1 min-w-[12rem]">Zresetować kod? Stary kod przestanie działać.</p>
           <button
             type="button"
             onClick={handleResetCode}
             disabled={resetLoading}
-            className="text-sm px-3 py-1.5 rounded-lg bg-red-500/20 border border-red-500/40 text-red-300 hover:bg-red-500/30 transition-colors disabled:opacity-50"
+            className="text-sm px-3 py-1.5 rounded-lg bg-miss/20 border border-miss/40 text-miss hover:bg-miss/30 transition-colors disabled:opacity-50"
           >
             {resetLoading ? 'Resetuję…' : 'Tak, resetuj'}
           </button>

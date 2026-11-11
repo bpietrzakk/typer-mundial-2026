@@ -13,6 +13,10 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 3
+    # tailwind 4 needs a manual migration (css config, @tailwindcss/postcss), skip major bumps
+    ignore:
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

@@ -66,7 +66,7 @@ export default function LandingPreview() {
             >
               <span className="w-4 text-accent font-black tabular-nums">{i + 1}</span>
               <span className="flex-1 font-medium">{f.nick}</span>
-              <span className={`text-[10px] ${f.move === '▲' ? 'text-emerald-400' : 'text-red-400'}`}>{f.move}</span>
+              <span className={`text-[10px] ${f.move === '▲' ? 'text-hit-exact' : 'text-miss'}`}>{f.move}</span>
               <span className="font-bold tabular-nums">{f.pts} pkt</span>
             </li>
           ))}

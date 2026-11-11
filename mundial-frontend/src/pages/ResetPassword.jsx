@@ -47,14 +47,14 @@ export default function ResetPassword() {
 
         {!token ? (
           <div className="panel p-6 sm:p-8 text-center space-y-4">
-            <p className="text-red-400">Brak tokenu w linku — otwórz link z emaila ponownie.</p>
+            <p className="text-miss">Brak tokenu w linku — otwórz link z emaila ponownie.</p>
             <Link to="/forgot-password" className="btn-secondary inline-block text-sm">
               Poproś o nowy link
             </Link>
           </div>
         ) : done ? (
           <div className="panel p-6 sm:p-8 text-center">
-            <p className="text-emerald-400">Hasło zmienione! Przekierowuję do logowania…</p>
+            <p className="text-hit-exact">Hasło zmienione! Przekierowuję do logowania…</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="panel p-6 sm:p-8 space-y-5">
@@ -84,7 +84,7 @@ export default function ResetPassword() {
             </div>
 
             {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-sm text-red-400">
+              <div className="bg-miss/10 border border-miss/30 rounded-xl px-4 py-3 text-sm text-miss">
                 {error}
               </div>
             )}

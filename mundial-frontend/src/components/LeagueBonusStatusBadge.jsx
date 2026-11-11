@@ -4,7 +4,7 @@ export default function LeagueBonusStatusBadge({ question }) {
     return <span className="badge bg-accent/20 text-accent">Rozstrzygnięte</span>;
   }
   if (question.is_open) {
-    return <span className="badge bg-emerald-500/15 text-emerald-400">Otwarte</span>;
+    return <span className="badge bg-hit-exact/15 text-hit-exact">Otwarte</span>;
   }
   return <span className="badge bg-gray-500/20 text-gray-400">Zamknięte</span>;
 }

@@ -75,10 +75,10 @@ export default function Navbar() {
                       key={to}
                       to={to}
                       aria-current={active ? 'page' : undefined}
-                      className={`relative px-3 py-2 text-sm font-medium transition-colors duration-200
+                      className={`relative px-3.5 py-1.5 text-sm font-medium rounded-lg transition-colors duration-200
                         ${active
-                          ? 'text-brand after:absolute after:left-3 after:right-3 after:-bottom-[13px] after:h-0.5 after:bg-brand'
-                          : 'text-gray-400 hover:text-gray-100'
+                          ? 'text-brand bg-brand/10'
+                          : 'text-gray-400 hover:text-gray-100 hover:bg-surface-700/40'
                         }`}
                     >
                       {label}
@@ -115,7 +115,7 @@ export default function Navbar() {
                   {/* on phones logging out lives in the settings page */}
                   <button
                     onClick={handleLogout}
-                    className="hidden md:inline-flex text-sm text-gray-400 hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-700/30"
+                    className="hidden md:inline-flex text-sm text-gray-400 hover:text-miss transition-colors px-3 py-1.5 rounded-lg hover:bg-surface-700/30"
                   >
                     Wyloguj
                   </button>
@@ -153,14 +153,15 @@ export default function Navbar() {
                   key={to}
                   to={to}
                   aria-current={active ? 'page' : undefined}
-                  className={`relative flex-1 flex flex-col items-center justify-center gap-1 py-2.5 transition-colors min-h-[56px]
+                  className={`relative flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-colors min-h-[56px]
                     ${active ? 'text-brand' : 'text-gray-500 active:text-gray-300'}`}
                 >
-                  {active && (
-                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand" />
-                  )}
-                  <NavIcon d={d} />
-                  <span className="text-[10px] font-medium leading-none">{label}</span>
+                  <span className={`flex items-center justify-center w-12 h-7 rounded-full transition-colors
+                    ${active ? 'bg-brand/15' : ''}`}
+                  >
+                    <NavIcon d={d} />
+                  </span>
+                  <span className={`text-[10px] leading-none ${active ? 'font-semibold' : 'font-medium'}`}>{label}</span>
                 </Link>
               );
             })}

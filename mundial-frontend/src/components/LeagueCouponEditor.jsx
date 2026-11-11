@@ -92,7 +92,7 @@ export default function LeagueCouponEditor({ coupon, scope, competitions, onSave
     <div className="px-4 sm:px-5 py-4 animate-fade-in">
       <div className="flex items-baseline justify-between gap-3 mb-1">
         <h3 className="text-sm font-semibold text-gray-200">Edytuj kupon</h3>
-        <span className={`text-xs tabular-nums ${sizeOk ? 'text-gray-400' : 'text-amber-300'}`}>
+        <span className={`text-xs tabular-nums ${sizeOk ? 'text-gray-400' : 'text-warn'}`}>
           {ids.length} z {MIN_SIZE}–{MAX_SIZE} meczów
         </span>
       </div>
@@ -115,7 +115,7 @@ export default function LeagueCouponEditor({ coupon, scope, competitions, onSave
                   disabled={locked || Boolean(busy)}
                   aria-label={`Usuń ${m.home_team.name} – ${m.away_team.name}`}
                   title={locked ? 'Mecz już się zaczął' : 'Usuń z kuponu'}
-                  className="w-8 h-8 shrink-0 rounded-lg bg-surface-600/40 text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="w-8 h-8 shrink-0 rounded-lg bg-surface-600/40 text-gray-400 hover:text-miss hover:bg-miss/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   ✕
                 </button>
@@ -131,7 +131,7 @@ export default function LeagueCouponEditor({ coupon, scope, competitions, onSave
         <div className="grid gap-2 mb-4">{[...Array(3)].map((_, i) => <div key={i} className="skeleton h-10 rounded-lg" />)}</div>
       ) : (
         <>
-          {loadError && <p className="text-sm text-red-400 mb-2">{loadError}</p>}
+          {loadError && <p className="text-sm text-miss mb-2">{loadError}</p>}
           {filterOptions.length > 1 && (
             <div className="flex gap-2 overflow-x-auto pb-1 mb-1 scrollbar-hide">
               <FilterChip active={filter === null} onClick={() => setFilter(null)}>Wszystkie</FilterChip>
@@ -168,7 +168,7 @@ export default function LeagueCouponEditor({ coupon, scope, competitions, onSave
         </>
       )}
 
-      {error && <p className="text-sm text-red-400 mb-3" role="alert">{error}</p>}
+      {error && <p className="text-sm text-miss mb-3" role="alert">{error}</p>}
 
       <div className="flex items-center gap-2 flex-wrap">
         <button type="button" onClick={save} disabled={Boolean(busy)} className="btn-primary text-sm !py-2 !px-4">

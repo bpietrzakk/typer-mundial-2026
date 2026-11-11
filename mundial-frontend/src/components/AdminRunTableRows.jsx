@@ -22,8 +22,8 @@ export default function AdminRunTableRows({ run, expanded, onToggle }) {
         <td className="pl-2.5 pr-4 py-2.5"><AdminRunError error={run.error} expanded={expanded} onToggle={onToggle} /></td>
       </tr>
       {expanded && run.error && (
-        <tr className="border-b border-surface-500/25 bg-red-500/5">
-          <td colSpan={9} className="px-4 py-3 text-xs text-red-300 whitespace-pre-wrap break-words">{run.error}</td>
+        <tr className="border-b border-surface-500/25 bg-miss/5">
+          <td colSpan={9} className="px-4 py-3 text-xs text-miss whitespace-pre-wrap break-words">{run.error}</td>
         </tr>
       )}
     </>

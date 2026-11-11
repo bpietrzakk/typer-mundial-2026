@@ -68,7 +68,7 @@ export default function LeagueBonusAnswerForm({ leagueId, question, onSaved, onC
   if (loadError) {
     return (
       <div className="flex items-center gap-3 flex-wrap text-sm">
-        <span className="text-red-400">{loadError}</span>
+        <span className="text-miss">{loadError}</span>
         <button type="button" onClick={retry} className="text-brand hover:underline">Spróbuj ponownie</button>
       </div>
     );

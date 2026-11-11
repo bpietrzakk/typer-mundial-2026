@@ -23,7 +23,7 @@ export default function AdminRunCard({ run, expanded, onToggle }) {
           type="button"
           onClick={onToggle}
           aria-expanded={expanded}
-          className={`text-xs text-red-300/90 mt-1.5 block text-left w-full ${expanded ? 'break-words' : 'truncate'}`}
+          className={`text-xs text-miss/90 mt-1.5 block text-left w-full ${expanded ? 'break-words' : 'truncate'}`}
         >
           {run.error}
         </button>

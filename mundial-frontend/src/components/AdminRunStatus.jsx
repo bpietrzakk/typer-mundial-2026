@@ -1,6 +1,6 @@
 const STYLES = {
-  ok: 'bg-emerald-500/15 text-emerald-400',
-  error: 'bg-red-500/15 text-red-400',
+  ok: 'bg-hit-exact/15 text-hit-exact',
+  error: 'bg-miss/15 text-miss',
   running: 'bg-brand/15 text-brand',
 };
 

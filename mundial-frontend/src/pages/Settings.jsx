@@ -118,7 +118,7 @@ export default function Settings() {
             <button
               type="button"
               onClick={handleLogout}
-              className="shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border border-surface-500/50 text-gray-300 hover:border-red-400/50 hover:text-red-400 transition-colors"
+              className="shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border border-surface-500/50 text-gray-300 hover:border-miss/50 hover:text-miss transition-colors"
             >
               Wyloguj się
             </button>
@@ -150,7 +150,6 @@ export default function Settings() {
               {nickLoading ? 'Zapisuję…' : 'Zapisz'}
             </button>
           </form>
-          <p className="text-xs text-gray-600 mt-2">Email: {user?.email}</p>
         </Section>
 
         {/* password */}
@@ -203,9 +202,9 @@ export default function Settings() {
         </Section>
 
         {/* danger zone */}
-        <Section title="Strefa niebezpieczna" description="">
-          <div className="border border-red-500/20 rounded-xl p-5 bg-red-500/5">
-            <p className="text-sm font-semibold text-red-400 mb-1">Usuń konto</p>
+        <Section title="Strefa niebezpieczna">
+          <div className="border border-miss/20 rounded-xl p-5 bg-miss/5">
+            <p className="text-sm font-semibold text-miss mb-1">Usuń konto</p>
             <p className="text-xs text-gray-500 mb-4">
               Usunięcie jest nieodwracalne. Znikają wszystkie Twoje typy, punkty i przynależność do lig.
               Wpisz swój nick <span className="text-gray-300 font-mono">{user?.nick}</span> oraz hasło, aby potwierdzić.
@@ -229,7 +228,7 @@ export default function Settings() {
               <button
                 type="submit"
                 disabled={deleteLoading || deleteConfirmNick !== user?.nick || !deletePwd}
-                className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-red-500/15 border border-red-500/40 text-red-400 hover:bg-red-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-miss/15 border border-miss/40 text-miss hover:bg-miss/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {deleteLoading ? 'Usuwam…' : 'Usuń konto permanentnie'}
               </button>

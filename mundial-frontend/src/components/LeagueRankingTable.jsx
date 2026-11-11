@@ -16,7 +16,7 @@ function PositionChange({ entry }) {
   const n = Math.abs(change);
   return (
     <span
-      className={`ml-1 text-[10px] font-bold tabular-nums ${up ? 'text-emerald-400' : 'text-red-400'}`}
+      className={`ml-1 text-[10px] font-bold tabular-nums ${up ? 'text-hit-exact' : 'text-miss'}`}
       title={`oficjalnie ${entry.rank}. miejsce`}
     >
       <span aria-hidden="true">{up ? '▲' : '▼'}{n}</span>

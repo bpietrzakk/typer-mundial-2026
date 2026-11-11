@@ -6,8 +6,8 @@ export default function BonusPointsPill({ points }) {
   return (
     <span className={`inline-flex px-2.5 py-0.5 rounded border text-xs font-bold tabular-nums
       ${points > 0
-        ? 'bg-emerald-400/15 text-emerald-300 border-emerald-400/30'
-        : 'bg-red-400/15 text-red-300 border-red-400/30'}`}>
+        ? 'bg-hit-exact/15 text-hit-exact border-hit-exact/30'
+        : 'bg-miss/15 text-miss border-miss/30'}`}>
       {points > 0 ? `+${points} pkt` : '0 pkt'}
     </span>
   );

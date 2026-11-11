@@ -120,9 +120,10 @@ test('competition schedule saves a typed score on its own, an error can be retri
   });
   await page.goto('/matches?competition=2');
 
-  const card = page.locator('.glass-card', { hasText: 'Arsenal' });
-  await expect(card.getByText('5 · 3 · 2 pkt')).toBeVisible();
-  await expect(card.getByText('zapisuje się sam')).toBeVisible();
+  const card = page.locator('.match-row', { hasText: 'Arsenal' });
+  // the scoring and autosave hints moved out of the rows, once per round
+  await expect(page.getByText('5 · 3 · 2 pkt')).toBeVisible();
+  await expect(page.getByText('typy zapisują się same')).toBeVisible();
   // one prediction model: no save button, no steppers
   await expect(page.getByRole('button', { name: /^(Zapisz|Zmień)$/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /plus$/ })).toHaveCount(0);
@@ -134,9 +135,9 @@ test('competition schedule saves a typed score on its own, an error can be retri
   await expect(card.getByRole('alert')).toContainText('Serwer się zawiesił');
 
   const retry = page.waitForRequest(isSave);
-  await card.getByRole('button', { name: 'Ponów' }).click();
+  await card.getByRole('button', { name: 'Ponów', exact: true }).click();
   expect((await retry).postDataJSON()).toEqual({ match_id: 1201, pred_home: 2, pred_away: 1 });
-  await expect(card.getByText('✓ Typ zapisany')).toBeVisible();
+  await expect(card.getByRole('img', { name: 'Zapisano' })).toBeVisible();
   await expect(card.getByRole('alert')).toHaveCount(0);
 });
 
@@ -161,14 +162,14 @@ test('"Najbliższe": one typed side is saved with a 0 when leaving the boxes', a
 test('match card: a pick refused at kickoff turns the card read only with a message', async ({ page }) => {
   const api = await mockApi(page, { loggedIn: true, locked: true });
   await page.goto('/matches?competition=2');
-  const card = page.locator('.glass-card', { hasText: 'Arsenal' });
+  const card = page.locator('.match-row', { hasText: 'Arsenal' });
 
   await card.getByLabel('Gole: Arsenal').fill('2');
   await card.getByLabel('Gole: Chelsea').fill('1');
 
   // the backend's reason + that the typed pick is gone
   await expect(page.getByText('Mecz już się rozpoczął, nie można już typować — typ nie został zapisany')).toBeVisible();
-  await expect(card.getByText('Typowanie zamknięte')).toBeVisible();
+  await expect(card.getByText('typowanie zamknięte')).toBeVisible();
   await expect(card.getByLabel('Gole: Arsenal')).toHaveCount(0);
   await page.waitForTimeout(800);
   expect(api.requests.filter((r) => r.method === 'POST' && r.path === '/predictions')).toHaveLength(1);
@@ -219,11 +220,10 @@ test('"Statystyki" opens the match stats panel', async ({ page }) => {
   await mockApi(page, { loggedIn: true });
   await page.goto('/matches');
 
-  const toggle = page.getByRole('button', { name: 'Statystyki' }).first();
+  const toggle = page.getByRole('button', { name: /statystyki meczu/i }).first();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await expect(toggle).toHaveText('Ukryj statystyki');
 
   const panel = page.getByRole('region', { name: 'Statystyki meczu' });
   await expect(panel.getByText('Gospodarze wygrali 4 z 5 ostatnich meczów u siebie')).toBeVisible();
@@ -234,7 +234,7 @@ test('"Statystyki" opens the match stats panel', async ({ page }) => {
   await toggle.focus();
   await page.keyboard.press('Enter');
   await expect(panel).toBeHidden();
-  await expect(toggle).toHaveText('Statystyki');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('settled pick explains its points', async ({ page }) => {
@@ -402,7 +402,8 @@ test('start page without a league shows the global coupon', async ({ page }) => 
   const card = page.getByRole('region', { name: /Hity tygodnia/ });
   await expect(card.getByText('0 z 1')).toBeVisible();
   await expect(card.getByText(/^Kupon ogólny: najciekawsze mecze tygodnia/)).toBeVisible();
-  await expect(page.getByText('Załóż ligę i zaproś znajomych')).toBeVisible();
+  // no create-league banner anymore — the side column handles that on its own
+  await expect(page.getByRole('link', { name: /Biuro/ })).toBeVisible();
 });
 
 test('organizer brings the league back to the global coupon', async ({ page }) => {
@@ -459,7 +460,7 @@ test('a pick changed in a competition shows up after going back to "Najbliższe"
   // 2:1 in "Najbliższe", saved on its own
   await home.fill('2');
   await away.fill('1');
-  await expect(page.getByText('✓ Typ zapisany')).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Zapisano' }).first()).toBeVisible();
 
   // changed to 3:1 in the Premier League schedule
   await nav.getByRole('button', { name: /Premier League/ }).click();
@@ -467,12 +468,12 @@ test('a pick changed in a competition shows up after going back to "Najbliższe"
   const save = page.waitForRequest(isSave);
   await home.fill('3');
   expect((await save).postDataJSON()).toEqual({ match_id: 1201, pred_home: 3, pred_away: 1 });
-  await expect(page.getByText('✓ Typ zapisany')).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Zapisano' }).first()).toBeVisible();
 
   // back in "Najbliższe" the boxes show the newer pick, not the 2:1 from before
   await nav.getByRole('button', { name: 'Najbliższe' }).click();
   await expect(home).toHaveValue('3');
-  await expect(page.getByText('✓ Typ zapisany')).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Zapisano' }).first()).toBeVisible();
 });
 
 test('a pick typed right before leaving "Najbliższe" is still saved', async ({ page }) => {
@@ -621,7 +622,7 @@ const splitWords = (locator) => locator.evaluate((el) => {
   });
 });
 
-test('long team names: one column of cards below 1280 px, two from 1280, no word cut in half', async ({ page }) => {
+test('long team names: rows stay in one column, no word cut in half', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 900 });
   await mockApi(page, { loggedIn: true });
   const named = (id, home, away) => ({
@@ -640,23 +641,21 @@ test('long team names: one column of cards below 1280 px, two from 1280, no word
   const home = page.getByText('Borussia Mönchengladbach', { exact: true });
   const away = page.getByText('Wolverhampton Wanderers', { exact: true });
   await expect(home).toBeVisible();
-  const first = page.locator('.glass-card', { hasText: 'Mönchengladbach' });
-  const second = page.locator('.glass-card', { hasText: 'Nottingham' });
+  const first = page.locator('.match-row', { hasText: 'Mönchengladbach' });
+  const second = page.locator('.match-row', { hasText: 'Nottingham' });
 
-  // 1024: next to the competitions list one card per line, every name in one line
+  // 1024: compact rows stacked in one column, names wrap only between words
   let [a, b] = [await first.boundingBox(), await second.boundingBox()];
   expect(a.x).toBe(b.x);
   expect(b.y).toBeGreaterThan(a.y);
-  for (const name of [home, away]) {
-    const lineHeight = await name.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
-    expect((await name.boundingBox()).height).toBeLessThan(lineHeight * 1.5);
-  }
+  expect(await splitWords(home)).toEqual([]);
+  expect(await splitWords(away)).toEqual([]);
 
-  // 1280: two cards side by side, names may wrap but only between words
+  // 1280: still one column of rows, names may wrap but only between words
   await page.setViewportSize({ width: 1280, height: 900 });
   [a, b] = [await first.boundingBox(), await second.boundingBox()];
-  expect(b.x).toBeGreaterThan(a.x);
-  expect(Math.round(b.y)).toBe(Math.round(a.y));
+  expect(a.x).toBe(b.x);
+  expect(b.y).toBeGreaterThan(a.y);
   expect(await splitWords(home)).toEqual([]);
   expect(await splitWords(away)).toEqual([]);
 });
@@ -1074,14 +1073,14 @@ test('match card closes at kickoff on its own, a typed but unsaved pick says it 
   await page.clock.install();
   const api = await mockApi(page, { loggedIn: true });
   await page.goto('/matches?competition=2');
-  const card = page.locator('.glass-card', { hasText: 'Arsenal' });
+  const card = page.locator('.match-row', { hasText: 'Arsenal' });
 
   // one side typed, nothing sent yet, then the kickoff passes with the page open
   await card.getByLabel('Gole: Arsenal').fill('2');
   await page.clock.fastForward(Date.parse(KICKOFF) - Date.now() + 1000);
 
   await expect(page.getByText('Mecz już się zaczął, typ nie został zapisany')).toBeVisible();
-  await expect(card.getByText('Typowanie zamknięte')).toBeVisible();
+  await expect(card.getByText('typowanie zamknięte')).toBeVisible();
   await expect(card.getByLabel('Gole: Arsenal')).toHaveCount(0);
   expect(saves(api)).toHaveLength(0);
 });
@@ -1090,15 +1089,16 @@ test('a saved pick stays when the card closes at kickoff, without any warning', 
   await page.clock.install();
   await mockApi(page, { loggedIn: true });
   await page.goto('/matches?competition=2');
-  const card = page.locator('.glass-card', { hasText: 'Arsenal' });
+  const card = page.locator('.match-row', { hasText: 'Arsenal' });
 
   await card.getByLabel('Gole: Arsenal').fill('2');
   await card.getByLabel('Gole: Chelsea').fill('1');
-  await expect(card.getByText('✓ Typ zapisany')).toBeVisible();
+  await expect(card.getByRole('img', { name: 'Zapisano' })).toBeVisible();
   await page.clock.fastForward(Date.parse(KICKOFF) - Date.now() + 1000);
 
   await expect(card.getByLabel('Gole: Arsenal')).toHaveCount(0);
-  await expect(card.getByText('2 : 1')).toBeVisible();
+  // the saved pick moved to the row's detail line
+  await expect(card.getByText('2:1')).toBeVisible();
   await expect(page.getByText(/nie został zapisany/)).toHaveCount(0);
 });
 

@@ -42,7 +42,7 @@ export default function NextMatchPlay({ match, live = false, onSaved, onLocked, 
   }
 
   return (
-    <section className="panel p-4 sm:p-5 animate-fade-in" aria-labelledby="next-match-title">
+    <section className="panel-hero p-4 sm:p-5 animate-fade-in" aria-labelledby="next-match-title">
       {/* what this is + where the match is from */}
       <div className="flex items-center justify-between gap-3 mb-4">
         {ended ? (

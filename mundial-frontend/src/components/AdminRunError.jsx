@@ -6,7 +6,7 @@ export default function AdminRunError({ error, expanded, onToggle }) {
       type="button"
       onClick={onToggle}
       aria-expanded={expanded}
-      className="text-left text-red-300/90 hover:text-red-300 max-w-[10rem] truncate block"
+      className="text-left text-miss/90 hover:text-miss max-w-[10rem] truncate block"
       title="Kliknij, aby zobaczyć pełny komunikat"
     >
       {error}

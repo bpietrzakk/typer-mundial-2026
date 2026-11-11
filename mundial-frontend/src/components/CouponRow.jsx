@@ -7,12 +7,10 @@ import PointsExplain from './PointsExplain';
 import ProvisionalPoints from './ProvisionalPoints';
 import ScoreBoxes from './ScoreBoxes';
 import TeamCrest from './TeamCrest';
+import TeamName from './TeamName';
 import usePredictionAutosave from '../hooks/usePredictionAutosave';
-import { STATUS_META, VOID_STATUSES, competitionLabel, formatTime } from '../utils/matchUi';
+import { SHORT_STATUS, STATUS_META, VOID_STATUSES, competitionLabel, formatTime } from '../utils/matchUi';
 import { settledHit } from '../utils/scoring';
-
-// rare statuses in the narrow time column (full name in the tooltip)
-const SHORT_STATUS = { postponed: 'przeł.', suspended: 'przerw.', cancelled: 'odw.', awarded: 'wo.' };
 
 // one coupon match in one line: time, home, [h]:[a], away, save state.
 // typing and autosave live in usePredictionAutosave, the boxes and the save state
@@ -51,10 +49,15 @@ export default function CouponRow({ match, onSaved, onLocked, onEditing, leagues
   const showJoker = Boolean(joker) && (joker.active || (editable && !joker.locked));
   const jokerHere = Boolean(joker?.active);
 
+  // second line renders only when it has something to say
+  const hasNote = form.state === 'error' || Boolean(form.zeroNote);
+  const hasDetails = hasNote || !editable || showJoker || Boolean(leagues?.length)
+    || (showCompetition && match.competition);
+
   return (
     <div className={`px-3 sm:px-4 py-2.5 ${jokerHere ? 'bg-accent/10 ring-1 ring-inset ring-accent/40' : isLive ? 'bg-live/5' : ''}`}>
       <div className="max-w-2xl mx-auto">
-        <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto_minmax(0,1fr)_0.875rem] sm:grid-cols-[3rem_minmax(0,1fr)_auto_minmax(0,1fr)_1.25rem] items-center gap-1 sm:gap-3">
+        <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto_minmax(0,1fr)_auto] sm:grid-cols-[3rem_minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-1 sm:gap-3">
           {/* time / status */}
           <div className="flex flex-col items-start gap-0.5 text-[11px] leading-tight tabular-nums">
             {isLive ? (
@@ -62,7 +65,7 @@ export default function CouponRow({ match, onSaved, onLocked, onEditing, leagues
                 <span className="w-1.5 h-1.5 rounded-full bg-live animate-pulse" />live
               </span>
             ) : SHORT_STATUS[match.status] ? (
-              <span className="block truncate text-amber-300/90 font-semibold" title={statusMeta?.label}>{SHORT_STATUS[match.status]}</span>
+              <span className="block truncate text-warn/90 font-semibold" title={statusMeta?.label}>{SHORT_STATUS[match.status]}</span>
             ) : (
               <span className={`font-semibold ${match.status === 'finished' ? 'text-gray-500' : 'text-gray-300'}`}>
               {tbd ? '—' : formatTime(match.kickoff_at)}
@@ -72,7 +75,7 @@ export default function CouponRow({ match, onSaved, onLocked, onEditing, leagues
 
           {/* home */}
           <div className="flex items-center justify-end gap-1 sm:gap-1.5 min-w-0">
-            <span className="text-[13px] sm:text-sm font-medium leading-tight text-gray-100 line-clamp-2 hyphens-auto break-words text-right">{match.home_team.name}</span>
+            <TeamName team={match.home_team} className="text-[13px] sm:text-sm font-medium leading-tight text-gray-100 line-clamp-2 break-words text-right" />
             <TeamCrest team={match.home_team} size="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
 
@@ -81,16 +84,25 @@ export default function CouponRow({ match, onSaved, onLocked, onEditing, leagues
           {/* away */}
           <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
             <TeamCrest team={match.away_team} size="w-5 h-5 sm:w-6 sm:h-6" />
-            <span className="text-[13px] sm:text-sm font-medium leading-tight text-gray-100 line-clamp-2 hyphens-auto break-words">{match.away_team.name}</span>
+            <TeamName team={match.away_team} className="text-[13px] sm:text-sm font-medium leading-tight text-gray-100 line-clamp-2 break-words" />
           </div>
 
-          {/* right column: save state for open matches, nothing for closed ones */}
-          <div className="flex items-center justify-center" aria-live="polite">
-            {editable && <AutosaveStatus form={form} variant="icon" />}
+          {/* right column: save state + stats toggle */}
+          <div className="flex items-center justify-end gap-0.5 w-[3.5rem] sm:w-[4rem]">
+            <span className="inline-flex items-center justify-center w-5" aria-live="polite">
+              {editable && <AutosaveStatus form={form} variant="icon" />}
+            </span>
+            <MatchContextButton
+              variant="icon"
+              open={contextOpen}
+              onToggle={() => setContextOpen((o) => !o)}
+              controls={contextId}
+            />
           </div>
         </div>
 
-        {/* second line: what happened with the prediction + tags + stats toggle */}
+        {/* second line: what happened with the prediction + tags — only when there is any */}
+        {hasDetails && (
         <div className="mt-1 pl-[2.5rem] sm:pl-[3.75rem] flex items-center gap-x-2 gap-y-1 flex-wrap text-[11px] leading-4">
             <AutosaveStatus form={form} variant="note" />
 
@@ -127,14 +139,8 @@ export default function CouponRow({ match, onSaved, onLocked, onEditing, leagues
                 {l.name}
               </span>
             ))}
-
-            <MatchContextButton
-              open={contextOpen}
-              onToggle={() => setContextOpen((o) => !o)}
-              controls={contextId}
-              className="ml-auto"
-            />
         </div>
+        )}
 
         {contextOpen && <MatchContextPanel match={match} id={contextId} className="mt-2" />}
 

@@ -48,7 +48,7 @@ export default function Ranking() {
           type="button"
           onClick={() => setShowGlobal(true)}
           aria-expanded="false"
-          className="w-full flex items-center justify-between gap-3 px-1 py-4 border-y border-surface-500/50 text-left hover:text-brand transition-colors"
+          className="glass-card w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:border-brand/30 transition-colors"
         >
           <span>
             <span className="block text-sm font-semibold text-gray-200">Pokaż ranking wszystkich graczy</span>

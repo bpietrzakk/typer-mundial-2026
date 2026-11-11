@@ -219,7 +219,7 @@ export default function LeagueStandings({ leagueId, leagueName, scope, competiti
   } else if (result.error) {
     body = (
       <div className="p-8 text-center">
-        <p className="text-red-400 mb-3">{result.error}</p>
+        <p className="text-miss mb-3">{result.error}</p>
         <button type="button" onClick={() => setReloadKey((k) => k + 1)} className="btn-secondary text-sm !py-2">
           Spróbuj ponownie
         </button>
@@ -325,7 +325,7 @@ export default function LeagueStandings({ leagueId, leagueName, scope, competiti
             </p>
           )}
           {view === 'season' && !selected && scope && !hasActiveSeason && (
-            <p className="text-amber-400/90">
+            <p className="text-warn/90">
               W zakresie ligi nie ma teraz aktywnego sezonu, więc widok łączny pokazuje zera — wybierz sezon z listy.
             </p>
           )}

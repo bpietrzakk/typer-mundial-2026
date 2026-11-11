@@ -160,7 +160,7 @@ export default function AdminSyncPanel() {
         </div>
         {competitionsError && (
           <div className="p-6 text-center">
-            <p className="text-red-400 mb-3">{competitionsError}</p>
+            <p className="text-miss mb-3">{competitionsError}</p>
             <button type="button" onClick={fetchCompetitions} className="btn-secondary text-sm !py-2">Spróbuj ponownie</button>
           </div>
         )}

@@ -40,7 +40,7 @@ export default function VerifyEmail() {
 
         {status === 'error' && (
           <div className="panel p-8 sm:p-10 space-y-4">
-            <h1 className="text-2xl font-extrabold text-red-400">Link nieprawidłowy</h1>
+            <h1 className="text-2xl font-extrabold text-miss">Link nieprawidłowy</h1>
             <p className="text-gray-400">
               Link weryfikacyjny jest nieprawidłowy lub wygasł.
             </p>

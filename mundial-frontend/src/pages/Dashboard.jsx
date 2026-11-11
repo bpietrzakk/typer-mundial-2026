@@ -242,25 +242,13 @@ export default function Dashboard() {
             </>
           )}
 
-          {coupon?.source === 'global' && (
-            <div className="glass-card p-5 border-brand/30 flex items-center justify-between gap-4 flex-wrap">
-              <div className="min-w-0">
-                <p className="font-semibold text-gray-100">Załóż ligę i zaproś znajomych</p>
-                <p className="text-sm text-gray-400 mt-0.5">Wtedy gracie na tym samym kuponie i widzicie swoje typy.</p>
-              </div>
-              <Link to="/leagues?create=1" className="btn-primary text-sm !py-2.5 whitespace-nowrap">
-                Załóż ligę
-              </Link>
-            </div>
-          )}
-
           {live.length > 0 && (
             <section>
               <h2 className="flex items-center gap-2 mb-3 text-xs font-semibold uppercase tracking-widest text-live">
                 <span className="w-1.5 h-1.5 bg-live rounded-full animate-pulse" />
                 Na żywo
               </h2>
-              <div className="grid gap-3">
+              <div className="glass-card overflow-hidden divide-y divide-surface-500/20">
                 {live.map((m) => (
                   <MatchCard key={m.id} match={m} showCompetition onMatchChange={handleFeedChange} />
                 ))}

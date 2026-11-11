@@ -155,7 +155,7 @@ export default function UserPredictionsModal({ userId, nick, onClose, seasonId, 
         )}
 
         {!loading && error && (
-          <p className="text-red-400 text-center py-6">{error}</p>
+          <p className="text-miss text-center py-6">{error}</p>
         )}
 
         {!loading && !error && predictions.length === 0 && (

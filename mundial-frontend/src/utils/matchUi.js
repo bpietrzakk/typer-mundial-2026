@@ -23,6 +23,9 @@ export const STATUS_META = {
   awarded:   { label: 'Walkower',  cls: 'bg-surface-600/40 text-gray-300 border-surface-500/30' },
 };
 
+// rare statuses shown short in narrow time columns (full name in the tooltip)
+export const SHORT_STATUS = { postponed: 'przeł.', suspended: 'przerw.', cancelled: 'odw.', awarded: 'wo.' };
+
 // predictions on these matches never count
 export const VOID_STATUSES = ['cancelled', 'awarded'];
 

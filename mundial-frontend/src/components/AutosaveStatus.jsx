@@ -17,7 +17,7 @@ export default function AutosaveStatus({ form, variant = 'text', className = '' 
     }
     if (saved && !isDirty) {
       return (
-        <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3} role="img" aria-label="Zapisano">
+        <svg className="w-4 h-4 text-hit-exact" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3} role="img" aria-label="Zapisano">
           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
         </svg>
       );
@@ -39,7 +39,7 @@ export default function AutosaveStatus({ form, variant = 'text', className = '' 
       </span>
     );
   }
-  if (zeroNote) return <span className={`text-emerald-400 font-semibold ${className}`}>✓ {zeroNote}</span>;
+  if (zeroNote) return <span className={`text-hit-exact font-semibold ${className}`}>✓ {zeroNote}</span>;
   if (variant === 'note') return null;
 
   if (state === 'saving') {
@@ -50,6 +50,6 @@ export default function AutosaveStatus({ form, variant = 'text', className = '' 
       </span>
     );
   }
-  if (saved && !isDirty) return <span className={`text-emerald-400 font-semibold ${className}`}>✓ Typ zapisany</span>;
+  if (saved && !isDirty) return <span className={`text-hit-exact font-semibold ${className}`}>✓ Typ zapisany</span>;
   return <span className={`text-gray-500 ${className}`}>zapisuje się sam</span>;
 }

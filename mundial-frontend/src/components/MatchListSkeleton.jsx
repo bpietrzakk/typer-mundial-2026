@@ -1,31 +1,34 @@
 import SkeletonLine from './SkeletonLine';
 
-// placeholder match cards while matches load: round + status, crests, score
+// placeholder day card with match rows while matches load
 export default function MatchListSkeleton({ count = 6 }) {
   return (
-    <div className="grid gap-3 lg:grid-cols-2" role="status" aria-busy="true" aria-label="Ładuję mecze">
-      {[...Array(count)].map((_, i) => (
-        <div key={i} className="glass-card p-4 sm:p-5" aria-hidden="true">
-          <div className="flex items-center justify-between gap-2 mb-3 min-h-[22px]">
-            <SkeletonLine width="w-24" height="h-2.5" />
-            <SkeletonLine width="w-16" height="h-4" className="!rounded-full" />
+    <div className="glass-card overflow-hidden" role="status" aria-busy="true" aria-label="Ładuję mecze">
+      <div className="px-3 sm:px-4 py-3 border-b border-surface-500/30 bg-surface-700/30" aria-hidden="true">
+        <SkeletonLine width="w-40" height="h-3" />
+      </div>
+      <div className="divide-y divide-surface-500/20" aria-hidden="true">
+        {[...Array(count)].map((_, i) => (
+          <div key={i} className="px-3 sm:px-4 py-3">
+            <div className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto_minmax(0,1fr)_auto] sm:grid-cols-[3.25rem_minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-1.5 sm:gap-3">
+              <SkeletonLine width="w-8" height="h-3" />
+              <div className="flex items-center justify-end gap-2">
+                <SkeletonLine width="w-24" height="h-3.5" />
+                <SkeletonLine width="w-6" height="h-6" className="!rounded-full shrink-0" />
+              </div>
+              <div className="flex items-center gap-1">
+                <SkeletonLine width="w-9" height="h-9" className="!rounded-lg" />
+                <SkeletonLine width="w-9" height="h-9" className="!rounded-lg" />
+              </div>
+              <div className="flex items-center gap-2">
+                <SkeletonLine width="w-6" height="h-6" className="!rounded-full shrink-0" />
+                <SkeletonLine width="w-24" height="h-3.5" />
+              </div>
+              <span className="w-[3.75rem] sm:w-[4.25rem]" />
+            </div>
           </div>
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
-            <div className="flex flex-col items-center gap-1.5">
-              <SkeletonLine width="w-10 sm:w-12" height="h-10 sm:h-12" className="!rounded-full" />
-              <SkeletonLine width="w-20" height="h-3.5" />
-            </div>
-            <div className="flex items-center gap-1.5 min-w-[84px] justify-center">
-              <SkeletonLine width="w-10" height="h-10" className="!rounded-lg" />
-              <SkeletonLine width="w-10" height="h-10" className="!rounded-lg" />
-            </div>
-            <div className="flex flex-col items-center gap-1.5">
-              <SkeletonLine width="w-10 sm:w-12" height="h-10 sm:h-12" className="!rounded-full" />
-              <SkeletonLine width="w-20" height="h-3.5" />
-            </div>
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

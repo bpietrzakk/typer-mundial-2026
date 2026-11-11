@@ -42,7 +42,7 @@ export default function LeagueDangerZone({ league, isOwner, embedded = false }) 
     <div className={embedded ? 'pt-3' : 'mt-8 pt-6 border-t border-surface-500/35'}>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <p className={`text-sm font-semibold ${isOwner ? 'text-red-400' : 'text-gray-400'}`}>{title}</p>
+          <p className={`text-sm font-semibold ${isOwner ? 'text-miss' : 'text-gray-400'}`}>{title}</p>
           <p className="text-xs text-gray-400 mt-0.5">{description}</p>
         </div>
         {!confirming && (
@@ -51,8 +51,8 @@ export default function LeagueDangerZone({ league, isOwner, embedded = false }) 
             onClick={() => setConfirming(true)}
             className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors
               ${isOwner
-                ? 'bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20'
-                : 'bg-surface-700/50 border border-surface-500/30 text-gray-400 hover:text-red-400 hover:border-red-500/30'}`}
+                ? 'bg-miss/10 border border-miss/30 text-miss hover:bg-miss/20'
+                : 'bg-surface-700/50 border border-surface-500/30 text-gray-400 hover:text-miss hover:border-miss/30'}`}
           >
             {title}
           </button>
@@ -61,12 +61,12 @@ export default function LeagueDangerZone({ league, isOwner, embedded = false }) 
 
       {confirming && (
         <div className="mt-4 flex items-center gap-3 flex-wrap" role="alert">
-          <p className="text-sm text-red-300 flex-1 min-w-[12rem]">{confirmText}</p>
+          <p className="text-sm text-miss flex-1 min-w-[12rem]">{confirmText}</p>
           <button
             type="button"
             onClick={handleConfirm}
             disabled={loading}
-            className="text-sm px-4 py-2 rounded-xl bg-red-500/20 border border-red-500/40 text-red-300 hover:bg-red-500/30 transition-colors disabled:opacity-50"
+            className="text-sm px-4 py-2 rounded-xl bg-miss/20 border border-miss/40 text-miss hover:bg-miss/30 transition-colors disabled:opacity-50"
           >
             {loading ? 'Chwileczkę…' : isOwner ? 'Tak, usuń ligę' : 'Tak, opuść'}
           </button>

@@ -128,7 +128,7 @@ export default function LeagueBonusQuestionForm({
   if (loadError) {
     seasonField = (
       <div className="flex items-center gap-3 flex-wrap text-sm">
-        <span className="text-red-400">{loadError}</span>
+        <span className="text-miss">{loadError}</span>
         <button type="button" onClick={retry} className="text-brand hover:underline">Spróbuj ponownie</button>
       </div>
     );
@@ -258,7 +258,7 @@ export default function LeagueBonusQuestionForm({
         </div>
       </div>
 
-      {error && <p className="text-red-400 text-sm mt-3" role="alert">{error}</p>}
+      {error && <p className="text-miss text-sm mt-3" role="alert">{error}</p>}
 
       <div className="flex items-center gap-3 mt-5">
         <button

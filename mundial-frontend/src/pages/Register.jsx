@@ -143,7 +143,7 @@ export default function Register() {
           </div>
 
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-sm text-red-400" role="alert">
+            <div className="bg-miss/10 border border-miss/30 rounded-xl px-4 py-3 text-sm text-miss" role="alert">
               {error}
             </div>
           )}

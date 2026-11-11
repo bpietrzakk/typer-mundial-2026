@@ -42,7 +42,7 @@ export default function LeagueBonusResolveForm({ leagueId, question, onResolved,
     }
   };
 
-  if (loadError) return <p className="text-sm text-red-400">{loadError}</p>;
+  if (loadError) return <p className="text-sm text-miss">{loadError}</p>;
   if (teams === null) return <div className="skeleton h-12 rounded-xl" aria-label="Ładuję drużyny" />;
 
   return (

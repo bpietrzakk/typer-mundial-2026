@@ -157,7 +157,7 @@ export default function AdminChampionTool({ competitions }) {
         </div>
       </div>
 
-      {loadError && <p className="text-red-400 text-sm mt-3" role="alert">{loadError}</p>}
+      {loadError && <p className="text-miss text-sm mt-3" role="alert">{loadError}</p>}
 
       {!confirming ? (
         <button
@@ -170,7 +170,7 @@ export default function AdminChampionTool({ competitions }) {
         </button>
       ) : (
         <div className="mt-5 flex items-center gap-3 flex-wrap" role="alert">
-          <p className="text-sm text-amber-300 flex-1 min-w-[14rem]">
+          <p className="text-sm text-warn flex-1 min-w-[14rem]">
             Ustawić <b>{team?.name}</b> jako mistrza {competition?.name} {season?.label}? Pytania bonusowe
             we wszystkich ligach zostaną rozliczone.
           </p>
@@ -178,7 +178,7 @@ export default function AdminChampionTool({ competitions }) {
             type="button"
             onClick={handleResolve}
             disabled={saving}
-            className="text-sm px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-200 hover:bg-amber-500/30 transition-colors disabled:opacity-50"
+            className="text-sm px-4 py-2 rounded-xl bg-warn/20 border border-warn/40 text-warn hover:bg-warn/30 transition-colors disabled:opacity-50"
           >
             {saving ? 'Zapisuję…' : 'Tak, rozstrzygnij'}
           </button>
@@ -194,11 +194,11 @@ export default function AdminChampionTool({ competitions }) {
       )}
 
       {result && (
-        <div className="mt-4 rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-4 py-3 text-sm" role="status">
+        <div className="mt-4 rounded-xl border border-hit-exact/25 bg-hit-exact/5 px-4 py-3 text-sm" role="status">
           <span className="text-gray-400">Rozstrzygnięte pytania: </span>
-          <b className="text-emerald-400 tabular-nums">{result.questions_resolved}</b>
+          <b className="text-hit-exact tabular-nums">{result.questions_resolved}</b>
           <span className="text-gray-400"> · rozliczone odpowiedzi: </span>
-          <b className="text-emerald-400 tabular-nums">{result.answers_scored}</b>
+          <b className="text-hit-exact tabular-nums">{result.answers_scored}</b>
         </div>
       )}
     </div>

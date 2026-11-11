@@ -103,7 +103,7 @@ export default function LeagueBonusQuestions({ leagueId, isOwner, scope, competi
 
       {error && (
         <div className="glass-card p-6 text-center">
-          <p className="text-red-400 mb-3">{error}</p>
+          <p className="text-miss mb-3">{error}</p>
           <button type="button" onClick={retry} className="btn-secondary text-sm !py-2">Spróbuj ponownie</button>
         </div>
       )}
